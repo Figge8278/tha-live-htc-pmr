@@ -23,11 +23,24 @@ function THALogo({variant='full', className=''}) {
   return <img className={`thaLogo ${variant} ${className}`} src={src} alt="The Homeowner Advocate" />;
 }
 
+function displayTradeLabel(trade) {
+  return trade === 'Handyman' ? 'Handy Services' : trade;
+}
+
 const STATUS = ['Good','Monitor','Needs Attention','Immediate Concern','Unknown'];
 const EFFORT = ['Unknown','15 min','30 min','45–60 min','1–2 hrs','Half day','Full day','Multi-day / trade scope'];
 const ACTION_CERTAINTY = ['Clear Path','Likely Path','Needs Discovery'];
 const PREFS = ['Do now','Plan soon','Budget for later','Watchlist only'];
 const PHOTO_LABELS = ['Context','Close-up','Detail'];
+const ROOM_STATUS_OPTIONS = ['Looking Good','Watch Item / Worth Watching','Handy Services','Trade Attention','Routine Care / PASS','Homeowner Goal'];
+const SMART_ROOM_PROMPTS = [
+  { group: 'Handy / Carpentry', prompt: 'Scan doors, trim, hinges, latches, and small hardware for adjustments or minor repair needs.' },
+  { group: 'Plumbing', prompt: 'Check fixtures, shutoffs, drains, and under-sink areas for leaks, slow flow, moisture, or corrosion.' },
+  { group: 'Electrical', prompt: 'Test key switches/outlets and note loose devices, flicker, missing covers, or safety concerns.' },
+  { group: 'Appliances', prompt: 'Operate accessible appliances and fans; note unusual noise, poor performance, or overdue maintenance signs.' },
+  { group: 'Surfaces', prompt: 'Look at walls, ceilings, floors, and caulk lines for stains, cracking, wear, or movement.' },
+  { group: 'General / Safety', prompt: 'Capture life-safety, access, and unusual conditions that need homeowner awareness or follow-up.' }
+];
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const DRIVE_QUEUE_KEY = 'tha-drive-pending-queue';
 const DRIVE_META_KEY = 'tha-drive-meta';
@@ -35,6 +48,7 @@ const GOOGLE_CLIENT_ID_KEY = 'tha-google-client-id';
 const SECTION_ORDER_KEY = 'tha-section-order';
 const ITEM_ORDER_KEY = 'tha-item-order';
 const PINNED_ITEMS_KEY = 'tha-pinned-items';
+const ROOM_CAPTURE_KEY = 'tha-room-capture';
 const TRADE_OPTIONS = [...Object.keys(ICONS), 'Carpentry', 'General Contractor', 'Design', 'Flooring', 'Landscape', 'Review / Assign Later'];
 
 const INTAKE_DEFAULTS = {
@@ -281,7 +295,8 @@ function normalizeAnswer(answer, item) {
     notes: answer?.notes || '',
     photos: photoList(answer),
     photoRef: answer?.photoRef || '',
-    reassignTo: answer?.reassignTo || ''
+    reassignTo: answer?.reassignTo || '',
+    isDiscovery: typeof answer?.isDiscovery === 'boolean' ? answer.isDiscovery : false
   };
 }
 function photoSummary(photos) {
@@ -432,6 +447,7 @@ function App() {
   const [sectionOrderState, setSectionOrderState] = useState(() => JSON.parse(localStorage.getItem(SECTION_ORDER_KEY) || '[]'));
   const [itemOrderState, setItemOrderState] = useState(() => JSON.parse(localStorage.getItem(ITEM_ORDER_KEY) || '{}'));
   const [pinnedItems, setPinnedItems] = useState(() => JSON.parse(localStorage.getItem(PINNED_ITEMS_KEY) || '{}'));
+  const [roomCapture, setRoomCapture] = useState(() => JSON.parse(localStorage.getItem(ROOM_CAPTURE_KEY) || '{}'));
   const [dragSectionKey, setDragSectionKey] = useState('');
   useEffect(()=>localStorage.setItem('tha-client', JSON.stringify(client)), [client]);
   useEffect(()=>localStorage.setItem('tha-answers', JSON.stringify(answers)), [answers]);
@@ -442,6 +458,7 @@ function App() {
   useEffect(()=>localStorage.setItem(SECTION_ORDER_KEY, JSON.stringify(sectionOrderState)), [sectionOrderState]);
   useEffect(()=>localStorage.setItem(ITEM_ORDER_KEY, JSON.stringify(itemOrderState)), [itemOrderState]);
   useEffect(()=>localStorage.setItem(PINNED_ITEMS_KEY, JSON.stringify(pinnedItems)), [pinnedItems]);
+  useEffect(()=>localStorage.setItem(ROOM_CAPTURE_KEY, JSON.stringify(roomCapture)), [roomCapture]);
   const baseSections = useMemo(() => {
     const list = [];
     sectionOrder.forEach(room => {
@@ -477,6 +494,11 @@ function App() {
   const counts = { high: pmr.filter(r=>priority(r.answer.status)==='High').length, med: pmr.filter(r=>priority(r.answer.status)==='Medium').length, low: pmr.filter(r=>priority(r.answer.status)==='Low').length };
   const quickHits = pmr.filter(r => ['Handyman','Safety'].includes(r.answer.trade) && ['15 min','30 min','45–60 min','1–2 hrs'].includes(r.answer.effort));
   const pass = pmr.filter(r => r.pass);
+  const roomCaptureFor = (sectionKey) => ({
+    status: roomCapture?.[sectionKey]?.status || ROOM_STATUS_OPTIONS[0],
+    note: roomCapture?.[sectionKey]?.note || ''
+  });
+  const updateRoomCapture = (sectionKey, patch) => setRoomCapture(prev => ({ ...prev, [sectionKey]: { ...roomCaptureFor(sectionKey), ...patch } }));
   const update = (id, patch) => setAnswers(prev => ({...prev, [id]: {...normalizeAnswer(prev[id], itemById[id]), ...patch}}));
   const updateIntake = (patch) => setIntake(prev => ({...prev, ...patch}));
   const addPhotos = (id, files) => Array.from(files || []).forEach(file => {
@@ -613,14 +635,14 @@ function App() {
     {view === 'form' && <main className="grid">
       <aside className="roomNav noPrint"><h3>Walkthrough Sections</h3><div className="addRoomTools">{Object.values(DYNAMIC_ROOM_TYPES).map(type => <button key={type.roomType} onClick={()=>addDynamicRoom(type.roomType)}>{type.addLabel} {type.roomType}</button>)}</div>{rooms.map(r => <div key={r.key} className="sectionNavRow" draggable onDragStart={()=>setDragSectionKey(r.key)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); moveSection(dragSectionKey, r.key); setDragSectionKey('');}} onDragEnd={()=>setDragSectionKey('')}><span className="sectionDragHandle" title="Drag to reorder walkthrough flow">⋮⋮</span><button className={`sectionSelect ${activeRoom===r.key?'active':''}`} onClick={()=>setActiveRoom(r.key)}>{r.label}</button></div>)}<div className="hint"><Camera size={18}/> Prompt: Capture context, close-up, and detail photos. Store by room/item folder path.</div></aside>
       <section className="formPanel">
-        <h1>{rooms.find(r=>r.key===activeRoom)?.label || activeRoom} HTC</h1><p className="lede">Fuller data capture: status, action certainty, suggested trade, time, notes, and photo references.</p>
+        <h1>{rooms.find(r=>r.key===activeRoom)?.label || activeRoom} HTC</h1><div className="roomCaptureShell"><div className="roomCaptureTop"><label>Overall Room Status<select value={roomCaptureFor(activeRoom).status} onChange={e=>updateRoomCapture(activeRoom,{status:e.target.value})}>{ROOM_STATUS_OPTIONS.map(x=><option key={x}>{x}</option>)}</select></label><button type="button" onClick={()=>setActiveRoom(activeRoom)}>Add Item</button></div><span className="roomCaptureHelp">Add anything that needs tracking beyond ‘looks good.’</span><label className="notes">Room Note / Voice Transcript<textarea value={roomCaptureFor(activeRoom).note} onChange={e=>updateRoomCapture(activeRoom,{note:e.target.value})} placeholder="Capture room-level context, voice transcript, or summary notes for this space."/></label><div className="smartRoomPrompt"><h3>Smart Room Prompt</h3><div className="smartRoomGrid">{SMART_ROOM_PROMPTS.map(group => <p key={group.group}><strong>{group.group}:</strong> {group.prompt}</p>)}</div></div><div className="roomItemsPlaceholder"><h3>Items list for this room</h3><ul>{rows.filter(r=>r.sectionKey===activeRoom && includePMR(r.answer)).slice(0,5).map(r=><li key={`placeholder-${r.id}`}>{r.item} · {r.answer.status}</li>)}</ul>{rows.filter(r=>r.sectionKey===activeRoom && includePMR(r.answer)).length===0 && <p>No tracked items yet for this room.</p>}</div></div><p className="lede">Fuller data capture: status, action certainty, suggested trade, time, notes, and photo references.</p>
         {rows.filter(r=>r.sectionKey===activeRoom).map(r => <div className="itemCard" key={r.id}>
-          <div className="itemHead"><span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span><div><h2>{r.item}</h2><p>{r.zone} · Suggested: {r.trade}</p></div>{!r.catchAll && <div className="itemOrderTools"><button onClick={()=>moveItem(r.sectionKey, r.id, -1)} title="Move item up">↑</button><button onClick={()=>moveItem(r.sectionKey, r.id, 1)} title="Move item down">↓</button><button onClick={()=>togglePinItem(r.sectionKey, r.id)} title="Pin to top">{(pinnedItems[r.sectionKey] || []).includes(r.id) ? 'Pinned' : 'Pin'}</button></div>}<span className={`pill ${priority(r.answer.status).toLowerCase()}`}>{priority(r.answer.status) || 'No PMR'}</span></div>
+          <div className="itemHead"><span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span><div><h2>{r.item}</h2><p>{r.zone} · Suggested: {displayTradeLabel(r.trade)}</p></div>{!r.catchAll && <div className="itemOrderTools"><button onClick={()=>moveItem(r.sectionKey, r.id, -1)} title="Move item up">↑</button><button onClick={()=>moveItem(r.sectionKey, r.id, 1)} title="Move item down">↓</button><button onClick={()=>togglePinItem(r.sectionKey, r.id)} title="Pin to top">{(pinnedItems[r.sectionKey] || []).includes(r.id) ? 'Pinned' : 'Pin'}</button></div>}<span className={`pill ${priority(r.answer.status).toLowerCase()}`}>{priority(r.answer.status) || 'No PMR'}</span></div>
           <div className="prompt"><Search size={16}/><strong>Prompt:</strong> {r.prompt}</div>
           <div className="inputs">
             <label>Status<select value={r.answer.status} onChange={e=>update(r.id,{status:e.target.value})}>{STATUS.map(x=><option key={x}>{x}</option>)}</select></label>
             <label>Action Certainty<select value={actionCertaintyFor(r.answer)} onChange={e=>update(r.id,{actionCertainty:e.target.value})}>{ACTION_CERTAINTY.map(x=><option key={x}>{x}</option>)}</select></label>
-            <label>Suggested Trade / Resource<select value={r.answer.trade} onChange={e=>update(r.id,{trade:e.target.value})}>{TRADE_OPTIONS.map(x=><option key={x}>{x}</option>)}</select></label>
+            <label>Suggested Trade / Resource<select value={r.answer.trade} onChange={e=>update(r.id,{trade:e.target.value})}>{TRADE_OPTIONS.map(x=><option key={x} value={x}>{displayTradeLabel(x)}</option>)}</select></label>
             <label>Approx. Time<select value={r.answer.effort} onChange={e=>update(r.id,{effort:e.target.value})}>{EFFORT.map(x=><option key={x}>{x}</option>)}</select></label>
             <label>Homeowner Pace<select value={r.answer.pref} onChange={e=>update(r.id,{pref:e.target.value})}>{PREFS.map(x=><option key={x}>{x}</option>)}</select></label>
             <label>Photo Ref<input value={r.answer.photoRef} onChange={e=>update(r.id,{photoRef:e.target.value})} placeholder="Photo 01 / filename"/></label>
@@ -693,14 +715,14 @@ function PMR({client, intake, pmr, counts, quickHits, pass}) {
     <div className="pmrHeader"><div><THALogo variant="full"/><p className="eyebrow">Preventive Maintenance Report</p><h1>{client.address}</h1><p>{client.name} · {client.date}</p></div><div className="compassCard"><Mountain size={48}/><span>You Navigate, We Drive</span></div></div>
     <section className="pmrBlock intakeSummary"><h2><Home size={20}/> Homeowner Goals & Preferences</h2><div className="findGrid"><p><strong>Primary priorities:</strong><br/>{summary.priorities}</p><p><strong>Preferred pace:</strong><br/>{summary.pace}</p><p><strong>Budget mindset:</strong><br/>{summary.budget}</p><p><strong>Decision style:</strong><br/>{summary.decision}</p><p><strong>Homeowner notes:</strong><br/>{summary.notes}</p><p><strong>PMR interpretation:</strong><br/>Recommendations below are staged to match the homeowner’s goals, urgency, and preferred pace.</p></div></section>
     <section className="pmrBlock intakeSummary"><h2>Context From Intake</h2><div className="findGrid"><p><strong>Systems history:</strong><br/>Panel: {intake.electricalPanel || 'Unknown'}<br/>Water shut-off: {intake.waterShutoff || 'Unknown'}<br/>HVAC: {intake.hvacService || 'Unknown'}</p><p><strong>Known issues:</strong><br/>{intake.plumbingHistory || 'No plumbing history recorded.'}<br/>{intake.comfort || ''}</p><p><strong>Exterior history:</strong><br/>Roof: {intake.roofAge || 'Unknown'}<br/>Drainage: {intake.drainagePooling || 'Unknown'}<br/>Paint/Stain: {intake.paintStain || 'Unknown'}</p><p><strong>Safety history:</strong><br/>Smoke/CO: {intake.smokeCO || 'Unknown'}<br/>Fire extinguishers: {intake.fireExtinguishers || 'Unknown'}</p><p><strong>Misc. history:</strong><br/>Pest: {intake.pests || 'Unknown'}<br/>Chimney: {intake.chimney || 'Unknown'}</p><p><strong>Additional concerns:</strong><br/>{intake.additionalConcerns || 'No additional concerns recorded.'}</p></div></section>
-    <section className="snapshot"><h2><Home size={20}/> Home Health Snapshot</h2><div className="stat high"><strong>{counts.high}</strong><span><CertaintyDot label="Needs Discovery"/> Immediate</span></div><div className="stat med"><strong>{counts.med}</strong><span><CertaintyDot label="Likely Path"/> Near‑Term</span></div><div className="stat low"><strong>{counts.low}</strong><span><CertaintyDot label="Clear Path"/> Monitor</span></div></section><section className="guideGrid"><div className="guideCard"><h2><ClipboardList size={20}/> Action Certainty Guide</h2><p><CertaintyDot label="Needs Discovery"/> <strong>Needs Discovery</strong><br/><span>Gather more information before committing.</span></p><p><CertaintyDot label="Likely Path"/> <strong>Likely Path</strong><br/><span>Probable solution; start here and verify.</span></p><p><CertaintyDot label="Clear Path"/> <strong>Clear Path</strong><br/><span>Straightforward solution.</span></p></div><div className="guideCard"><h2><Clock3 size={20}/> Investment Guide (Time)</h2><p><CertaintyDot label="Clear Path"/> <strong>Quick</strong> — 0–2 hrs</p><p><CertaintyDot label="Likely Path"/> <strong>Short</strong> — 2–6 hrs</p><p><CertaintyDot label="Needs Discovery"/> <strong>Long / Trade Scope</strong> — verify first</p></div></section><section className="pmrBlock"><h2><Wrench/> Handy‑Next‑Steps</h2><p className="lede">Quick, practical items that may fit a grouped handyman visit, subject to confirmation.</p><ul className="checkList">{quickHits.map(r=><li key={r.id}><TradeIcon trade={r.answer.trade}/> <span><strong>{r.room}: {r.item}</strong><br/><small>{r.answer.trade} · {r.answer.effort}</small></span><CertaintyDot label={actionCertaintyFor(r.answer)}/></li>)}</ul></section>
+    <section className="snapshot"><h2><Home size={20}/> Home Health Snapshot</h2><div className="stat high"><strong>{counts.high}</strong><span><CertaintyDot label="Needs Discovery"/> Immediate</span></div><div className="stat med"><strong>{counts.med}</strong><span><CertaintyDot label="Likely Path"/> Near‑Term</span></div><div className="stat low"><strong>{counts.low}</strong><span><CertaintyDot label="Clear Path"/> Monitor</span></div></section><section className="guideGrid"><div className="guideCard"><h2><ClipboardList size={20}/> Action Certainty Guide</h2><p><CertaintyDot label="Needs Discovery"/> <strong>Needs Discovery</strong><br/><span>Gather more information before committing.</span></p><p><CertaintyDot label="Likely Path"/> <strong>Likely Path</strong><br/><span>Probable solution; start here and verify.</span></p><p><CertaintyDot label="Clear Path"/> <strong>Clear Path</strong><br/><span>Straightforward solution.</span></p></div><div className="guideCard"><h2><Clock3 size={20}/> Investment Guide (Time)</h2><p><CertaintyDot label="Clear Path"/> <strong>Quick</strong> — 0–2 hrs</p><p><CertaintyDot label="Likely Path"/> <strong>Short</strong> — 2–6 hrs</p><p><CertaintyDot label="Needs Discovery"/> <strong>Long / Trade Scope</strong> — verify first</p></div></section><section className="pmrBlock"><h2><Wrench/> Handy‑Next‑Steps</h2><p className="lede">Quick, practical items that may fit a grouped Handy Services visit, subject to confirmation.</p><ul className="checkList">{quickHits.map(r=><li key={r.id}><TradeIcon trade={r.answer.trade}/> <span><strong>{r.room}: {r.item}</strong><br/><small>{displayTradeLabel(r.answer.trade)} · {r.answer.effort}</small></span><CertaintyDot label={actionCertaintyFor(r.answer)}/></li>)}</ul></section>
 <section className="pmrBlock"><h2><CalendarDays/> P.A.S.S. Reminder Planner</h2><p className="lede">Precision Annual & Seasonal Services: no subscription, only what is relevant.</p><ul className="checkList">{pass.map(r=><li key={r.id}><TradeIcon trade={r.answer.trade}/> <span><strong>{r.item}</strong><br/><small>{r.frequency || 'Recurring'} · {timingFor(r, r.answer.status)}</small></span><CertaintyDot label={actionCertaintyFor(r.answer)}/></li>)}</ul></section>
 
     <section className="pmrBlock"><h2><AlertTriangle/> Priority Action Plan</h2>{pmr.map(r => {
       const certainty = actionCertaintyCopy(r);
       return <article className="finding" key={r.id}>
-        <div className="findTop"><TradeIcon trade={r.answer.trade} big/><div><h3>{r.roomName || r.room} — {r.item}</h3><p>{r.zone} · {r.answer.status} · {r.answer.trade} · {certainty.label}</p></div><span className="certaintyLabel"><CertaintyDot label={certainty.label}/>{certainty.label}</span><span className={`pill ${priority(r.answer.status).toLowerCase()}`}>{priority(r.answer.status)}</span></div>
-        <div className="findGrid"><p><strong>What we saw:</strong><br/>{r.answer.notes || 'No additional notes recorded yet.'}</p><p><strong>Why it matters:</strong><br/>{r.why}</p><p><strong>{certainty.title}:</strong><br/>{certainty.body}</p><p><strong>Next step language:</strong><br/>{certainty.next}</p><p><strong>Suggested timing:</strong><br/>{timingFor(r, r.answer.status)} · Homeowner pace: {r.answer.pref}</p><p><strong>Approx. time:</strong><br/>{r.answer.effort} · Action certainty: {certainty.label}</p><p><strong>How homeowner intake affects this:</strong><br/>{intakeInfluence(r, intake)}</p><p><strong>Photos / reference:</strong><br/>{photoSummary(r.answer.photos)}</p></div>
+        <div className="findTop"><TradeIcon trade={r.answer.trade} big/><div><h3>{r.roomName || r.room} — {r.item}</h3><p>{r.zone} · {r.answer.status} · {displayTradeLabel(r.answer.trade)} · {certainty.label}</p></div><span className="certaintyLabel"><CertaintyDot label={certainty.label}/>{certainty.label}</span><span className={`pill ${priority(r.answer.status).toLowerCase()}`}>{priority(r.answer.status)}</span></div>
+        <div className="findGrid"><p><strong>What we saw:</strong><br/>{r.answer.notes || 'No additional notes recorded yet.'}</p><p><strong>Why it matters:</strong><br/>{r.why}</p><p><strong>{certainty.title}:</strong><br/>{certainty.body}</p><p><strong>Next step language:</strong><br/>{certainty.next}</p><p><strong>Suggested timing:</strong><br/>{timingFor(r, r.answer.status)} · Homeowner pace: {r.answer.pref}</p><p><strong>Approx. time:</strong><br/>{r.answer.effort} · {displayTradeLabel(r.answer.trade)} · Action certainty: {certainty.label}</p><p><strong>How homeowner intake affects this:</strong><br/>{intakeInfluence(r, intake)}</p><p><strong>Photos / reference:</strong><br/>{photoSummary(r.answer.photos)}</p></div>
       </article>
     })}</section>
     <footer className="promise"><ShieldCheck/> You don’t hire trades — you hire The Homeowner Advocate. One point of contact. Every step. Every task.</footer>
@@ -710,7 +732,7 @@ function PMR({client, intake, pmr, counts, quickHits, pass}) {
 function Metrics({rows, pmr, quickHits, pass}) {
   const byTrade = Object.entries(pmr.reduce((acc,r)=>{acc[r.answer.trade]=(acc[r.answer.trade]||0)+1; return acc;},{}));
   const byCertainty = Object.entries(pmr.reduce((acc,r)=>{const key=actionCertaintyFor(r.answer); acc[key]=(acc[key]||0)+1; return acc;},{}));
-  return <main className="metrics"><h1>Internal Metrics / Future PMR Intelligence</h1><div className="metricGrid"><div><strong>{pmr.length}</strong><span>PMR findings</span></div><div><strong>{quickHits.length}</strong><span>Quick-hit tasks</span></div><div><strong>{pass.length}</strong><span>PASS candidates</span></div><div><strong>{rows.filter(r=>r.answer.effort !== 'Unknown').length}</strong><span>Items with time data</span></div></div><section className="pmrBlock"><h2>Findings by Trade / Resource</h2>{byTrade.map(([k,v])=><p key={k} className="tradeLine"><span><TradeIcon trade={k}/> {k}</span><strong>{v}</strong></p>)}</section><section className="pmrBlock"><h2>Action Certainty Breakdown</h2>{byCertainty.map(([k,v])=><p key={k} className="tradeLine"><span>{k}</span><strong>{v}</strong></p>)}</section><section className="pmrBlock"><h2>Time Tracking Note</h2><p>This app captures the field estimate now. Next build should add “Actual Time Spent” after work completion, so THA can compare estimated vs. actual and improve future PMRs, pricing, scheduling, and batching. Nerdy? Yes. Useful? Very.</p></section></main>
+  return <main className="metrics"><h1>Internal Metrics / Future PMR Intelligence</h1><div className="metricGrid"><div><strong>{pmr.length}</strong><span>PMR findings</span></div><div><strong>{quickHits.length}</strong><span>Quick-hit tasks</span></div><div><strong>{pass.length}</strong><span>PASS candidates</span></div><div><strong>{rows.filter(r=>r.answer.effort !== 'Unknown').length}</strong><span>Items with time data</span></div></div><section className="pmrBlock"><h2>Findings by Trade / Resource</h2>{byTrade.map(([k,v])=><p key={k} className="tradeLine"><span><TradeIcon trade={k}/> {displayTradeLabel(k)}</span><strong>{v}</strong></p>)}</section><section className="pmrBlock"><h2>Action Certainty Breakdown</h2>{byCertainty.map(([k,v])=><p key={k} className="tradeLine"><span>{k}</span><strong>{v}</strong></p>)}</section><section className="pmrBlock"><h2>Time Tracking Note</h2><p>This app captures the field estimate now. Next build should add “Actual Time Spent” after work completion, so THA can compare estimated vs. actual and improve future PMRs, pricing, scheduling, and batching. Nerdy? Yes. Useful? Very.</p></section></main>
 }
 
 createRoot(document.getElementById('root')).render(<App/>);
