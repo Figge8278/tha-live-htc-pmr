@@ -32,6 +32,7 @@ const EFFORT = ['Unknown','15 min','30 min','45–60 min','1–2 hrs','Half day'
 const ACTION_CERTAINTY = ['Clear Path','Likely Path','Needs Discovery'];
 const PREFS = ['Do now','Plan soon','Budget for later','Watchlist only'];
 const PHOTO_LABELS = ['Context','Close-up','Detail'];
+const ROOM_PHOTO_LABELS = ['Overview'];
 const ROOM_STATUS_OPTIONS = ['Looking Good','Watch Item / Worth Watching','Handy Services','Trade Attention','Routine Care / PASS','Homeowner Goal'];
 const SMART_ROOM_PROMPTS = [
   { group: 'Handy / Carpentry', prompt: 'Scan doors, trim, hinges, latches, and small hardware for adjustments or minor repair needs.' },
@@ -304,14 +305,14 @@ function normalizeAnswer(answer, item) {
     isDiscovery: typeof answer?.isDiscovery === 'boolean' ? answer.isDiscovery : false
   };
 }
-function photoSummary(photos) {
+function photoSummary(photos, { emptyText = 'No item photos attached yet', labels = PHOTO_LABELS } = {}) {
   const list = Array.isArray(photos) ? photos : photoList({ photos });
-  if (!list.length) return 'No item photos attached yet';
-  const labels = PHOTO_LABELS.map(label => {
+  if (!list.length) return emptyText;
+  const labelSummary = labels.map(label => {
     const count = list.filter(photo => photo.label === label).length;
     return count ? `${count} ${label.toLowerCase()}` : '';
   }).filter(Boolean);
-  return `${list.length} photo${list.length === 1 ? '' : 's'} attached${labels.length ? `: ${labels.join(', ')}` : ''}`;
+  return `${list.length} photo${list.length === 1 ? '' : 's'} attached${labelSummary.length ? `: ${labelSummary.join(', ')}` : ''}`;
 }
 function dataUrlToBlob(dataUrl) {
   const [meta, body] = dataUrl.split(',');
@@ -404,8 +405,8 @@ async function uploadDriveBlob(accessToken, folderId, name, blob, mimeType) {
 function uploadDriveJson(accessToken, folderId, name, data) {
   return uploadDriveBlob(accessToken, folderId, name, new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), 'application/json');
 }
-function buildDrivePayload({ client, intake, rows, pmr, dynamicRooms = [], sections = [], sectionOrderState = [], itemOrderState = {}, pinnedItems = {} }) {
-  return { client, intake, dynamicRooms, sectionFlow: sections.map((section, index) => ({ order: index + 1, key: section.key, label: section.label, roomType: section.roomType || section.label, roomName: section.roomName || section.label })), sectionOrder: sectionOrderState, itemOrder: itemOrderState, pinnedItems, rows, pmr, exportedAt: new Date().toISOString() };
+function buildDrivePayload({ client, intake, rows, pmr, dynamicRooms = [], sections = [], sectionOrderState = [], itemOrderState = {}, pinnedItems = {}, roomCapture = {} }) {
+  return { client, intake, dynamicRooms, roomCapture, sectionFlow: sections.map((section, index) => ({ order: index + 1, key: section.key, label: section.label, roomType: section.roomType || section.label, roomName: section.roomName || section.label })), sectionOrder: sectionOrderState, itemOrder: itemOrderState, pinnedItems, rows, pmr, exportedAt: new Date().toISOString() };
 }
 async function uploadDriveBundle(accessToken, payload) {
   const clientFolderName = cleanDriveName(`${payload.client.name || 'Client'} - ${payload.client.address || 'Property Address'}`);
@@ -418,10 +419,25 @@ async function uploadDriveBundle(accessToken, payload) {
   const pmrId = await findOrCreateDriveFolder(accessToken, 'PMR Reports', dateId);
   const photosId = await findOrCreateDriveFolder(accessToken, 'Photos', dateId);
   await uploadDriveJson(accessToken, intakeId, 'intake.json', { client: payload.client, intake: payload.intake });
-  await uploadDriveJson(accessToken, htcId, 'htc-walkthrough.json', { client: payload.client, rows: payload.rows });
+  await uploadDriveJson(accessToken, htcId, 'htc-walkthrough.json', { client: payload.client, roomCapture: payload.roomCapture || {}, rows: payload.rows });
   await uploadDriveJson(accessToken, pmrId, 'pmr-data.json', { client: payload.client, intake: payload.intake, pmr: payload.pmr });
   const sectionFlow = payload.sectionFlow || [];
   const sectionOrderLookup = Object.fromEntries(sectionFlow.map(section => [section.key, section.order]));
+  const sectionLookup = Object.fromEntries(sectionFlow.map(section => [section.key, section]));
+  for (const [sectionKey, capture] of Object.entries(payload.roomCapture || {})) {
+    const photos = photoList(capture).filter(photo => photo.dataUrl);
+    if (!photos.length) continue;
+    const section = sectionLookup[sectionKey] || {};
+    const roomTypeId = await findOrCreateDriveFolder(accessToken, cleanDriveName(section.roomType || section.label || sectionKey), photosId);
+    const orderPrefix = sectionOrderLookup[sectionKey] ? `${String(sectionOrderLookup[sectionKey]).padStart(2, '0')} - ` : '';
+    const roomNameId = await findOrCreateDriveFolder(accessToken, cleanDriveName(`${orderPrefix}${section.roomName || section.label || sectionKey}`), roomTypeId);
+    const overviewId = await findOrCreateDriveFolder(accessToken, 'Room Overview', roomNameId);
+    for (const [index, photo] of photos.entries()) {
+      const blob = dataUrlToBlob(photo.dataUrl);
+      const extension = blob.type.split('/')[1] || 'jpg';
+      await uploadDriveBlob(accessToken, overviewId, `${String(index + 1).padStart(2, '0')} - ${photo.label || 'Overview'} - ${cleanDriveName(photo.name)}.${extension}`, blob, blob.type);
+    }
+  }
   for (const row of payload.rows) {
     const photos = photoList(row.answer).filter(photo => photo.dataUrl);
     if (!photos.length) continue;
@@ -504,7 +520,8 @@ function App() {
   const pass = pmr.filter(r => r.pass);
   const roomCaptureFor = (sectionKey) => ({
     status: roomCapture?.[sectionKey]?.status || ROOM_STATUS_OPTIONS[0],
-    note: roomCapture?.[sectionKey]?.note || ''
+    note: roomCapture?.[sectionKey]?.note || '',
+    photos: photoList(roomCapture?.[sectionKey]).map(photo => ({ ...photo, label: photo.label || 'Overview' }))
   });
   const updateRoomCapture = (sectionKey, patch) => setRoomCapture(prev => ({ ...prev, [sectionKey]: { ...roomCaptureFor(sectionKey), ...patch } }));
   const update = (id, patch) => setAnswers(prev => ({...prev, [id]: {...normalizeAnswer(prev[id], itemById[id]), ...patch}}));
@@ -519,6 +536,28 @@ function App() {
   });
   const updatePhoto = (id, photoId, patch) => update(id, {photos: normalizeAnswer(answers[id], itemById[id]).photos.map(photo => photo.id === photoId ? {...photo, ...patch} : photo)});
   const removePhoto = (id, photoId) => update(id, {photos: normalizeAnswer(answers[id], itemById[id]).photos.filter(photo => photo.id !== photoId)});
+  const addRoomPhotos = (sectionKey, files) => Array.from(files || []).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = event => setRoomCapture(prev => {
+      const current = {
+        status: prev?.[sectionKey]?.status || ROOM_STATUS_OPTIONS[0],
+        note: prev?.[sectionKey]?.note || '',
+        photos: photoList(prev?.[sectionKey]).map(photo => ({ ...photo, label: photo.label || 'Overview' }))
+      };
+      return {
+        ...prev,
+        [sectionKey]: {
+          ...current,
+          photos: [...current.photos, { id: `room-${Date.now()}-${file.name}-${Math.random().toString(36).slice(2)}`, name: file.name, label: 'Overview', type: file.type, dataUrl: event.target.result }]
+        }
+      };
+    });
+    reader.readAsDataURL(file);
+  });
+  const removeRoomPhoto = (sectionKey, photoId) => {
+    const current = roomCaptureFor(sectionKey);
+    updateRoomCapture(sectionKey, { photos: current.photos.filter(photo => photo.id !== photoId) });
+  };
   const addDynamicRoom = (roomType) => {
     const config = Object.values(DYNAMIC_ROOM_TYPES).find(x => x.roomType === roomType);
     const roomName = window.prompt('Room Name', config?.example || '');
@@ -576,7 +615,7 @@ function App() {
     });
   };
   const downloadJSON = () => {
-    const blob = new Blob([JSON.stringify(buildDrivePayload({client, intake, rows, pmr, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems}), null, 2)], {type:'application/json'});
+    const blob = new Blob([JSON.stringify(buildDrivePayload({client, intake, rows, pmr, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture}), null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `THA-HTC-PMR-${client.name || 'client'}.json`; a.click(); URL.revokeObjectURL(url);
   };
   const connectDrive = async () => {
@@ -594,7 +633,7 @@ function App() {
   };
   const syncDrive = async ({includeDownload=false, retryQueue=false} = {}) => {
     if (includeDownload) downloadJSON();
-    const payload = buildDrivePayload({client, intake, rows, pmr, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems});
+    const payload = buildDrivePayload({client, intake, rows, pmr, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture});
     if (!navigator.onLine || !driveToken) {
       const count = queueDrivePayload(payload);
       setPendingCount(count);
@@ -643,7 +682,7 @@ function App() {
     {view === 'form' && <main className="grid">
       <aside className="roomNav noPrint"><h3>Walkthrough Sections</h3><div className="addRoomTools">{Object.values(DYNAMIC_ROOM_TYPES).map(type => <button key={type.roomType} onClick={()=>addDynamicRoom(type.roomType)}>{type.addLabel} {type.roomType}</button>)}</div>{rooms.map(r => <div key={r.key} className="sectionNavRow" draggable onDragStart={()=>setDragSectionKey(r.key)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); moveSection(dragSectionKey, r.key); setDragSectionKey('');}} onDragEnd={()=>setDragSectionKey('')}><span className="sectionDragHandle" title="Drag to reorder walkthrough flow">⋮⋮</span><button className={`sectionSelect ${activeRoom===r.key?'active':''}`} onClick={()=>setActiveRoom(r.key)}>{r.label}</button></div>)}<div className="hint"><Camera size={18}/> Prompt: Capture context, close-up, and detail photos. Store by room/item folder path.</div></aside>
       <section className="formPanel">
-        <h1>{rooms.find(r=>r.key===activeRoom)?.label || activeRoom} HTC</h1><div className="roomCaptureShell"><div className="roomCaptureTop"><label>Overall Room Status<select value={roomCaptureFor(activeRoom).status} onChange={e=>updateRoomCapture(activeRoom,{status:e.target.value})}>{ROOM_STATUS_OPTIONS.map(x=><option key={x}>{x}</option>)}</select></label><button type="button" onClick={()=>setActiveRoom(activeRoom)}>Add Item</button></div><span className="roomCaptureHelp">Add anything that needs tracking beyond ‘looks good.’</span><label className="notes">Room Note / Voice Transcript<textarea value={roomCaptureFor(activeRoom).note} onChange={e=>updateRoomCapture(activeRoom,{note:e.target.value})} placeholder="Capture room-level context, voice transcript, or summary notes for this space."/></label><div className="smartRoomPrompt"><h3>Smart Room Prompt</h3><div className="smartRoomGrid">{SMART_ROOM_PROMPTS.map(group => <p key={group.group}><strong>{group.group}:</strong> {group.prompt}</p>)}</div></div><div className="roomItemsPlaceholder"><h3>Items list for this room</h3><ul>{rows.filter(r=>r.sectionKey===activeRoom && includePMR(r.answer)).slice(0,5).map(r=><li key={`placeholder-${r.id}`}>{r.item} · {r.answer.status}</li>)}</ul>{rows.filter(r=>r.sectionKey===activeRoom && includePMR(r.answer)).length===0 && <p>No tracked items yet for this room.</p>}</div></div><p className="lede">Fuller data capture: status, action certainty, suggested trade, time, notes, and photo references.</p>
+        <h1>{rooms.find(r=>r.key===activeRoom)?.label || activeRoom} HTC</h1><div className="roomCaptureShell"><div className="roomCaptureTop"><label>Overall Room Status<select value={roomCaptureFor(activeRoom).status} onChange={e=>updateRoomCapture(activeRoom,{status:e.target.value})}>{ROOM_STATUS_OPTIONS.map(x=><option key={x}>{x}</option>)}</select></label><button type="button" onClick={()=>setActiveRoom(activeRoom)}>Add Item</button></div><span className="roomCaptureHelp">Add anything that needs tracking beyond ‘looks good.’</span><label className="notes">Room Note / Voice Transcript<textarea value={roomCaptureFor(activeRoom).note} onChange={e=>updateRoomCapture(activeRoom,{note:e.target.value})} placeholder="Capture room-level context, voice transcript, or summary notes for this space."/></label><div className="roomPhotoBox"><div className="photoBox"><Camera size={18}/><strong>Room Overview Photos:</strong><label className="uploadInline"><Upload size={16}/> Add Room Overview Photo<input type="file" accept="image/*" multiple onChange={e=>{addRoomPhotos(activeRoom, e.target.files); e.target.value='';}}/></label><span>{photoSummary(roomCaptureFor(activeRoom).photos, { emptyText: 'No room overview photos attached yet', labels: ROOM_PHOTO_LABELS })}</span></div>{roomCaptureFor(activeRoom).photos.length > 0 && <div className="thumbGrid roomThumbGrid">{roomCaptureFor(activeRoom).photos.map(photo => <div className="thumbCard" key={photo.id}><div className="thumb">{photo.dataUrl ? <img src={photo.dataUrl} alt={`Overview for ${rooms.find(room=>room.key===activeRoom)?.label || activeRoom}`}/> : <Image size={24}/>}</div><span>Overview</span><span title={photo.name}>{photo.name}</span><button onClick={()=>removeRoomPhoto(activeRoom, photo.id)} aria-label="Remove room overview photo"><X size={14}/></button></div>)}</div>}</div><div className="smartRoomPrompt"><h3>Smart Room Prompt</h3><div className="smartRoomGrid">{SMART_ROOM_PROMPTS.map(group => <p key={group.group}><strong>{group.group}:</strong> {group.prompt}</p>)}</div></div><div className="roomItemsPlaceholder"><h3>Items list for this room</h3><ul>{rows.filter(r=>r.sectionKey===activeRoom && includePMR(r.answer)).slice(0,5).map(r=><li key={`placeholder-${r.id}`}>{r.item} · {r.answer.status}</li>)}</ul>{rows.filter(r=>r.sectionKey===activeRoom && includePMR(r.answer)).length===0 && <p>No tracked items yet for this room.</p>}</div></div><p className="lede">Fuller data capture: status, action certainty, suggested trade, time, notes, and photo references.</p>
         {rows.filter(r=>r.sectionKey===activeRoom).map(r => <div className="itemCard" key={r.id}>
           <div className="itemHead"><span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span><div><h2>{r.item}</h2><p>{r.zone} · Suggested: {displayTradeLabel(r.trade)}</p></div>{!r.catchAll && <div className="itemOrderTools"><button onClick={()=>moveItem(r.sectionKey, r.id, -1)} title="Move item up">↑</button><button onClick={()=>moveItem(r.sectionKey, r.id, 1)} title="Move item down">↓</button><button onClick={()=>togglePinItem(r.sectionKey, r.id)} title="Pin to top">{(pinnedItems[r.sectionKey] || []).includes(r.id) ? 'Pinned' : 'Pin'}</button></div>}<span className={`pill ${priority(r.answer.status).toLowerCase()}`}>{priority(r.answer.status) || 'No PMR'}</span></div>
           <div className="prompt"><Search size={16}/><strong>Prompt:</strong> {r.prompt}</div>
