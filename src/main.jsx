@@ -27,6 +27,57 @@ function displayTradeLabel(trade) {
   return trade === 'Handyman' ? 'Handy Services' : trade;
 }
 
+
+const CATEGORY_META = {
+  Electrical: { label: 'Electrical', slug: 'electrical' },
+  Plumbing: { label: 'Plumbing', slug: 'plumbing' },
+  HVAC: { label: 'HVAC', slug: 'hvac' },
+  Roofing: { label: 'Roofing', slug: 'roofing' },
+  Drainage: { label: 'Drainage', slug: 'drainage' },
+  Openings: { label: 'Openings', slug: 'openings' },
+  Exterior: { label: 'Exterior', slug: 'exterior' },
+  Pest: { label: 'Pest', slug: 'pest' },
+  Safety: { label: 'Safety', slug: 'safety' },
+  Surfaces: { label: 'Surfaces', slug: 'surfaces' },
+  Appliances: { label: 'Appliances', slug: 'appliances' },
+  'Handy / Carpentry': { label: 'Handy / Carpentry', slug: 'handy-carpentry' },
+  'General / Misc': { label: 'General / Misc', slug: 'general-misc' }
+};
+
+function categoryInfo(category = 'General / Misc') {
+  return CATEGORY_META[category] || CATEGORY_META['General / Misc'];
+}
+
+function categoryForChecklistItem(item = {}) {
+  const zone = item.zone || '';
+  const trade = item.trade || '';
+  const text = `${zone} ${trade} ${item.item || ''}`.toLowerCase();
+  if (item.catchAll || text.includes('misc') || text.includes('sorting')) return 'General / Misc';
+  if (text.includes('electrical') || text.includes('gfci') || text.includes('outlet') || text.includes('switch')) return 'Electrical';
+  if (text.includes('plumbing') || text.includes('sink') || text.includes('drain') || text.includes('washer hose') || text.includes('water heater')) return 'Plumbing';
+  if (text.includes('hvac') || text.includes('furnace') || text.includes('a/c') || text.includes('exhaust fan')) return 'HVAC';
+  if (text.includes('roof') || text.includes('chimney') || text.includes('fireplace')) return 'Roofing';
+  if (text.includes('drainage') || text.includes('grading') || text.includes('gutter') || text.includes('downspout') || text.includes('pooling')) return 'Drainage';
+  if (text.includes('window') || text.includes('door') || text.includes('locks') || text.includes('screens') || text.includes('seals')) return 'Openings';
+  if (text.includes('exterior') || text.includes('finish') || text.includes('paint') || text.includes('stain')) return 'Exterior';
+  if (text.includes('pest') || text.includes('bug')) return 'Pest';
+  if (text.includes('safety') || text.includes('smoke') || text.includes('co detector') || text.includes('fire extinguisher') || text.includes('lint')) return 'Safety';
+  if (text.includes('surface') || text.includes('wall') || text.includes('ceiling') || text.includes('floor') || text.includes('caulk') || text.includes('grout') || text.includes('trim')) return 'Surfaces';
+  if (text.includes('appliance') || text.includes('range hood') || text.includes('dryer')) return 'Appliances';
+  if (text.includes('cabinet') || text.includes('carpentry') || text.includes('hinge') || text.includes('drawer') || text.includes('latch')) return 'Handy / Carpentry';
+  return 'General / Misc';
+}
+
+function CategoryBadge({category}) {
+  const meta = categoryInfo(category);
+  return <span className={`categoryBadge category-${meta.slug}`} aria-label={`${meta.label} category`}>{meta.label}</span>;
+}
+
+function CategoryLabel({category, children}) {
+  const meta = categoryInfo(category);
+  return <label className={`categoryQuestion category-${meta.slug}`}>{children}<CategoryBadge category={meta.label}/></label>;
+}
+
 const STATUS = ['Good','Monitor','Needs Attention','Immediate Concern','Unknown'];
 const EFFORT = ['Unknown','15 min','30 min','45–60 min','1–2 hrs','Half day','Full day','Multi-day / trade scope'];
 const ACTION_CERTAINTY = ['Clear Path','Likely Path','Needs Discovery'];
@@ -889,8 +940,11 @@ function App() {
       <aside className="roomNav noPrint"><h3>Walkthrough Sections</h3><div className="addRoomTools">{Object.values(DYNAMIC_ROOM_TYPES).map(type => <button key={type.roomType} onClick={()=>addDynamicRoom(type.roomType)}>{type.addLabel} {type.roomType}</button>)}</div>{rooms.map(r => <div key={r.key} className="sectionNavRow" draggable onDragStart={()=>setDragSectionKey(r.key)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); moveSection(dragSectionKey, r.key); setDragSectionKey('');}} onDragEnd={()=>setDragSectionKey('')}><span className="sectionDragHandle" title="Drag to reorder walkthrough flow">⋮⋮</span><button className={`sectionSelect ${activeRoom===r.key?'active':''}`} onClick={()=>setActiveRoom(r.key)}>{r.label}</button></div>)}<div className="hint"><Camera size={18}/> Prompt: Capture context, close-up, and detail photos. Store by room/item folder path.</div></aside>
       <section className="formPanel">
         <h1>{rooms.find(r=>r.key===activeRoom)?.label || activeRoom} HTC</h1><div className="roomCaptureShell"><div className="roomCaptureTop"><label>Overall Room Status<select value={roomCaptureFor(activeRoom).status} onChange={e=>updateRoomCapture(activeRoom,{status:e.target.value})}>{ROOM_STATUS_OPTIONS.map(x=><option key={x}>{x}</option>)}</select></label><button type="button" onClick={openRoomItemForm}>Add Item</button></div><span className="roomCaptureHelp">Add anything that needs tracking beyond ‘looks good.’</span>{roomItemFormOpen && <div className="roomItemForm"><div className="inputs roomItemInputs"><label>Item title<input value={roomItemDraft.title} onChange={e=>updateRoomItemDraft({title:e.target.value})} placeholder="e.g., Loose towel bar" autoFocus/></label><label>Item bucket/type<select value={roomItemDraft.bucket} onChange={e=>updateRoomItemDraft({bucket:e.target.value})}>{ROOM_ITEM_BUCKETS.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label></div><label className="discoveryCheck"><input type="checkbox" checked={roomItemDraft.isDiscovery} onChange={e=>updateRoomItemDraft({isDiscovery:e.target.checked})}/><span><strong>Discovery</strong><small>Unexpected, hidden, unusual, or out of the ordinary.</small></span></label><label className="notes">Notes<textarea value={roomItemDraft.notes} onChange={e=>updateRoomItemDraft({notes:e.target.value})} placeholder="Add room-level context, next step, or follow-up note."/></label><div className="roomItemActions"><button type="button" onClick={saveRoomItem} disabled={!roomItemDraft.title.trim()}>Save</button><button type="button" onClick={cancelRoomItemForm}>Cancel</button></div></div>}<label className="notes">Room Note / Voice Transcript<textarea value={roomCaptureFor(activeRoom).note} onChange={e=>updateRoomCapture(activeRoom,{note:e.target.value})} placeholder="Capture room-level context, voice transcript, or summary notes for this space."/></label><div className="roomPhotoBox"><div className="photoBox"><Camera size={18}/><strong>Room Overview Photos:</strong><label className="uploadInline"><Upload size={16}/> Add Room Overview Photo<input type="file" accept="image/*" multiple onChange={e=>{addRoomPhotos(activeRoom, e.target.files); e.target.value='';}}/></label><span>{photoSummary(roomCaptureFor(activeRoom).photos, { emptyText: 'No room overview photos attached yet', labels: ROOM_PHOTO_LABELS })}</span></div>{roomCaptureFor(activeRoom).photos.length > 0 && <div className="thumbGrid roomThumbGrid">{roomCaptureFor(activeRoom).photos.map(photo => <div className="thumbCard" key={photo.id}><div className="thumb">{photo.dataUrl ? <img src={photo.dataUrl} alt={`Overview for ${rooms.find(room=>room.key===activeRoom)?.label || activeRoom}`}/> : <Image size={24}/>}</div><span>Overview</span><span title={photo.name}>{photo.name}</span><button onClick={()=>removeRoomPhoto(activeRoom, photo.id)} aria-label="Remove room overview photo"><X size={14}/></button></div>)}</div>}</div><div className="smartRoomPrompt"><h3>Smart Room Prompt</h3><div className="smartRoomGrid">{SMART_ROOM_PROMPTS.map(group => <p key={group.group}><strong>{group.group}:</strong> {group.prompt}</p>)}</div></div><div className="roomItemsPlaceholder"><h3>Items list for this room</h3>{roomCaptureFor(activeRoom).items.length > 0 ? <ul className="roomItemList">{roomCaptureFor(activeRoom).items.map(item=><li key={item.id} className="roomItemRow"><div><strong>{item.title}</strong><span>{roomItemBucketLabel(item.bucket)}{item.isDiscovery ? ' · Discovery' : ''}</span>{item.notes && <p>{item.notes}</p>}</div><button type="button" onClick={()=>removeRoomItem(activeRoom, item.id)} aria-label={`Remove ${item.title}`}><X size={14}/> Remove</button></li>)}</ul> : <p>No room-level items added yet.</p>}{rows.filter(r=>r.sectionKey===activeRoom && includePMR(r.answer)).length > 0 && <><h4>Checklist items currently flagged</h4><ul>{rows.filter(r=>r.sectionKey===activeRoom && includePMR(r.answer)).slice(0,5).map(r=><li key={`placeholder-${r.id}`}>{r.item} · {r.answer.status}</li>)}</ul></>}</div></div><p className="lede">Fuller data capture: status, action certainty, suggested trade, time, notes, and photo references.</p>
-        {rows.filter(r=>r.sectionKey===activeRoom).map(r => <div className="itemCard" key={r.id}>
-          <div className="itemHead"><span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span><div><h2>{r.item}</h2><p>{r.zone} · Suggested: {displayTradeLabel(r.trade)}</p></div>{!r.catchAll && <div className="itemOrderTools"><button onClick={()=>moveItem(r.sectionKey, r.id, -1)} title="Move item up">↑</button><button onClick={()=>moveItem(r.sectionKey, r.id, 1)} title="Move item down">↓</button><button onClick={()=>togglePinItem(r.sectionKey, r.id)} title="Pin to top">{(pinnedItems[r.sectionKey] || []).includes(r.id) ? 'Pinned' : 'Pin'}</button></div>}<span className={`pill ${priority(r.answer.status).toLowerCase()}`}>{priority(r.answer.status) || 'No PMR'}</span></div>
+        {rows.filter(r=>r.sectionKey===activeRoom).map(r => {
+          const category = categoryForChecklistItem(r);
+          const meta = categoryInfo(category);
+          return <div className={`itemCard categoryCard category-${meta.slug}`} key={r.id}>
+          <div className="itemHead"><span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span><div><div className="itemTitleLine"><h2>{r.item}</h2><CategoryBadge category={category}/></div><p>{r.zone} · Suggested: {displayTradeLabel(r.trade)}</p></div>{!r.catchAll && <div className="itemOrderTools"><button onClick={()=>moveItem(r.sectionKey, r.id, -1)} title="Move item up">↑</button><button onClick={()=>moveItem(r.sectionKey, r.id, 1)} title="Move item down">↓</button><button onClick={()=>togglePinItem(r.sectionKey, r.id)} title="Pin to top">{(pinnedItems[r.sectionKey] || []).includes(r.id) ? 'Pinned' : 'Pin'}</button></div>}<span className={`pill ${priority(r.answer.status).toLowerCase()}`}>{priority(r.answer.status) || 'No PMR'}</span></div>
           <div className="prompt"><Search size={16}/><strong>Prompt:</strong> {r.prompt}</div>
           <div className="inputs">
             <label>Status<select value={r.answer.status} onChange={e=>update(r.id,{status:e.target.value})}>{STATUS.map(x=><option key={x}>{x}</option>)}</select></label>
@@ -905,7 +959,7 @@ function App() {
           {r.answer.photos.length > 0 && <div className="thumbGrid">{r.answer.photos.map(photo => <div className="thumbCard" key={photo.id}><div className="thumb">{photo.dataUrl ? <img src={photo.dataUrl} alt={`${photo.label} for ${r.item}`}/> : <Image size={24}/>}</div><select value={photo.label} onChange={e=>updatePhoto(r.id, photo.id, {label:e.target.value})}>{PHOTO_LABELS.map(label=><option key={label}>{label}</option>)}</select><span title={photo.name}>{photo.name}</span><button onClick={()=>removePhoto(r.id, photo.id)} aria-label="Remove photo"><X size={14}/></button></div>)}</div>}
           {r.catchAll && <div className="reassignBox"><label>Reassign Catch-All Notes<select value={r.answer.reassignTo} onChange={e=>update(r.id,{reassignTo:e.target.value})}><option value="">Choose Section-Item</option>{rows.filter(target=>target.sectionKey===r.sectionKey && !target.catchAll).map(target=><option key={target.id} value={target.id}>{target.item}</option>)}</select></label><button onClick={()=>reassignCatchAll(r.id)} disabled={!r.answer.reassignTo}>Reassign</button></div>}
           <div className="drivePath"><FolderOpen size={16}/> {drivePath(client.name, client.date, r.roomType || r.room, r.item, r.roomName || r.room)}</div>
-        </div>)}
+        </div>})}
       </section>
     </main>}
     {view === 'pmr' && <PMR client={client} intake={intake} pmr={pmr} counts={counts} quickHits={quickHits} pass={pass} />}
@@ -931,33 +985,33 @@ function IntakeView({intake, updateIntake}) {
       <label className="notes">Homeowner goals / anything they want us to prioritize<textarea value={intake.notes || ''} onChange={e=>updateIntake({notes:e.target.value})} placeholder="What matters most to the homeowner? Safety, function, budget, aesthetics, peace of mind, aging in place, resale, etc." /></label>
     </section>
     <section className="pmrBlock"><h2>🔌 Electrical / 🚿 Plumbing / 🌡️ HVAC</h2><div className="intakeGrid">
-      <label>Electrical panel location<input value={intake.electricalPanel || ''} onChange={e=>updateIntake({electricalPanel:e.target.value})}/></label>
-      <label>Known electrical issues or updates<input value={intake.electricalUpdates || ''} onChange={e=>updateIntake({electricalUpdates:e.target.value})}/></label>
-      <label>Main water shut-off location<input value={intake.waterShutoff || ''} onChange={e=>updateIntake({waterShutoff:e.target.value})}/></label>
-      <label>Known leaks, slow drains, or past plumbing issues<input value={intake.plumbingHistory || ''} onChange={e=>updateIntake({plumbingHistory:e.target.value})}/></label>
-      <label>Water heater flush / age<input value={intake.waterHeater || ''} onChange={e=>updateIntake({waterHeater:e.target.value})}/></label>
-      <label>Sewer / irrigation history<input value={intake.sewerIrrigation || ''} onChange={e=>updateIntake({sewerIrrigation:e.target.value})}/></label>
-      <label>Furnace filter replacement<input value={intake.hvacFilter || ''} onChange={e=>updateIntake({hvacFilter:e.target.value})}/></label>
-      <label>Furnace / A/C service history<input value={intake.hvacService || ''} onChange={e=>updateIntake({hvacService:e.target.value})}/></label>
-      <label>Comfort issues<input value={intake.comfort || ''} onChange={e=>updateIntake({comfort:e.target.value})}/></label>
+      <CategoryLabel category="Electrical">Electrical panel location<input value={intake.electricalPanel || ''} onChange={e=>updateIntake({electricalPanel:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="Electrical">Known electrical issues or updates<input value={intake.electricalUpdates || ''} onChange={e=>updateIntake({electricalUpdates:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="Plumbing">Main water shut-off location<input value={intake.waterShutoff || ''} onChange={e=>updateIntake({waterShutoff:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="Plumbing">Known leaks, slow drains, or past plumbing issues<input value={intake.plumbingHistory || ''} onChange={e=>updateIntake({plumbingHistory:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="Plumbing">Water heater flush / age<input value={intake.waterHeater || ''} onChange={e=>updateIntake({waterHeater:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="Drainage">Sewer / irrigation history<input value={intake.sewerIrrigation || ''} onChange={e=>updateIntake({sewerIrrigation:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="HVAC">Furnace filter replacement<input value={intake.hvacFilter || ''} onChange={e=>updateIntake({hvacFilter:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="HVAC">Furnace / A/C service history<input value={intake.hvacService || ''} onChange={e=>updateIntake({hvacService:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="HVAC">Comfort issues<input value={intake.comfort || ''} onChange={e=>updateIntake({comfort:e.target.value})}/></CategoryLabel>
     </div></section>
     <section className="pmrBlock"><h2>🏠 Roof / 🌧️ Drainage / 🪟 Openings / 🎨 Exterior</h2><div className="intakeGrid">
-      <label>Roof age / last replacement<input value={intake.roofAge || ''} onChange={e=>updateIntake({roofAge:e.target.value})}/></label>
-      <label>Known roof leaks / repairs<input value={intake.roofHistory || ''} onChange={e=>updateIntake({roofHistory:e.target.value})}/></label>
-      <label>Solar panel status, if present<input value={intake.solar || ''} onChange={e=>updateIntake({solar:e.target.value})}/></label>
-      <label>Water pooling areas<input value={intake.drainagePooling || ''} onChange={e=>updateIntake({drainagePooling:e.target.value})}/></label>
-      <label>Drainage / water intrusion history<input value={intake.drainageHistory || ''} onChange={e=>updateIntake({drainageHistory:e.target.value})}/></label>
-      <label>Gutter / downspout concerns<input value={intake.gutters || ''} onChange={e=>updateIntake({gutters:e.target.value})}/></label>
-      <label>Drafty or hard-to-operate windows / doors<input value={intake.windowsDoors || ''} onChange={e=>updateIntake({windowsDoors:e.target.value})}/></label>
-      <label>Fogging / failed seals<input value={intake.fogging || ''} onChange={e=>updateIntake({fogging:e.target.value})}/></label>
-      <label>Last exterior paint / stain<input value={intake.paintStain || ''} onChange={e=>updateIntake({paintStain:e.target.value})}/></label>
-      <label>Product / color labels to consolidate<input value={intake.productsColors || ''} onChange={e=>updateIntake({productsColors:e.target.value})}/></label>
+      <CategoryLabel category="Roofing">Roof age / last replacement<input value={intake.roofAge || ''} onChange={e=>updateIntake({roofAge:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="Roofing">Known roof leaks / repairs<input value={intake.roofHistory || ''} onChange={e=>updateIntake({roofHistory:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="Electrical">Solar panel status, if present<input value={intake.solar || ''} onChange={e=>updateIntake({solar:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="Drainage">Water pooling areas<input value={intake.drainagePooling || ''} onChange={e=>updateIntake({drainagePooling:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="Drainage">Drainage / water intrusion history<input value={intake.drainageHistory || ''} onChange={e=>updateIntake({drainageHistory:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="Drainage">Gutter / downspout concerns<input value={intake.gutters || ''} onChange={e=>updateIntake({gutters:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="Openings">Drafty or hard-to-operate windows / doors<input value={intake.windowsDoors || ''} onChange={e=>updateIntake({windowsDoors:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="Openings">Fogging / failed seals<input value={intake.fogging || ''} onChange={e=>updateIntake({fogging:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="Exterior">Last exterior paint / stain<input value={intake.paintStain || ''} onChange={e=>updateIntake({paintStain:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="Surfaces">Product / color labels to consolidate<input value={intake.productsColors || ''} onChange={e=>updateIntake({productsColors:e.target.value})}/></CategoryLabel>
     </div></section>
     <section className="pmrBlock"><h2>🐜 Pest / 🔥 Safety / 🧰 Misc.</h2><div className="intakeGrid">
-      <label>Pest activity or history<input value={intake.pests || ''} onChange={e=>updateIntake({pests:e.target.value})}/></label>
-      <label>Fire extinguishers: quantity, age, location<input value={intake.fireExtinguishers || ''} onChange={e=>updateIntake({fireExtinguishers:e.target.value})}/></label>
-      <label>Smoke / CO detector age or replacement<input value={intake.smokeCO || ''} onChange={e=>updateIntake({smokeCO:e.target.value})}/></label>
-      <label>Chimney inspection / cleaning<input value={intake.chimney || ''} onChange={e=>updateIntake({chimney:e.target.value})}/></label>
+      <CategoryLabel category="Pest">Pest activity or history<input value={intake.pests || ''} onChange={e=>updateIntake({pests:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="Safety">Fire extinguishers: quantity, age, location<input value={intake.fireExtinguishers || ''} onChange={e=>updateIntake({fireExtinguishers:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="Safety">Smoke / CO detector age or replacement<input value={intake.smokeCO || ''} onChange={e=>updateIntake({smokeCO:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="Roofing">Chimney inspection / cleaning<input value={intake.chimney || ''} onChange={e=>updateIntake({chimney:e.target.value})}/></CategoryLabel>
     </div><label className="notes">Other known concerns / items to pay attention to<textarea value={intake.additionalConcerns || ''} onChange={e=>updateIntake({additionalConcerns:e.target.value})}/></label></section>
   </main>
 }
