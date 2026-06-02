@@ -29,19 +29,19 @@ function displayTradeLabel(trade) {
 
 
 const CATEGORY_META = {
-  Electrical: { label: 'Electrical', slug: 'electrical' },
-  Plumbing: { label: 'Plumbing', slug: 'plumbing' },
-  HVAC: { label: 'HVAC', slug: 'hvac' },
-  Roofing: { label: 'Roofing', slug: 'roofing' },
-  Drainage: { label: 'Drainage', slug: 'drainage' },
-  Openings: { label: 'Openings', slug: 'openings' },
-  Exterior: { label: 'Exterior', slug: 'exterior' },
-  Pest: { label: 'Pest', slug: 'pest' },
-  Safety: { label: 'Safety', slug: 'safety' },
-  Surfaces: { label: 'Surfaces', slug: 'surfaces' },
-  Appliances: { label: 'Appliances', slug: 'appliances' },
-  'Handy / Carpentry': { label: 'Handy / Carpentry', slug: 'handy-carpentry' },
-  'General / Misc': { label: 'General / Misc', slug: 'general-misc' }
+  Electrical: { label: 'Electrical', slug: 'electrical', Icon: Plug },
+  Plumbing: { label: 'Plumbing', slug: 'plumbing', Icon: Droplets },
+  HVAC: { label: 'HVAC', slug: 'hvac', Icon: Fan },
+  Roofing: { label: 'Roofing', slug: 'roofing', Icon: Home },
+  Drainage: { label: 'Drainage', slug: 'drainage', Icon: Wind },
+  Openings: { label: 'Openings', slug: 'openings', Icon: DoorOpen },
+  Exterior: { label: 'Exterior', slug: 'exterior', Icon: TreePine },
+  Pest: { label: 'Pest', slug: 'pest', Icon: Bug },
+  Safety: { label: 'Safety', slug: 'safety', Icon: ShieldCheck },
+  Surfaces: { label: 'Surfaces', slug: 'surfaces', Icon: Paintbrush },
+  Appliances: { label: 'Appliances', slug: 'appliances', Icon: Settings },
+  'Handy / Carpentry': { label: 'Handy / Carpentry', slug: 'handy-carpentry', Icon: Hammer },
+  'General / Misc': { label: 'General / Misc', slug: 'general-misc', Icon: ClipboardList }
 };
 
 function categoryInfo(category = 'General / Misc') {
@@ -70,7 +70,8 @@ function categoryForChecklistItem(item = {}) {
 
 function CategoryBadge({category}) {
   const meta = categoryInfo(category);
-  return <span className={`categoryBadge category-${meta.slug}`} aria-label={`${meta.label} category`}>{meta.label}</span>;
+  const Icon = meta.Icon;
+  return <span className={`categoryBadge category-${meta.slug}`} aria-label={`${meta.label} category`}><Icon aria-hidden="true" />{meta.label}</span>;
 }
 
 function CategoryLabel({category, children}) {
