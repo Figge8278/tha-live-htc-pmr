@@ -59,6 +59,8 @@ const SECTION_ORDER_KEY = 'tha-section-order';
 const ITEM_ORDER_KEY = 'tha-item-order';
 const PINNED_ITEMS_KEY = 'tha-pinned-items';
 const ROOM_CAPTURE_KEY = 'tha-room-capture';
+const WALKTHROUGH_SESSIONS_KEY = 'tha-walkthrough-sessions';
+const CURRENT_WALKTHROUGH_ID_KEY = 'tha-current-walkthrough-id';
 const TRADE_OPTIONS = [...Object.keys(ICONS), 'Carpentry', 'General Contractor', 'Design', 'Flooring', 'Landscape', 'Review / Assign Later'];
 
 const INTAKE_DEFAULTS = {
@@ -332,7 +334,7 @@ function dataUrlToBlob(dataUrl) {
   return new Blob([buffer], { type: mime });
 }
 function queueDrivePayload(payload) {
-  const queue = JSON.parse(localStorage.getItem(DRIVE_QUEUE_KEY) || '[]');
+  const queue = safeJsonParse(localStorage.getItem(DRIVE_QUEUE_KEY), []);
   const next = [...queue, { id: Date.now(), createdAt: new Date().toISOString(), payload }];
   localStorage.setItem(DRIVE_QUEUE_KEY, JSON.stringify(next));
   return next.length;
@@ -414,8 +416,8 @@ async function uploadDriveBlob(accessToken, folderId, name, blob, mimeType) {
 function uploadDriveJson(accessToken, folderId, name, data) {
   return uploadDriveBlob(accessToken, folderId, name, new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), 'application/json');
 }
-function buildDrivePayload({ client, intake, rows, pmr, dynamicRooms = [], sections = [], sectionOrderState = [], itemOrderState = {}, pinnedItems = {}, roomCapture = {} }) {
-  return { client, intake, dynamicRooms, roomCapture, sectionFlow: sections.map((section, index) => ({ order: index + 1, key: section.key, label: section.label, roomType: section.roomType || section.label, roomName: section.roomName || section.label })), sectionOrder: sectionOrderState, itemOrder: itemOrderState, pinnedItems, rows, pmr, exportedAt: new Date().toISOString() };
+function buildDrivePayload({ walkthroughName = '', client, intake, rows, pmr, dynamicRooms = [], sections = [], sectionOrderState = [], itemOrderState = {}, pinnedItems = {}, roomCapture = {} }) {
+  return { walkthroughName, client, intake, dynamicRooms, roomCapture, sectionFlow: sections.map((section, index) => ({ order: index + 1, key: section.key, label: section.label, roomType: section.roomType || section.label, roomName: section.roomName || section.label })), sectionOrder: sectionOrderState, itemOrder: itemOrderState, pinnedItems, rows, pmr, exportedAt: new Date().toISOString() };
 }
 async function uploadDriveBundle(accessToken, payload) {
   const clientFolderName = cleanDriveName(`${payload.client.name || 'Client'} - ${payload.client.address || 'Property Address'}`);
@@ -462,25 +464,92 @@ async function uploadDriveBundle(accessToken, payload) {
   }
 }
 
+function safeJsonParse(value, fallback) {
+  try {
+    const parsed = JSON.parse(value || 'null');
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+function cloneData(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+function blankIntakeTemplate() {
+  return Object.fromEntries(Object.entries(INTAKE_DEFAULTS).map(([key, value]) => [key, Array.isArray(value) ? [] : '']));
+}
+function cleanWalkthroughData() {
+  return {
+    client: { name: '', address: '', date: '' },
+    answers: {},
+    intake: blankIntakeTemplate(),
+    dynamicRooms: cloneData(DEFAULT_DYNAMIC_ROOMS),
+    sectionOrder: [],
+    itemOrder: {},
+    pinnedItems: {},
+    roomCapture: {}
+  };
+}
+function legacyWalkthroughData() {
+  const dynamicRooms = safeJsonParse(localStorage.getItem(DYNAMIC_ROOMS_KEY), null);
+  return {
+    client: safeJsonParse(localStorage.getItem('tha-client'), { name: 'Christine & Matt', address: 'Sample Home', date: '2026-04 Walkthrough' }),
+    answers: safeJsonParse(localStorage.getItem('tha-answers'), null) || sampleAnswers,
+    intake: safeJsonParse(localStorage.getItem('tha-intake'), null) || INTAKE_DEFAULTS,
+    dynamicRooms: Array.isArray(dynamicRooms) ? dynamicRooms : DEFAULT_DYNAMIC_ROOMS,
+    sectionOrder: safeJsonParse(localStorage.getItem(SECTION_ORDER_KEY), []),
+    itemOrder: safeJsonParse(localStorage.getItem(ITEM_ORDER_KEY), {}),
+    pinnedItems: safeJsonParse(localStorage.getItem(PINNED_ITEMS_KEY), {}),
+    roomCapture: safeJsonParse(localStorage.getItem(ROOM_CAPTURE_KEY), {})
+  };
+}
+function readWalkthroughSessions() {
+  const saved = safeJsonParse(localStorage.getItem(WALKTHROUGH_SESSIONS_KEY), {});
+  return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+}
+function initialWalkthroughState() {
+  const sessions = readWalkthroughSessions();
+  const activeId = localStorage.getItem(CURRENT_WALKTHROUGH_ID_KEY) || '';
+  const activeSession = activeId ? sessions[activeId] : null;
+  if (activeSession?.data) {
+    return {
+      data: { ...cleanWalkthroughData(), ...activeSession.data },
+      sessions,
+      activeId,
+      selectedId: activeId,
+      name: activeSession.name || 'Untitled Walkthrough'
+    };
+  }
+  return {
+    data: legacyWalkthroughData(),
+    sessions,
+    activeId: '',
+    selectedId: '',
+    name: 'Current Walkthrough'
+  };
+}
+
 function App() {
-  const [client, setClient] = useState(() => JSON.parse(localStorage.getItem('tha-client') || '{"name":"Christine & Matt","address":"Sample Home","date":"2026-04 Walkthrough"}'));
-  const [answers, setAnswers] = useState(() => JSON.parse(localStorage.getItem('tha-answers') || 'null') || sampleAnswers);
-  const [intake, setIntake] = useState(() => JSON.parse(localStorage.getItem('tha-intake') || 'null') || INTAKE_DEFAULTS);
-  const [dynamicRooms, setDynamicRooms] = useState(() => {
-    const saved = JSON.parse(localStorage.getItem(DYNAMIC_ROOMS_KEY) || 'null');
-    return Array.isArray(saved) ? saved : DEFAULT_DYNAMIC_ROOMS;
-  });
+  const [initialState] = useState(() => initialWalkthroughState());
+  const [savedSessions, setSavedSessions] = useState(initialState.sessions);
+  const [activeWalkthroughId, setActiveWalkthroughId] = useState(initialState.activeId);
+  const [selectedWalkthroughId, setSelectedWalkthroughId] = useState(initialState.selectedId);
+  const [walkthroughName, setWalkthroughName] = useState(initialState.name);
+  const [client, setClient] = useState(initialState.data.client);
+  const [answers, setAnswers] = useState(initialState.data.answers);
+  const [intake, setIntake] = useState(initialState.data.intake);
+  const [dynamicRooms, setDynamicRooms] = useState(initialState.data.dynamicRooms);
   const [activeRoom, setActiveRoom] = useState(sectionOrder[0] || 'Kitchen');
   const [view, setView] = useState('intake');
   const [driveToken, setDriveToken] = useState('');
   const [driveClientId, setDriveClientId] = useState(() => localStorage.getItem(GOOGLE_CLIENT_ID_KEY) || '');
-  const [driveMeta, setDriveMeta] = useState(() => JSON.parse(localStorage.getItem(DRIVE_META_KEY) || 'null') || { lastSaved: '', lastError: '' });
-  const [pendingCount, setPendingCount] = useState(() => JSON.parse(localStorage.getItem(DRIVE_QUEUE_KEY) || '[]').length);
+  const [driveMeta, setDriveMeta] = useState(() => safeJsonParse(localStorage.getItem(DRIVE_META_KEY), null) || { lastSaved: '', lastError: '' });
+  const [pendingCount, setPendingCount] = useState(() => safeJsonParse(localStorage.getItem(DRIVE_QUEUE_KEY), []).length);
   const [driveBusy, setDriveBusy] = useState(false);
-  const [sectionOrderState, setSectionOrderState] = useState(() => JSON.parse(localStorage.getItem(SECTION_ORDER_KEY) || '[]'));
-  const [itemOrderState, setItemOrderState] = useState(() => JSON.parse(localStorage.getItem(ITEM_ORDER_KEY) || '{}'));
-  const [pinnedItems, setPinnedItems] = useState(() => JSON.parse(localStorage.getItem(PINNED_ITEMS_KEY) || '{}'));
-  const [roomCapture, setRoomCapture] = useState(() => JSON.parse(localStorage.getItem(ROOM_CAPTURE_KEY) || '{}'));
+  const [sectionOrderState, setSectionOrderState] = useState(initialState.data.sectionOrder);
+  const [itemOrderState, setItemOrderState] = useState(initialState.data.itemOrder);
+  const [pinnedItems, setPinnedItems] = useState(initialState.data.pinnedItems);
+  const [roomCapture, setRoomCapture] = useState(initialState.data.roomCapture);
   const [roomItemFormOpen, setRoomItemFormOpen] = useState(false);
   const [roomItemDraft, setRoomItemDraft] = useState(EMPTY_ROOM_ITEM_DRAFT);
   const [dragSectionKey, setDragSectionKey] = useState('');
@@ -494,6 +563,11 @@ function App() {
   useEffect(()=>localStorage.setItem(ITEM_ORDER_KEY, JSON.stringify(itemOrderState)), [itemOrderState]);
   useEffect(()=>localStorage.setItem(PINNED_ITEMS_KEY, JSON.stringify(pinnedItems)), [pinnedItems]);
   useEffect(()=>localStorage.setItem(ROOM_CAPTURE_KEY, JSON.stringify(roomCapture)), [roomCapture]);
+  useEffect(()=>localStorage.setItem(WALKTHROUGH_SESSIONS_KEY, JSON.stringify(savedSessions)), [savedSessions]);
+  useEffect(()=>{
+    if (activeWalkthroughId) localStorage.setItem(CURRENT_WALKTHROUGH_ID_KEY, activeWalkthroughId);
+    else localStorage.removeItem(CURRENT_WALKTHROUGH_ID_KEY);
+  }, [activeWalkthroughId]);
   const baseSections = useMemo(() => {
     const list = [];
     sectionOrder.forEach(room => {
@@ -649,6 +723,76 @@ function App() {
     });
     setItemOrderState(prev => ({...prev, [sectionKey]: mergeOrder(prev[sectionKey], itemIdsForSection(sectionKey))}));
   };
+  const currentWalkthroughData = () => ({
+    client,
+    answers,
+    intake,
+    dynamicRooms,
+    sectionOrder: sectionOrderState,
+    itemOrder: itemOrderState,
+    pinnedItems,
+    roomCapture
+  });
+  const applyWalkthroughData = (data) => {
+    const clean = cleanWalkthroughData();
+    setClient(data?.client || clean.client);
+    setAnswers(data?.answers || clean.answers);
+    setIntake(data?.intake || clean.intake);
+    setDynamicRooms(Array.isArray(data?.dynamicRooms) ? data.dynamicRooms : clean.dynamicRooms);
+    setSectionOrderState(Array.isArray(data?.sectionOrder) ? data.sectionOrder : clean.sectionOrder);
+    setItemOrderState(data?.itemOrder || clean.itemOrder);
+    setPinnedItems(data?.pinnedItems || clean.pinnedItems);
+    setRoomCapture(data?.roomCapture || clean.roomCapture);
+    setRoomItemFormOpen(false);
+    setRoomItemDraft(EMPTY_ROOM_ITEM_DRAFT);
+    setView('intake');
+  };
+  const startNewWalkthrough = () => {
+    const nextId = `walkthrough-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const nextName = `New Walkthrough ${new Date().toLocaleDateString()}`;
+    applyWalkthroughData(cleanWalkthroughData());
+    setWalkthroughName(nextName);
+    setActiveWalkthroughId(nextId);
+    setSelectedWalkthroughId('');
+  };
+  const saveWalkthrough = () => {
+    const id = activeWalkthroughId || `walkthrough-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const name = walkthroughName.trim() || client.name || client.address || 'Untitled Walkthrough';
+    const session = {
+      id,
+      name,
+      updatedAt: new Date().toISOString(),
+      data: currentWalkthroughData()
+    };
+    setSavedSessions(prev => ({ ...prev, [id]: session }));
+    setActiveWalkthroughId(id);
+    setSelectedWalkthroughId(id);
+    setWalkthroughName(name);
+  };
+  const openSavedWalkthrough = (id) => {
+    setSelectedWalkthroughId(id);
+    if (!id) return;
+    const session = savedSessions[id];
+    if (!session?.data) return;
+    applyWalkthroughData(session.data);
+    setActiveWalkthroughId(id);
+    setWalkthroughName(session.name || 'Untitled Walkthrough');
+  };
+  const deleteSavedWalkthrough = () => {
+    const id = selectedWalkthroughId;
+    if (!id || !savedSessions[id]) return;
+    if (!window.confirm(`Delete saved walkthrough "${savedSessions[id].name || 'Untitled Walkthrough'}"?`)) return;
+    setSavedSessions(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setSelectedWalkthroughId('');
+    if (activeWalkthroughId === id) {
+      setActiveWalkthroughId('');
+    }
+  };
+
   const reassignCatchAll = (sourceId) => {
     const source = rows.find(r => r.id === sourceId);
     const targetId = source?.answer.reassignTo;
@@ -668,7 +812,7 @@ function App() {
     });
   };
   const downloadJSON = () => {
-    const blob = new Blob([JSON.stringify(buildDrivePayload({client, intake, rows, pmr, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture}), null, 2)], {type:'application/json'});
+    const blob = new Blob([JSON.stringify(buildDrivePayload({walkthroughName, client, intake, rows, pmr, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture}), null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `THA-HTC-PMR-${client.name || 'client'}.json`; a.click(); URL.revokeObjectURL(url);
   };
   const connectDrive = async () => {
@@ -684,9 +828,10 @@ function App() {
       setDriveBusy(false);
     }
   };
+  const savedSessionList = Object.values(savedSessions).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
   const syncDrive = async ({includeDownload=false, retryQueue=false} = {}) => {
     if (includeDownload) downloadJSON();
-    const payload = buildDrivePayload({client, intake, rows, pmr, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture});
+    const payload = buildDrivePayload({walkthroughName, client, intake, rows, pmr, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture});
     if (!navigator.onLine || !driveToken) {
       const count = queueDrivePayload(payload);
       setPendingCount(count);
@@ -696,7 +841,7 @@ function App() {
     setDriveBusy(true);
     try {
       if (retryQueue) {
-        const queue = JSON.parse(localStorage.getItem(DRIVE_QUEUE_KEY) || '[]');
+        const queue = safeJsonParse(localStorage.getItem(DRIVE_QUEUE_KEY), []);
         for (const item of queue) await uploadDriveBundle(driveToken, item.payload);
         localStorage.setItem(DRIVE_QUEUE_KEY, '[]');
         setPendingCount(0);
@@ -716,6 +861,13 @@ function App() {
       <div className="brand"><THALogo variant="full"/><div><span>Handy‑Triage Checklist → PMR</span></div></div>
       <nav><button onClick={()=>setView('intake')} className={view==='intake'?'on':''}><Home size={18}/> Intake</button><button onClick={()=>setView('form')} className={view==='form'?'on':''}><ClipboardCheck size={18}/> HTC Form</button><button onClick={()=>setView('pmr')} className={view==='pmr'?'on':''}><FileText size={18}/> PMR Preview</button><button onClick={()=>setView('metrics')} className={view==='metrics'?'on':''}><Clock3 size={18}/> Metrics</button></nav>
     </header>
+    <section className="sessionCard noPrint">
+      <label>Current Walkthrough Name<input value={walkthroughName} onChange={e=>setWalkthroughName(e.target.value)} placeholder="Name this walkthrough"/></label>
+      <button type="button" onClick={startNewWalkthrough}>Start New Walkthrough</button>
+      <button type="button" onClick={saveWalkthrough}>Save Walkthrough</button>
+      <label>Open Saved Walkthrough<select value={selectedWalkthroughId} onChange={e=>openSavedWalkthrough(e.target.value)}><option value="">Choose saved walkthrough</option>{savedSessionList.map(session=><option key={session.id} value={session.id}>{session.name || 'Untitled Walkthrough'}{session.updatedAt ? ` · ${new Date(session.updatedAt).toLocaleString()}` : ''}</option>)}</select></label>
+      <button type="button" onClick={deleteSavedWalkthrough} disabled={!selectedWalkthroughId || !savedSessions[selectedWalkthroughId]}>Delete Saved Walkthrough</button>
+    </section>
     <section className="clientCard noPrint">
       <label>Client<input value={client.name} onChange={e=>setClient({...client,name:e.target.value})}/></label>
       <label>Address<input value={client.address} onChange={e=>setClient({...client,address:e.target.value})}/></label>
