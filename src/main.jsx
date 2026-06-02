@@ -119,6 +119,11 @@ const DYNAMIC_ROOM_TYPES = {
 };
 const DYNAMIC_TEMPLATE_ROOMS = ['Bedroom', 'Bathroom'];
 const DYNAMIC_ROOMS_KEY = 'tha-dynamic-rooms';
+const DEFAULT_DYNAMIC_ROOMS = [
+  { id: 'default-living-room-1', roomName: 'Family Room', roomType: 'Living / Family Rooms' },
+  { id: 'default-bedroom-1', roomName: 'Bedroom 1', roomType: 'Bedrooms' },
+  { id: 'default-bathroom-1', roomName: 'Bathroom 1', roomType: 'Bathrooms' }
+];
 const sectionOrder = [...new Set(library.map(x => x.room))];
 const checklistLibrary = sectionOrder.flatMap(room => [
   ...library.filter(item => item.room === room),
@@ -436,7 +441,10 @@ function App() {
   const [client, setClient] = useState(() => JSON.parse(localStorage.getItem('tha-client') || '{"name":"Christine & Matt","address":"Sample Home","date":"2026-04 Walkthrough"}'));
   const [answers, setAnswers] = useState(() => JSON.parse(localStorage.getItem('tha-answers') || 'null') || sampleAnswers);
   const [intake, setIntake] = useState(() => JSON.parse(localStorage.getItem('tha-intake') || 'null') || INTAKE_DEFAULTS);
-  const [dynamicRooms, setDynamicRooms] = useState(() => JSON.parse(localStorage.getItem(DYNAMIC_ROOMS_KEY) || '[]'));
+  const [dynamicRooms, setDynamicRooms] = useState(() => {
+    const saved = JSON.parse(localStorage.getItem(DYNAMIC_ROOMS_KEY) || 'null');
+    return Array.isArray(saved) ? saved : DEFAULT_DYNAMIC_ROOMS;
+  });
   const [activeRoom, setActiveRoom] = useState(sectionOrder[0] || 'Kitchen');
   const [view, setView] = useState('intake');
   const [driveToken, setDriveToken] = useState('');
