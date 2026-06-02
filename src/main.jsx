@@ -863,25 +863,26 @@ function App() {
     </header>
     <section className="sessionCard noPrint">
       <label>Current Walkthrough Name<input value={walkthroughName} onChange={e=>setWalkthroughName(e.target.value)} placeholder="Name this walkthrough"/></label>
-      <button type="button" onClick={startNewWalkthrough}>Start New Walkthrough</button>
-      <button type="button" onClick={saveWalkthrough}>Save Walkthrough</button>
+      <button type="button" onClick={startNewWalkthrough}>Start New Blank Walkthrough</button>
+      <button type="button" onClick={saveWalkthrough}>Save Working Walkthrough</button>
       <label>Open Saved Walkthrough<select value={selectedWalkthroughId} onChange={e=>openSavedWalkthrough(e.target.value)}><option value="">Choose saved walkthrough</option>{savedSessionList.map(session=><option key={session.id} value={session.id}>{session.name || 'Untitled Walkthrough'}{session.updatedAt ? ` · ${new Date(session.updatedAt).toLocaleString()}` : ''}</option>)}</select></label>
-      <button type="button" onClick={deleteSavedWalkthrough} disabled={!selectedWalkthroughId || !savedSessions[selectedWalkthroughId]}>Delete Saved Walkthrough</button>
+      <button type="button" onClick={deleteSavedWalkthrough} disabled={!selectedWalkthroughId || !savedSessions[selectedWalkthroughId]}>Delete Selected Walkthrough</button>
     </section>
     <section className="clientCard noPrint">
       <label>Client<input value={client.name} onChange={e=>setClient({...client,name:e.target.value})}/></label>
       <label>Address<input value={client.address} onChange={e=>setClient({...client,address:e.target.value})}/></label>
       <label>Walkthrough Folder / Date<input value={client.date} onChange={e=>setClient({...client,date:e.target.value})}/></label>
-      <button onClick={()=>syncDrive({includeDownload:true})}><Download size={16}/> Export / Save</button>
-      <button onClick={()=>window.print()}><Printer size={16}/> Print / Save PMR</button>
+      <button onClick={()=>syncDrive({includeDownload:true})}><Download size={16}/> Download Walkthrough Backup</button>
+      <button onClick={()=>window.print()}><Printer size={16}/> Print / Save Draft PMR</button>
     </section>
     <section className="driveStatus noPrint">
-      <label>Google OAuth Client ID<input value={driveClientId} onChange={e=>setDriveClientId(e.target.value)} placeholder="Paste web client ID for Drive upload"/></label>
+      <label>Google OAuth Client ID<span className="fieldHelp">Requires a Google OAuth Client ID, not a Google Drive folder link.</span><input value={driveClientId} onChange={e=>setDriveClientId(e.target.value)} placeholder="Paste web client ID for Drive upload"/></label>
       <button onClick={connectDrive} disabled={driveBusy}><FolderOpen size={16}/> Connect Google Drive</button>
       <button onClick={()=>syncDrive({retryQueue:true})} disabled={driveBusy || !driveToken}><Upload size={16}/> Save to Drive</button>
       <span className={driveToken ? 'drivePill connected' : 'drivePill'}>{driveToken ? 'Connected' : 'Not connected'}</span>
       <span>Last saved to Drive: {driveMeta.lastSaved || 'Never'}</span>
       <span className={pendingCount ? 'pendingSync on' : 'pendingSync'}>{pendingCount ? `Pending Drive Sync: ${pendingCount}` : 'Pending sync count: 0'}</span>
+      <small className="driveSetupNote">Google Drive export is still in setup/testing. Use Download Walkthrough Backup for now.</small>
     </section>
     {view === 'intake' && <IntakeView intake={intake} updateIntake={updateIntake} />}
     {view === 'form' && <main className="grid">
