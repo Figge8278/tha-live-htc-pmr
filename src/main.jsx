@@ -28,15 +28,17 @@ function displayTradeLabel(trade) {
 }
 
 const CATEGORY_VISUALS = {
-  Electrical: { label: 'Electrical', accent: '#d6a21d', tint: '#fff7dd', text: '#6f4d00' },
+  Electrical: { label: 'Electrical', accent: '#d8a600', tint: '#fff8d9', text: '#715500' },
   Plumbing: { label: 'Plumbing', accent: '#2f7fbd', tint: '#e7f2fb', text: '#17527f' },
-  HVAC: { label: 'HVAC', accent: '#df6b2e', tint: '#fff0e7', text: '#8d3d12' },
-  Roofing: { label: 'Roofing', accent: '#3f4850', tint: '#eef1f3', text: '#2c343a' },
+  HVAC: { label: 'HVAC', accent: '#e97828', tint: '#fff0e5', text: '#8a3f10' },
+  Roofing: { label: 'Roofing', accent: '#252b31', tint: '#eef0f2', text: '#252b31' },
   Drainage: { label: 'Drainage', accent: '#3f8f4d', tint: '#e9f5eb', text: '#275f31' },
   Openings: { label: 'Openings', accent: '#9a6a38', tint: '#f5eadc', text: '#63401f' },
+  Exterior: { label: 'Exterior', accent: '#6f7f42', tint: '#f0f3e6', text: '#475525' },
+  Pest: { label: 'Pest', accent: '#75607f', tint: '#f0ebf3', text: '#4f3c58' },
   Surfaces: { label: 'Surfaces', accent: '#89929a', tint: '#f0f2f3', text: '#4f5961' },
   Appliances: { label: 'Appliances', accent: '#7e57c2', tint: '#f0eafa', text: '#4d2f83' },
-  Safety: { label: 'Safety', accent: '#d64032', tint: '#fde8e5', text: '#8c2319' },
+  Safety: { label: 'Safety', accent: '#c84a3d', tint: '#f8e7e4', text: '#7b2a22' },
   Handy: { label: 'Handy / Carpentry', accent: '#b8874b', tint: '#f6eadc', text: '#6d4721' },
   General: { label: 'General / Misc', accent: '#9aa4ad', tint: '#f1f3f5', text: '#56616a' }
 };
@@ -44,13 +46,15 @@ const CATEGORY_VISUALS = {
 const CATEGORY_ALIASES = [
   { key: 'Safety', terms: ['safety', 'smoke', 'carbon monoxide', ' co ', 'detector', 'extinguisher', 'fire risk'] },
   { key: 'Electrical', terms: ['electrical', 'outlet', 'gfci', 'switch', 'lighting', 'ceiling fan', 'wiring'] },
-  { key: 'Plumbing', terms: ['plumbing', 'sink', 'disposal', 'drain behavior', 'washer hoses', 'shutoffs', 'leak', 'trap'] },
-  { key: 'HVAC', terms: ['hvac', 'furnace', ' ac ', 'a/c', 'filter', 'ventilation', 'exhaust fan', 'airflow'] },
-  { key: 'Drainage', terms: ['drainage', 'gutter', 'downspout', 'grading', 'pooling', 'water discharge'] },
-  { key: 'Roofing', terms: ['roof', 'roofing', 'chimney', 'fireplace', 'hearth', 'damper', 'masonry'] },
-  { key: 'Openings', terms: ['openings', 'window', 'windows', 'door', 'doors', 'locks', 'screens', 'seals', 'egress'] },
-  { key: 'Surfaces', terms: ['surface', 'surfaces', 'paint', 'flooring', 'finish', 'walls', 'ceilings', 'trim', 'caulk', 'grout', 'stain', 'wet areas'] },
+  { key: 'Plumbing', terms: ['plumbing', 'sink', 'disposal', 'drain behavior', 'washer hoses', 'shutoffs', 'leak', 'trap', 'water heater', 'sewer'] },
+  { key: 'HVAC', terms: ['hvac', 'furnace', ' ac ', 'a/c', 'filter', 'ventilation', 'exhaust fan', 'airflow', 'comfort'] },
+  { key: 'Drainage', terms: ['drainage', 'gutter', 'downspout', 'grading', 'pooling', 'water discharge', 'water intrusion'] },
+  { key: 'Roofing', terms: ['roof', 'roofing', 'solar', 'chimney', 'fireplace', 'hearth', 'damper', 'masonry'] },
+  { key: 'Openings', terms: ['openings', 'window', 'windows', 'door', 'doors', 'locks', 'screens', 'seals', 'egress', 'fogging'] },
+  { key: 'Exterior', terms: ['exterior', 'paint', 'stain', 'siding', 'landscape'] },
+  { key: 'Pest', terms: ['pest', 'pests', 'bug', 'insect', 'rodent'] },
   { key: 'Appliances', terms: ['appliance', 'appliances', 'range hood'] },
+  { key: 'Surfaces', terms: ['surface', 'surfaces', 'flooring', 'finish', 'walls', 'ceilings', 'trim', 'caulk', 'grout', 'wet areas'] },
   { key: 'Handy', terms: ['handyman', 'handy', 'carpentry', 'cabinetry', 'cabinet', 'hinges', 'drawers', 'pulls'] }
 ];
 
@@ -59,15 +63,19 @@ function categoryKeyFromText(text) {
   return CATEGORY_ALIASES.find(({ terms }) => terms.some(term => sourceText.includes(term)))?.key;
 }
 
+function categoryVisualByKey(key = 'General') {
+  return CATEGORY_VISUALS[key] || CATEGORY_VISUALS.General;
+}
+
 function categoryVisualFor(row) {
   const selectedTrade = row?.answer?.trade || row?.trade || '';
   if (selectedTrade && !['Handyman', 'Review / Assign Later'].includes(selectedTrade)) {
-    return CATEGORY_VISUALS[categoryKeyFromText(selectedTrade)] || CATEGORY_VISUALS.General;
+    return categoryVisualByKey(categoryKeyFromText(selectedTrade));
   }
   const sourceText = [selectedTrade, row?.trade, row?.zone, row?.room, row?.item, row?.prompt]
     .filter(Boolean)
     .join(' ');
-  return CATEGORY_VISUALS[categoryKeyFromText(sourceText)] || CATEGORY_VISUALS.General;
+  return categoryVisualByKey(categoryKeyFromText(sourceText));
 }
 
 function TradeCategoryBadge({ category }) {
@@ -78,6 +86,14 @@ function TradeCategoryBadge({ category }) {
   >
     {category.label}
   </span>;
+}
+
+function IntakeQuestion({ categoryKey = 'General', title, children, className = '' }) {
+  const category = categoryVisualByKey(categoryKey);
+  return <label className={`intakeQuestion categorized ${className}`} style={{ '--category-accent': category.accent }}>
+    <span className="intakeQuestionTitle"><span>{title}</span><TradeCategoryBadge category={category}/></span>
+    {children}
+  </label>;
 }
 
 const STATUS = ['Good','Monitor','Needs Attention','Immediate Concern','Unknown'];
@@ -985,34 +1001,34 @@ function IntakeView({intake, updateIntake}) {
       <label className="notes">Homeowner goals / anything they want us to prioritize<textarea value={intake.notes || ''} onChange={e=>updateIntake({notes:e.target.value})} placeholder="What matters most to the homeowner? Safety, function, budget, aesthetics, peace of mind, aging in place, resale, etc." /></label>
     </section>
     <section className="pmrBlock"><h2>🔌 Electrical / 🚿 Plumbing / 🌡️ HVAC</h2><div className="intakeGrid">
-      <label>Electrical panel location<input value={intake.electricalPanel || ''} onChange={e=>updateIntake({electricalPanel:e.target.value})}/></label>
-      <label>Known electrical issues or updates<input value={intake.electricalUpdates || ''} onChange={e=>updateIntake({electricalUpdates:e.target.value})}/></label>
-      <label>Main water shut-off location<input value={intake.waterShutoff || ''} onChange={e=>updateIntake({waterShutoff:e.target.value})}/></label>
-      <label>Known leaks, slow drains, or past plumbing issues<input value={intake.plumbingHistory || ''} onChange={e=>updateIntake({plumbingHistory:e.target.value})}/></label>
-      <label>Water heater flush / age<input value={intake.waterHeater || ''} onChange={e=>updateIntake({waterHeater:e.target.value})}/></label>
-      <label>Sewer / irrigation history<input value={intake.sewerIrrigation || ''} onChange={e=>updateIntake({sewerIrrigation:e.target.value})}/></label>
-      <label>Furnace filter replacement<input value={intake.hvacFilter || ''} onChange={e=>updateIntake({hvacFilter:e.target.value})}/></label>
-      <label>Furnace / A/C service history<input value={intake.hvacService || ''} onChange={e=>updateIntake({hvacService:e.target.value})}/></label>
-      <label>Comfort issues<input value={intake.comfort || ''} onChange={e=>updateIntake({comfort:e.target.value})}/></label>
+      <IntakeQuestion categoryKey="Electrical" title="Electrical panel location"><input value={intake.electricalPanel || ''} onChange={e=>updateIntake({electricalPanel:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="Electrical" title="Known electrical issues or updates"><input value={intake.electricalUpdates || ''} onChange={e=>updateIntake({electricalUpdates:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="Plumbing" title="Main water shut-off location"><input value={intake.waterShutoff || ''} onChange={e=>updateIntake({waterShutoff:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="Plumbing" title="Known leaks, slow drains, or past plumbing issues"><input value={intake.plumbingHistory || ''} onChange={e=>updateIntake({plumbingHistory:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="Plumbing" title="Water heater flush / age"><input value={intake.waterHeater || ''} onChange={e=>updateIntake({waterHeater:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="Plumbing" title="Sewer / irrigation history"><input value={intake.sewerIrrigation || ''} onChange={e=>updateIntake({sewerIrrigation:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="HVAC" title="Furnace filter replacement"><input value={intake.hvacFilter || ''} onChange={e=>updateIntake({hvacFilter:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="HVAC" title="Furnace / A/C service history"><input value={intake.hvacService || ''} onChange={e=>updateIntake({hvacService:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="HVAC" title="Comfort issues"><input value={intake.comfort || ''} onChange={e=>updateIntake({comfort:e.target.value})}/></IntakeQuestion>
     </div></section>
     <section className="pmrBlock"><h2>🏠 Roof / 🌧️ Drainage / 🪟 Openings / 🎨 Exterior</h2><div className="intakeGrid">
-      <label>Roof age / last replacement<input value={intake.roofAge || ''} onChange={e=>updateIntake({roofAge:e.target.value})}/></label>
-      <label>Known roof leaks / repairs<input value={intake.roofHistory || ''} onChange={e=>updateIntake({roofHistory:e.target.value})}/></label>
-      <label>Solar panel status, if present<input value={intake.solar || ''} onChange={e=>updateIntake({solar:e.target.value})}/></label>
-      <label>Water pooling areas<input value={intake.drainagePooling || ''} onChange={e=>updateIntake({drainagePooling:e.target.value})}/></label>
-      <label>Drainage / water intrusion history<input value={intake.drainageHistory || ''} onChange={e=>updateIntake({drainageHistory:e.target.value})}/></label>
-      <label>Gutter / downspout concerns<input value={intake.gutters || ''} onChange={e=>updateIntake({gutters:e.target.value})}/></label>
-      <label>Drafty or hard-to-operate windows / doors<input value={intake.windowsDoors || ''} onChange={e=>updateIntake({windowsDoors:e.target.value})}/></label>
-      <label>Fogging / failed seals<input value={intake.fogging || ''} onChange={e=>updateIntake({fogging:e.target.value})}/></label>
-      <label>Last exterior paint / stain<input value={intake.paintStain || ''} onChange={e=>updateIntake({paintStain:e.target.value})}/></label>
-      <label>Product / color labels to consolidate<input value={intake.productsColors || ''} onChange={e=>updateIntake({productsColors:e.target.value})}/></label>
+      <IntakeQuestion categoryKey="Roofing" title="Roof age / last replacement"><input value={intake.roofAge || ''} onChange={e=>updateIntake({roofAge:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="Roofing" title="Known roof leaks / repairs"><input value={intake.roofHistory || ''} onChange={e=>updateIntake({roofHistory:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="Roofing" title="Solar panel status, if present"><input value={intake.solar || ''} onChange={e=>updateIntake({solar:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="Drainage" title="Water pooling areas"><input value={intake.drainagePooling || ''} onChange={e=>updateIntake({drainagePooling:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="Drainage" title="Drainage / water intrusion history"><input value={intake.drainageHistory || ''} onChange={e=>updateIntake({drainageHistory:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="Drainage" title="Gutter / downspout concerns"><input value={intake.gutters || ''} onChange={e=>updateIntake({gutters:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="Openings" title="Drafty or hard-to-operate windows / doors"><input value={intake.windowsDoors || ''} onChange={e=>updateIntake({windowsDoors:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="Openings" title="Fogging / failed seals"><input value={intake.fogging || ''} onChange={e=>updateIntake({fogging:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="Exterior" title="Last exterior paint / stain"><input value={intake.paintStain || ''} onChange={e=>updateIntake({paintStain:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="General" title="Product / color labels to consolidate"><input value={intake.productsColors || ''} onChange={e=>updateIntake({productsColors:e.target.value})}/></IntakeQuestion>
     </div></section>
     <section className="pmrBlock"><h2>🐜 Pest / 🔥 Safety / 🧰 Misc.</h2><div className="intakeGrid">
-      <label>Pest activity or history<input value={intake.pests || ''} onChange={e=>updateIntake({pests:e.target.value})}/></label>
-      <label>Fire extinguishers: quantity, age, location<input value={intake.fireExtinguishers || ''} onChange={e=>updateIntake({fireExtinguishers:e.target.value})}/></label>
-      <label>Smoke / CO detector age or replacement<input value={intake.smokeCO || ''} onChange={e=>updateIntake({smokeCO:e.target.value})}/></label>
-      <label>Chimney inspection / cleaning<input value={intake.chimney || ''} onChange={e=>updateIntake({chimney:e.target.value})}/></label>
-    </div><label className="notes">Other known concerns / items to pay attention to<textarea value={intake.additionalConcerns || ''} onChange={e=>updateIntake({additionalConcerns:e.target.value})}/></label></section>
+      <IntakeQuestion categoryKey="Pest" title="Pest activity or history"><input value={intake.pests || ''} onChange={e=>updateIntake({pests:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="Safety" title="Fire extinguishers: quantity, age, location"><input value={intake.fireExtinguishers || ''} onChange={e=>updateIntake({fireExtinguishers:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="Safety" title="Smoke / CO detector age or replacement"><input value={intake.smokeCO || ''} onChange={e=>updateIntake({smokeCO:e.target.value})}/></IntakeQuestion>
+      <IntakeQuestion categoryKey="Safety" title="Chimney inspection / cleaning"><input value={intake.chimney || ''} onChange={e=>updateIntake({chimney:e.target.value})}/></IntakeQuestion>
+    </div><IntakeQuestion categoryKey="General" title="Other known concerns / items to pay attention to" className="notes"><textarea value={intake.additionalConcerns || ''} onChange={e=>updateIntake({additionalConcerns:e.target.value})}/></IntakeQuestion></section>
   </main>
 }
 

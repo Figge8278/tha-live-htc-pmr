@@ -66,3 +66,8 @@
 .itemTitleLine h2{margin:0}
 .tradeCategoryBadge{display:inline-flex;align-items:center;border-radius:999px;border:1px solid var(--category-accent,#9aa4ad);background:var(--category-tint,#f1f3f5);color:var(--category-text,#56616a);font-size:11px;font-weight:900;line-height:1;letter-spacing:.02em;text-transform:uppercase;padding:6px 9px;white-space:nowrap}
 @media(max-width:900px){.itemCard.categorized{border-left-width:5px}.itemTitleLine{gap:8px}.tradeCategoryBadge{font-size:10px;padding:5px 8px}}
+.intakeQuestion.categorized{border-left:4px solid var(--category-accent,#9aa4ad);padding-left:9px;min-width:0}
+.intakeQuestionTitle{display:flex;align-items:center;justify-content:space-between;gap:8px;line-height:1.25}
+.intakeQuestionTitle>span:first-child{min-width:0}
+.intakeQuestion .tradeCategoryBadge{font-size:9px;padding:4px 7px;letter-spacing:.015em;flex:0 0 auto}
+@media(max-width:900px){.intakeQuestionTitle{align-items:flex-start;flex-direction:column}.intakeQuestion .tradeCategoryBadge{font-size:9px}}
