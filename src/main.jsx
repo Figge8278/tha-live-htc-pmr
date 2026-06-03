@@ -110,6 +110,14 @@ const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const DRIVE_QUEUE_KEY = 'tha-drive-pending-queue';
 const DRIVE_META_KEY = 'tha-drive-meta';
 const GOOGLE_CLIENT_ID_KEY = 'tha-google-client-id';
+const GOOGLE_DRIVE_SETUP_STEPS = [
+  'Create/select Google Cloud project',
+  'Enable Google Drive API',
+  'Configure OAuth consent screen',
+  'Create OAuth Client ID for Web application',
+  'Add this deployed app origin as an authorized JavaScript origin',
+  'Paste the Client ID into the app'
+];
 const SECTION_ORDER_KEY = 'tha-section-order';
 const ITEM_ORDER_KEY = 'tha-item-order';
 const PINNED_ITEMS_KEY = 'tha-pinned-items';
@@ -540,13 +548,68 @@ function queueDrivePayload(payload, onFailure) {
   safeLocalStorageSet(DRIVE_QUEUE_KEY, JSON.stringify(next), onFailure);
   return next.length;
 }
+function serializeErrorDetails(error) {
+  if (!error) return '';
+  if (typeof error === 'string') return error;
+  const detail = {
+    name: error.name || '',
+    message: error.message || '',
+    code: error.code || error.error || '',
+    description: error.description || error.error_description || '',
+    status: error.status || '',
+    url: error.url || '',
+    body: error.body || '',
+    stack: error.stack || ''
+  };
+  return JSON.stringify(Object.fromEntries(Object.entries(detail).filter(([, value]) => value)), null, 2);
+}
+function driveErrorMessage(error, fallback = 'Unable to connect Google Drive') {
+  const rawText = [error?.message, error?.code, error?.error, error?.description, error?.error_description, error?.body].filter(Boolean).join(' ').toLowerCase();
+  if (error?.code === 'missing_client_id' || rawText.includes('client id is required')) return 'Missing Client ID — paste a Google OAuth Client ID for a Web application. This is not a Drive folder URL.';
+  if (error?.code === 'gis_load_failed') return 'Google Identity Services failed to load. Check internet access, browser/script blocking, then try again.';
+  if (rawText.includes('access_denied') || rawText.includes('user canceled') || rawText.includes('cancelled') || rawText.includes('popup_closed')) return 'Access denied / user canceled — approve the Google consent prompt to connect Drive.';
+  if (rawText.includes('popup') && (rawText.includes('blocked') || rawText.includes('failed') || rawText.includes('closed'))) return 'Popup blocked — allow popups for this app and try Connect Google Drive again.';
+  if (rawText.includes('invalid_client')) return 'Invalid client — confirm you pasted the OAuth Web application Client ID, not a secret or folder URL.';
+  if (rawText.includes('origin') && (rawText.includes('not allowed') || rawText.includes('not a valid') || rawText.includes('mismatch') || rawText.includes('unauthorized'))) return 'Origin not allowed — add this app origin to the OAuth Client ID authorized JavaScript origins in Google Cloud.';
+  if (error?.code === 'drive_api_failed' || rawText.includes('googleapis.com/drive') || rawText.includes('drive api')) return 'Drive API request failed — confirm the Google Drive API is enabled and this account granted Drive access.';
+  return fallback;
+}
+function buildDriveErrorState(error, fallback) {
+  return {
+    lastError: driveErrorMessage(error, fallback),
+    lastErrorDetails: serializeErrorDetails(error)
+  };
+}
+function setupChecklistText(origin) {
+  return [
+    'Google Drive setup checklist:',
+    ...GOOGLE_DRIVE_SETUP_STEPS.map((step, index) => `${index + 1}. ${step}${step.includes('authorized JavaScript origin') ? `: ${origin || 'window.location.origin'}` : ''}`)
+  ].join('\n');
+}
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand('copy');
+  document.body.removeChild(textarea);
+  return copied;
+}
 function loadGoogleIdentityScript() {
   if (window.google?.accounts?.oauth2) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+    const fail = () => reject(Object.assign(new Error('Google Identity Services failed to load.'), { code: 'gis_load_failed' }));
     if (existing) {
       existing.addEventListener('load', resolve, { once: true });
-      existing.addEventListener('error', reject, { once: true });
+      existing.addEventListener('error', fail, { once: true });
       return;
     }
     const script = document.createElement('script');
@@ -554,25 +617,29 @@ function loadGoogleIdentityScript() {
     script.async = true;
     script.defer = true;
     script.onload = resolve;
-    script.onerror = reject;
+    script.onerror = fail;
     document.head.appendChild(script);
   });
 }
 function requestDriveToken(clientId) {
   return new Promise((resolve, reject) => {
-    if (!clientId) {
-      reject(new Error('Google OAuth Client ID is required.'));
+    if (!clientId?.trim()) {
+      reject(Object.assign(new Error('Google OAuth Client ID is required.'), { code: 'missing_client_id' }));
       return;
     }
-    const tokenClient = window.google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: DRIVE_SCOPE,
-      callback: response => {
-        if (response.error) reject(new Error(response.error));
-        else resolve(response.access_token);
-      }
-    });
-    tokenClient.requestAccessToken({ prompt: 'consent' });
+    try {
+      const tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: clientId.trim(),
+        scope: DRIVE_SCOPE,
+        callback: response => {
+          if (response.error) reject(Object.assign(new Error(response.error_description || response.error), response));
+          else resolve(response.access_token);
+        }
+      });
+      tokenClient.requestAccessToken({ prompt: 'consent' });
+    } catch (error) {
+      reject(error);
+    }
   });
 }
 async function driveFetch(accessToken, url, options = {}) {
@@ -580,7 +647,10 @@ async function driveFetch(accessToken, url, options = {}) {
     ...options,
     headers: { Authorization: `Bearer ${accessToken}`, ...(options.headers || {}) }
   });
-  if (!response.ok) throw new Error(await response.text());
+  if (!response.ok) {
+    const body = await response.text();
+    throw Object.assign(new Error(body || `Drive API request failed with status ${response.status}`), { code: 'drive_api_failed', status: response.status, url, body });
+  }
   return response.json();
 }
 function driveQueryEscape(value) {
@@ -913,7 +983,7 @@ function App() {
   const [view, setView] = useState('intake');
   const [driveToken, setDriveToken] = useState('');
   const [driveClientId, setDriveClientId] = useState(() => localStorage.getItem(GOOGLE_CLIENT_ID_KEY) || '');
-  const [driveMeta, setDriveMeta] = useState(() => safeJsonParse(localStorage.getItem(DRIVE_META_KEY), null) || { lastSaved: '', lastError: '' });
+  const [driveMeta, setDriveMeta] = useState(() => safeJsonParse(localStorage.getItem(DRIVE_META_KEY), null) || { lastSaved: '', lastError: '', lastErrorDetails: '' });
   const [pendingCount, setPendingCount] = useState(() => safeJsonParse(localStorage.getItem(DRIVE_QUEUE_KEY), []).length);
   const [driveBusy, setDriveBusy] = useState(false);
   const [sectionOrderState, setSectionOrderState] = useState(initialState.data.sectionOrder);
@@ -924,9 +994,11 @@ function App() {
   const [roomItemDraft, setRoomItemDraft] = useState(EMPTY_ROOM_ITEM_DRAFT);
   const [dragSectionKey, setDragSectionKey] = useState('');
   const [photoFeedback, setPhotoFeedback] = useState({ state: '', message: '' });
+  const [copyFeedback, setCopyFeedback] = useState('');
   const [storageWarning, setStorageWarning] = useState('');
   const [saveStatus, setSaveStatus] = useState({ state: 'saved', time: initialState.activeId ? 'loaded' : '' });
   const autosaveReadyRef = useRef(false);
+  const appOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   const applyStorageFailure = (message) => {
     setStorageWarning(hasVisiblePhotoDataUrls(answers, roomCapture) ? PHOTO_AUTOSAVE_FAILURE_MESSAGE : message);
     setSaveStatus({ state: 'failed', time: '' });
@@ -1132,7 +1204,8 @@ function App() {
       return true;
     } catch (error) {
       markItemPhoto(id, photo.id, { uploadStatus: PHOTO_UPLOAD_STATUS.FAILED });
-      setPhotoFeedback({ state: 'error', message: 'Photo upload failed — use Sync pending photos to Drive' });
+      setDriveMeta(meta => ({...meta, ...buildDriveErrorState(error, 'Drive API request failed — photo upload could not finish.')}));
+      setPhotoFeedback({ state: 'error', message: `${driveErrorMessage(error, 'Photo upload failed')} — use Sync pending photos to Drive` });
       return false;
     }
   };
@@ -1147,7 +1220,8 @@ function App() {
       return true;
     } catch (error) {
       markRoomPhoto(sectionKey, photo.id, { uploadStatus: PHOTO_UPLOAD_STATUS.FAILED });
-      setPhotoFeedback({ state: 'error', message: 'Room photo upload failed — use Sync pending photos to Drive' });
+      setDriveMeta(meta => ({...meta, ...buildDriveErrorState(error, 'Drive API request failed — room photo upload could not finish.')}));
+      setPhotoFeedback({ state: 'error', message: `${driveErrorMessage(error, 'Room photo upload failed')} — use Sync pending photos to Drive` });
       return false;
     }
   };
@@ -1331,15 +1405,24 @@ function App() {
     const blob = new Blob([JSON.stringify(buildDrivePayload({walkthroughName, client, intake, rows, pmr, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture}), null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `THA-HTC-PMR-${client.name || 'client'}.json`; a.click(); URL.revokeObjectURL(url);
   };
+  const copyDriveText = async (text, label) => {
+    try {
+      await copyTextToClipboard(text);
+      setCopyFeedback(`${label} copied`);
+      window.setTimeout(() => setCopyFeedback(''), 2500);
+    } catch (error) {
+      setCopyFeedback(`Could not copy ${label.toLowerCase()}`);
+    }
+  };
   const connectDrive = async () => {
     setDriveBusy(true);
     try {
       await loadGoogleIdentityScript();
       const token = await requestDriveToken(driveClientId);
       setDriveToken(token);
-      setDriveMeta(meta => ({...meta, lastError:''}));
+      setDriveMeta(meta => ({...meta, lastError:'', lastErrorDetails:''}));
     } catch (error) {
-      setDriveMeta(meta => ({...meta, lastError:error.message || 'Unable to connect Google Drive'}));
+      setDriveMeta(meta => ({...meta, ...buildDriveErrorState(error, 'Unable to connect Google Drive')}));
     } finally {
       setDriveBusy(false);
     }
@@ -1374,11 +1457,11 @@ function App() {
         setPendingCount(0);
       }
       await uploadDriveBundle(driveToken, payload);
-      setDriveMeta({lastSaved:new Date().toLocaleString(), lastError:''});
+      setDriveMeta({lastSaved:new Date().toLocaleString(), lastError:'', lastErrorDetails:''});
     } catch (error) {
       const count = queueDrivePayload(payload, applyStorageFailure);
       setPendingCount(count);
-      setDriveMeta(meta => ({...meta, lastError:'Pending Drive Sync'}));
+      setDriveMeta(meta => ({...meta, ...buildDriveErrorState(error, 'Pending Drive Sync')}));
     } finally {
       setDriveBusy(false);
     }
@@ -1405,16 +1488,41 @@ function App() {
       <label>Walkthrough Folder / Date<input value={client.date} onChange={e=>setClient({...client,date:e.target.value})}/></label>
       <div className="pmrPrintActions" aria-label="PMR print actions"><button onClick={()=>window.print()}><Printer size={16}/> Print / Save Draft PMR</button><button className="finalPrintButton" onClick={printFinalPMR}><Printer size={16}/> Print Final PMR</button></div>
     </section>
-    <section className="driveStatus noPrint">
-      <label>Google OAuth Client ID<span className="fieldHelp">Requires a Google OAuth Client ID, not a Google Drive folder link.</span><input value={driveClientId} onChange={e=>setDriveClientId(e.target.value)} placeholder="Paste web client ID for Drive upload"/></label>
-      <button onClick={connectDrive} disabled={driveBusy}><FolderOpen size={16}/> Connect Google Drive</button>
-      <button onClick={()=>syncDrive({retryQueue:true})} disabled={driveBusy || !driveToken}><Upload size={16}/> Save to Drive</button>
-      <button onClick={syncPendingPhotosToDrive} disabled={driveBusy || !driveToken || !pendingPhotoCount}><Upload size={16}/> Sync pending photos to Drive</button>
-      <span className={driveToken ? 'drivePill connected' : 'drivePill'}>{driveToken ? 'Connected' : 'Not connected'}</span>
-      <span>Last saved to Drive: {driveMeta.lastSaved || 'Never'}</span>
-      <span className={pendingCount ? 'pendingSync on' : 'pendingSync'}>{pendingCount ? `Pending Drive Sync: ${pendingCount}` : 'Pending sync count: 0'}</span>
-      <span className={pendingPhotoCount ? 'pendingSync on' : 'pendingSync'}>{pendingPhotoCount ? `Pending photos: ${pendingPhotoCount}` : 'Pending photos: 0'}</span>
-      <small className="driveSetupNote">Google Drive export is still in setup/testing. Use Download Walkthrough Backup for now.</small>
+    <section className="driveStatus driveSetupPanel noPrint" aria-label="Google Drive connection setup">
+      <div className="driveSetupHeader">
+        <div>
+          <h2>Google Drive connection</h2>
+          <p>This app needs a <strong>Google OAuth Client ID for a Web application</strong>. A Google Drive folder URL will not work.</p>
+        </div>
+        <span className={driveToken ? 'drivePill connected' : 'drivePill'}>{driveToken ? 'Connected' : 'Not connected'}</span>
+      </div>
+      <div className="driveSetupGrid">
+        <label>Google OAuth Client ID<span className="fieldHelp">Paste the Web application Client ID from Google Cloud — not a Client Secret and not a Drive folder link.</span><input value={driveClientId} onChange={e=>setDriveClientId(e.target.value)} placeholder="Paste OAuth Web Client ID for Drive upload"/></label>
+        <div className="originCard">
+          <span>Current app origin for Google Cloud</span>
+          <code>{appOrigin}</code>
+          <button type="button" onClick={()=>copyDriveText(appOrigin, 'Current app origin')}><ClipboardCheck size={16}/> Copy current app origin</button>
+        </div>
+      </div>
+      <div className="driveSetupActions">
+        <button onClick={connectDrive} disabled={driveBusy}><FolderOpen size={16}/> Connect Google Drive</button>
+        <button onClick={()=>syncDrive({retryQueue:true})} disabled={driveBusy || !driveToken}><Upload size={16}/> Save to Drive</button>
+        <button onClick={syncPendingPhotosToDrive} disabled={driveBusy || !driveToken || !pendingPhotoCount}><Upload size={16}/> Sync pending photos to Drive</button>
+        <button type="button" onClick={()=>copyDriveText(setupChecklistText(appOrigin), 'Setup checklist')}><ClipboardCheck size={16}/> Copy setup checklist</button>
+        {copyFeedback && <span className="copyFeedback" role="status">{copyFeedback}</span>}
+      </div>
+      <div className="driveSetupChecklist">
+        <h3>Setup checklist</h3>
+        <ol>{GOOGLE_DRIVE_SETUP_STEPS.map(step => <li key={step}><CheckCircle2 size={15}/><span>{step}{step.includes('authorized JavaScript origin') && <>: <code>{appOrigin}</code></>}</span></li>)}</ol>
+      </div>
+      {!driveClientId.trim() && <div className="driveErrorBox" role="status"><AlertTriangle size={16}/><span>Missing Client ID — paste a Google OAuth Client ID before connecting Drive.</span></div>}
+      {driveMeta.lastError && <div className="driveErrorBox" role="alert"><AlertTriangle size={16}/><div><strong>{driveMeta.lastError}</strong>{driveMeta.lastErrorDetails && <details><summary>Technical details</summary><pre>{driveMeta.lastErrorDetails}</pre></details>}</div></div>}
+      <div className="driveMetaRow">
+        <span>Last saved to Drive: {driveMeta.lastSaved || 'Never'}</span>
+        <span className={pendingCount ? 'pendingSync on' : 'pendingSync'}>{pendingCount ? `Pending Drive Sync: ${pendingCount}` : 'Pending sync count: 0'}</span>
+        <span className={pendingPhotoCount ? 'pendingSync on' : 'pendingSync'}>{pendingPhotoCount ? `Pending photos: ${pendingPhotoCount}` : 'Pending photos: 0'}</span>
+      </div>
+      <small className="driveSetupNote">Google Drive export is still in setup/testing. Use Download Walkthrough Backup if Drive setup is incomplete.</small>
     </section>
     {view === 'intake' && <IntakeView intake={intake} updateIntake={updateIntake} />}
     {view === 'form' && <main className="grid">
