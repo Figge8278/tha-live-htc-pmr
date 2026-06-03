@@ -49,6 +49,7 @@ function categoryInfo(category = 'General / Misc') {
 }
 
 function categoryForChecklistItem(item = {}) {
+  if (item.category) return item.category;
   const zone = item.zone || '';
   const trade = item.trade || '';
   const text = `${zone} ${trade} ${item.item || ''}`.toLowerCase();
@@ -131,6 +132,30 @@ const INTAKE_PRIORITIES = ['Safety','Function','Efficiency','Aesthetics','Resale
 const INTAKE_PACE = ['Do now','Plan soon','Budget over time','Watchlist only'];
 const INTAKE_BUDGET = ['Minimal fixes','Balanced','Invest where it matters'];
 const INTAKE_DECISION = ['Direct / decisive','Wants options','Needs guidance'];
+const INTAKE_FOLLOW_UP_SOURCE = 'Intake Follow-Up';
+const INTAKE_REVIEW_STATUSES = [
+  'Not Reviewed',
+  'Reviewed — No Concern Found',
+  'Reviewed — Added PMR Finding',
+  'Unable to Inspect',
+  'Deferred / Needs Homeowner Follow-Up',
+  'Not Applicable'
+];
+const INTAKE_PMR_REVIEW_STATUS = 'Reviewed — Added PMR Finding';
+const INTAKE_FOLLOW_UP_SECTION_KEY = 'intake-follow-up';
+const INTAKE_FOLLOW_UP_MAPPINGS = [
+  { keys: ['electricalPanel','electricalUpdates'], category: 'Electrical', target: 'Electrical / Service Areas', title: 'Electrical intake follow-up', trade: 'Electrical', prompt: 'Verify the homeowner-provided electrical context during the walkthrough, including access, labeling, visible condition, and any reported updates.', why: 'Intake notes can identify electrical questions that need eyes-on confirmation before any recommendation is made.', action: 'Document observations and only elevate to a PMR finding if field review confirms a safety, function, or maintenance concern.' },
+  { keys: ['waterShutoff','plumbingHistory','waterHeater'], category: 'Plumbing', target: 'Plumbing / Mechanical', title: 'Plumbing intake follow-up', trade: 'Plumbing', prompt: 'Confirm shutoff location, water heater context, and any homeowner-reported plumbing symptoms or history.', why: 'Reported plumbing history should be verified so routine notes do not become assumed findings.', action: 'Capture practical next steps if the walkthrough confirms leaks, slow drains, maintenance gaps, or access issues.' },
+  { keys: ['sewerIrrigation','drainagePooling','drainageHistory','gutters'], category: 'Drainage', target: 'Exterior / Drainage', title: 'Drainage intake follow-up', trade: 'Handyman', prompt: 'Look for grading, downspout discharge, pooling patterns, gutter concerns, irrigation context, and signs of water intrusion.', why: 'Drainage comments from intake need field context before deciding whether they are watch items, maintenance notes, or PMR findings.', action: 'Record the observed drainage condition and stage a practical maintenance or specialist review only if supported by the walkthrough.' },
+  { keys: ['hvacFilter','hvacService','comfort'], category: 'HVAC', target: 'HVAC / Mechanical', title: 'HVAC intake follow-up', trade: 'HVAC', prompt: 'Verify filter condition, service history clues, thermostat/comfort concerns, and visible equipment condition.', why: 'HVAC history and comfort comments help focus the review without automatically implying a defect.', action: 'Recommend service, monitoring, or further evaluation only if the walkthrough confirms the need.' },
+  { keys: ['roofAge','roofHistory','chimney'], category: 'Roofing', target: 'Roof / Chimney', title: 'Roofing / chimney intake follow-up', trade: 'Roof', prompt: 'Review homeowner roof/chimney history, visible roof-adjacent clues, fireplace/chimney context, and service timing if accessible.', why: 'Age and service history are useful context, but PMR findings should come from confirmed review conditions.', action: 'Note the history and add a PMR finding only when the walkthrough supports roof, flashing, leak, or chimney follow-up.' },
+  { keys: ['solar'], category: 'Electrical', target: 'Electrical / Solar', title: 'Electrical / solar context follow-up', trade: 'Electrical', prompt: 'Confirm whether solar equipment is present and note visible access, labels, or homeowner context.', why: 'Solar information affects electrical context but still requires review before action is recommended.', action: 'Capture context and refer for electrical or solar-specialist review only if a confirmed concern is observed.' },
+  { keys: ['windowsDoors','fogging'], category: 'Openings', target: 'Windows / Doors', title: 'Openings intake follow-up', trade: 'Handyman', prompt: 'Operate reported windows/doors where accessible and look for drafts, sticking, failed seals, locks, or hardware issues.', why: 'Homeowner-reported window and door issues often need a simple function check before prioritizing work.', action: 'Document adjustment, weatherstripping, monitoring, or trade follow-up only when the condition is confirmed.' },
+  { keys: ['paintStain','productsColors'], category: 'Exterior', target: 'Exterior / Surfaces', title: 'Exterior / surfaces intake follow-up', trade: 'Handyman', prompt: 'Review exterior finish timing, visible wear, caulk/surface condition, and any product or color label information.', why: 'Finish history is helpful for staging maintenance, but it is not automatically a PMR finding.', action: 'Use confirmed wear or missing product context to shape maintenance notes or a PMR recommendation.' },
+  { keys: ['pests'], category: 'Pest', target: 'Exterior / Interior', title: 'Pest intake follow-up', trade: 'Pest', prompt: 'Look for accessible signs related to the homeowner-reported pest history or concern.', why: 'Pest history should be separated from active evidence until field review confirms what is present.', action: 'Add a PMR finding or specialist recommendation only if active evidence or meaningful risk is observed.' },
+  { keys: ['fireExtinguishers','smokeCO'], category: 'Safety', target: 'Safety Devices', title: 'Safety intake follow-up', trade: 'Safety', prompt: 'Verify extinguisher location/age and smoke/CO detector age, placement, and visible test/date information where accessible.', why: 'Safety devices are important, but intake notes should trigger review rather than automatic checklist status changes.', action: 'Recommend replacement, testing, labeling, or follow-up only when review confirms a concern or incomplete information.' },
+  { keys: ['additionalConcerns'], category: 'General / Misc', target: 'General Walkthrough', title: 'General / miscellaneous intake follow-up', trade: 'Handyman', prompt: 'Use the homeowner’s additional concern as a targeted prompt during the walkthrough and capture what is actually observed.', why: 'General concerns preserve homeowner context without turning intake alone into a PMR finding.', action: 'Convert to a PMR finding only if field review confirms a specific concern that belongs in the Priority Action Plan.' }
+];
 function intakeSummary(intake) {
   const priorities = Array.isArray(intake.priorities) ? intake.priorities.join(', ') : intake.priorities || 'Not selected';
   return { priorities, pace: intake.pace || 'Not selected', budget: intake.budgetStyle || 'Not selected', decision: intake.decisionStyle || 'Not selected', notes: intake.notes || 'No additional homeowner notes recorded yet.' };
@@ -145,7 +170,48 @@ function intakeInfluence(item, intake) {
   if (budget === 'Invest where it matters') return 'Recommend the solution that best protects long-term value, not only the cheapest short-term fix.';
   return 'Balanced approach: address the practical first step and stage larger decisions as needed.';
 }
-
+function intakeFieldLabel(key) {
+  return key.replace(/([A-Z])/g, ' $1').replace(/^./, char => char.toUpperCase());
+}
+function meaningfulIntakeValue(value) {
+  if (Array.isArray(value)) return value.length ? value.join(', ') : '';
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (/^(n\/?a|none|no|unknown)$/i.test(text)) return '';
+  return text;
+}
+function buildIntakeFollowUpRows(intake = {}) {
+  return INTAKE_FOLLOW_UP_MAPPINGS.flatMap(mapping => mapping.keys.map(key => ({ mapping, key, value: meaningfulIntakeValue(intake[key]) })))
+    .filter(({ value }) => value)
+    .map(({ mapping, key, value }) => ({
+      id: `intake-follow-up-${key}`,
+      source: INTAKE_FOLLOW_UP_SOURCE,
+      intakeField: key,
+      intakeFieldLabel: intakeFieldLabel(key),
+      intakeValue: value,
+      room: mapping.target,
+      roomType: INTAKE_FOLLOW_UP_SOURCE,
+      roomName: mapping.target,
+      sectionKey: INTAKE_FOLLOW_UP_SECTION_KEY,
+      zone: mapping.category,
+      category: mapping.category,
+      item: mapping.title,
+      trade: mapping.trade,
+      effort: 'Unknown',
+      prompt: mapping.prompt,
+      why: mapping.why,
+      action: mapping.action,
+      intakeOnly: true,
+      pmrGroup: INTAKE_FOLLOW_UP_SOURCE
+    }));
+}
+function isIntakeFollowUp(row = {}) {
+  return row.source === INTAKE_FOLLOW_UP_SOURCE || row.intakeOnly;
+}
+function includePMRRow(row) {
+  if (isIntakeFollowUp(row)) return includePMR(row.answer) && row.answer.reviewStatus === INTAKE_PMR_REVIEW_STATUS;
+  return includePMR(row.answer);
+}
 
 const library = [
   {room:'Kitchen', zone:'Electrical', item:'GFCI outlet near sink', trade:'Electrical', effort:'30 min', prompt:'Test trip/reset. Note if missing, failed, loose, or visibly unsafe.', why:'GFCI protection matters where water and electricity are close together.', action:'Replace/repair GFCI protection or have electrician evaluate if wiring issue is suspected.', timing:{Monitor:'3–6 months','Needs Attention':'0–30 days','Immediate Concern':'Immediate'}},
@@ -356,7 +422,7 @@ function photoList(answer) {
 }
 function normalizeAnswer(answer, item) {
   return {
-    status: answer?.status || 'Good',
+    status: answer?.status || (isIntakeFollowUp(item) ? 'Unknown' : 'Good'),
     trade: answer?.trade || item.trade,
     effort: answer?.effort || item.effort,
     actionCertainty: actionCertaintyFor(answer || {}),
@@ -365,7 +431,8 @@ function normalizeAnswer(answer, item) {
     photos: photoList(answer),
     photoRef: answer?.photoRef || '',
     reassignTo: answer?.reassignTo || '',
-    isDiscovery: typeof answer?.isDiscovery === 'boolean' ? answer.isDiscovery : false
+    isDiscovery: typeof answer?.isDiscovery === 'boolean' ? answer.isDiscovery : false,
+    reviewStatus: answer?.reviewStatus || (isIntakeFollowUp(item) ? 'Not Reviewed' : '')
   };
 }
 function photoSummary(photos, { emptyText = 'No item photos attached yet', labels = PHOTO_LABELS } = {}) {
@@ -640,10 +707,14 @@ function App() {
     });
     return list;
   }, [dynamicRooms]);
-  const sections = useMemo(() => orderedSectionList(baseSections.map(section => ({
-    ...section,
-    rows: orderSectionRows(section.rows, itemOrderState[section.key], pinnedItems[section.key] || [])
-  })), sectionOrderState), [baseSections, sectionOrderState, itemOrderState, pinnedItems]);
+  const intakeFollowUpRows = useMemo(() => buildIntakeFollowUpRows(intake), [intake]);
+  const sections = useMemo(() => {
+    const allSections = intakeFollowUpRows.length ? [...baseSections, { key: INTAKE_FOLLOW_UP_SECTION_KEY, label: INTAKE_FOLLOW_UP_SOURCE, rows: intakeFollowUpRows }] : baseSections;
+    return orderedSectionList(allSections.map(section => ({
+      ...section,
+      rows: section.key === INTAKE_FOLLOW_UP_SECTION_KEY ? section.rows : orderSectionRows(section.rows, itemOrderState[section.key], pinnedItems[section.key] || [])
+    })), sectionOrderState);
+  }, [baseSections, intakeFollowUpRows, sectionOrderState, itemOrderState, pinnedItems]);
   const rooms = sections;
   const checklistItems = useMemo(() => sections.flatMap(section => section.rows), [sections]);
   const itemById = useMemo(() => Object.fromEntries(checklistItems.map(item => [item.id, item])), [checklistItems]);
@@ -651,7 +722,10 @@ function App() {
   useEffect(() => {
     if (!sections.some(section => section.key === activeRoom)) setActiveRoom(sections[0]?.key || '');
   }, [sections, activeRoom]);
-  const pmr = rows.filter(r => includePMR(r.answer));
+  const pmr = rows.filter(includePMRRow);
+  const intakeReviewRows = rows.filter(isIntakeFollowUp);
+  const unreviewedIntakeRows = intakeReviewRows.filter(r => r.answer.reviewStatus === 'Not Reviewed');
+  const reviewedIntakeNotes = intakeReviewRows.filter(r => r.answer.reviewStatus && r.answer.reviewStatus !== 'Not Reviewed' && r.answer.reviewStatus !== INTAKE_PMR_REVIEW_STATUS);
   const counts = { high: pmr.filter(r=>priority(r.answer.status)==='High').length, med: pmr.filter(r=>priority(r.answer.status)==='Medium').length, low: pmr.filter(r=>priority(r.answer.status)==='Low').length };
   const quickHits = pmr.filter(r => ['Handyman','Safety'].includes(r.answer.trade) && ['15 min','30 min','45–60 min','1–2 hrs'].includes(r.answer.effort));
   const pass = pmr.filter(r => r.pass);
@@ -759,7 +833,7 @@ function App() {
       return next;
     });
   };
-  const itemIdsForSection = (sectionKey) => (sections.find(section => section.key === sectionKey)?.rows || []).filter(row => !row.catchAll).map(row => row.id);
+  const itemIdsForSection = (sectionKey) => (sections.find(section => section.key === sectionKey)?.rows || []).filter(row => !row.catchAll && !isIntakeFollowUp(row)).map(row => row.id);
   const moveItem = (sectionKey, itemId, direction) => {
     const pinned = pinnedItems[sectionKey] || [];
     setItemOrderState(prev => {
@@ -880,6 +954,16 @@ function App() {
       setDriveBusy(false);
     }
   };
+  const printFinalPMR = () => {
+    if (unreviewedIntakeRows.length) {
+      window.alert(`Final PMR is blocked until ${unreviewedIntakeRows.length} Intake Follow-Up row${unreviewedIntakeRows.length === 1 ? '' : 's'} are reviewed.`);
+      setView('form');
+      setActiveRoom(INTAKE_FOLLOW_UP_SECTION_KEY);
+      return;
+    }
+    setView('pmr');
+    window.setTimeout(() => window.print(), 0);
+  };
   const savedSessionList = Object.values(savedSessions).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
   const syncDrive = async ({includeDownload=false, retryQueue=false} = {}) => {
     if (includeDownload) downloadJSON();
@@ -926,6 +1010,7 @@ function App() {
       <label>Walkthrough Folder / Date<input value={client.date} onChange={e=>setClient({...client,date:e.target.value})}/></label>
       <button onClick={()=>syncDrive({includeDownload:true})}><Download size={16}/> Download Walkthrough Backup</button>
       <button onClick={()=>window.print()}><Printer size={16}/> Print / Save Draft PMR</button>
+      <button className="finalPrintButton" onClick={printFinalPMR}><Printer size={16}/> Print Final PMR</button>
     </section>
     <section className="driveStatus noPrint">
       <label>Google OAuth Client ID<span className="fieldHelp">Requires a Google OAuth Client ID, not a Google Drive folder link.</span><input value={driveClientId} onChange={e=>setDriveClientId(e.target.value)} placeholder="Paste web client ID for Drive upload"/></label>
@@ -940,13 +1025,14 @@ function App() {
     {view === 'form' && <main className="grid">
       <aside className="roomNav noPrint"><h3>Walkthrough Sections</h3><div className="addRoomTools">{Object.values(DYNAMIC_ROOM_TYPES).map(type => <button key={type.roomType} onClick={()=>addDynamicRoom(type.roomType)}>{type.addLabel} {type.roomType}</button>)}</div>{rooms.map(r => <div key={r.key} className="sectionNavRow" draggable onDragStart={()=>setDragSectionKey(r.key)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); moveSection(dragSectionKey, r.key); setDragSectionKey('');}} onDragEnd={()=>setDragSectionKey('')}><span className="sectionDragHandle" title="Drag to reorder walkthrough flow">⋮⋮</span><button className={`sectionSelect ${activeRoom===r.key?'active':''}`} onClick={()=>setActiveRoom(r.key)}>{r.label}</button></div>)}<div className="hint"><Camera size={18}/> Prompt: Capture context, close-up, and detail photos. Store by room/item folder path.</div></aside>
       <section className="formPanel">
-        <h1>{rooms.find(r=>r.key===activeRoom)?.label || activeRoom} HTC</h1><div className="roomCaptureShell"><div className="roomCaptureTop"><label>Overall Room Status<select value={roomCaptureFor(activeRoom).status} onChange={e=>updateRoomCapture(activeRoom,{status:e.target.value})}>{ROOM_STATUS_OPTIONS.map(x=><option key={x}>{x}</option>)}</select></label><button type="button" onClick={openRoomItemForm}>Add Item</button></div><span className="roomCaptureHelp">Add anything that needs tracking beyond ‘looks good.’</span>{roomItemFormOpen && <div className="roomItemForm"><div className="inputs roomItemInputs"><label>Item title<input value={roomItemDraft.title} onChange={e=>updateRoomItemDraft({title:e.target.value})} placeholder="e.g., Loose towel bar" autoFocus/></label><label>Item bucket/type<select value={roomItemDraft.bucket} onChange={e=>updateRoomItemDraft({bucket:e.target.value})}>{ROOM_ITEM_BUCKETS.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label></div><label className="discoveryCheck"><input type="checkbox" checked={roomItemDraft.isDiscovery} onChange={e=>updateRoomItemDraft({isDiscovery:e.target.checked})}/><span><strong>Discovery</strong><small>Unexpected, hidden, unusual, or out of the ordinary.</small></span></label><label className="notes">Notes<textarea value={roomItemDraft.notes} onChange={e=>updateRoomItemDraft({notes:e.target.value})} placeholder="Add room-level context, next step, or follow-up note."/></label><div className="roomItemActions"><button type="button" onClick={saveRoomItem} disabled={!roomItemDraft.title.trim()}>Save</button><button type="button" onClick={cancelRoomItemForm}>Cancel</button></div></div>}<label className="notes">Room Note / Voice Transcript<textarea value={roomCaptureFor(activeRoom).note} onChange={e=>updateRoomCapture(activeRoom,{note:e.target.value})} placeholder="Capture room-level context, voice transcript, or summary notes for this space."/></label><div className="roomPhotoBox"><div className="photoBox"><Camera size={18}/><strong>Room Overview Photos:</strong><label className="uploadInline"><Upload size={16}/> Add Room Overview Photo<input type="file" accept="image/*" multiple onChange={e=>{addRoomPhotos(activeRoom, e.target.files); e.target.value='';}}/></label><span>{photoSummary(roomCaptureFor(activeRoom).photos, { emptyText: 'No room overview photos attached yet', labels: ROOM_PHOTO_LABELS })}</span></div>{roomCaptureFor(activeRoom).photos.length > 0 && <div className="thumbGrid roomThumbGrid">{roomCaptureFor(activeRoom).photos.map(photo => <div className="thumbCard" key={photo.id}><div className="thumb">{photo.dataUrl ? <img src={photo.dataUrl} alt={`Overview for ${rooms.find(room=>room.key===activeRoom)?.label || activeRoom}`}/> : <Image size={24}/>}</div><span>Overview</span><span title={photo.name}>{photo.name}</span><button onClick={()=>removeRoomPhoto(activeRoom, photo.id)} aria-label="Remove room overview photo"><X size={14}/></button></div>)}</div>}</div><div className="smartRoomPrompt"><h3>Smart Room Prompt</h3><div className="smartRoomGrid">{SMART_ROOM_PROMPTS.map(group => <p key={group.group}><strong>{group.group}:</strong> {group.prompt}</p>)}</div></div><div className="roomItemsPlaceholder"><h3>Items list for this room</h3>{roomCaptureFor(activeRoom).items.length > 0 ? <ul className="roomItemList">{roomCaptureFor(activeRoom).items.map(item=><li key={item.id} className="roomItemRow"><div><strong>{item.title}</strong><span>{roomItemBucketLabel(item.bucket)}{item.isDiscovery ? ' · Discovery' : ''}</span>{item.notes && <p>{item.notes}</p>}</div><button type="button" onClick={()=>removeRoomItem(activeRoom, item.id)} aria-label={`Remove ${item.title}`}><X size={14}/> Remove</button></li>)}</ul> : <p>No room-level items added yet.</p>}{rows.filter(r=>r.sectionKey===activeRoom && includePMR(r.answer)).length > 0 && <><h4>Checklist items currently flagged</h4><ul>{rows.filter(r=>r.sectionKey===activeRoom && includePMR(r.answer)).slice(0,5).map(r=><li key={`placeholder-${r.id}`}>{r.item} · {r.answer.status}</li>)}</ul></>}</div></div><p className="lede">Fuller data capture: status, action certainty, suggested trade, time, notes, and photo references.</p>
+        <h1>{rooms.find(r=>r.key===activeRoom)?.label || activeRoom} HTC</h1><div className="roomCaptureShell"><div className="roomCaptureTop"><label>Overall Room Status<select value={roomCaptureFor(activeRoom).status} onChange={e=>updateRoomCapture(activeRoom,{status:e.target.value})}>{ROOM_STATUS_OPTIONS.map(x=><option key={x}>{x}</option>)}</select></label><button type="button" onClick={openRoomItemForm}>Add Item</button></div><span className="roomCaptureHelp">Add anything that needs tracking beyond ‘looks good.’</span>{roomItemFormOpen && <div className="roomItemForm"><div className="inputs roomItemInputs"><label>Item title<input value={roomItemDraft.title} onChange={e=>updateRoomItemDraft({title:e.target.value})} placeholder="e.g., Loose towel bar" autoFocus/></label><label>Item bucket/type<select value={roomItemDraft.bucket} onChange={e=>updateRoomItemDraft({bucket:e.target.value})}>{ROOM_ITEM_BUCKETS.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label></div><label className="discoveryCheck"><input type="checkbox" checked={roomItemDraft.isDiscovery} onChange={e=>updateRoomItemDraft({isDiscovery:e.target.checked})}/><span><strong>Discovery</strong><small>Unexpected, hidden, unusual, or out of the ordinary.</small></span></label><label className="notes">Notes<textarea value={roomItemDraft.notes} onChange={e=>updateRoomItemDraft({notes:e.target.value})} placeholder="Add room-level context, next step, or follow-up note."/></label><div className="roomItemActions"><button type="button" onClick={saveRoomItem} disabled={!roomItemDraft.title.trim()}>Save</button><button type="button" onClick={cancelRoomItemForm}>Cancel</button></div></div>}<label className="notes">Room Note / Voice Transcript<textarea value={roomCaptureFor(activeRoom).note} onChange={e=>updateRoomCapture(activeRoom,{note:e.target.value})} placeholder="Capture room-level context, voice transcript, or summary notes for this space."/></label><div className="roomPhotoBox"><div className="photoBox"><Camera size={18}/><strong>Room Overview Photos:</strong><label className="uploadInline"><Upload size={16}/> Add Room Overview Photo<input type="file" accept="image/*" multiple onChange={e=>{addRoomPhotos(activeRoom, e.target.files); e.target.value='';}}/></label><span>{photoSummary(roomCaptureFor(activeRoom).photos, { emptyText: 'No room overview photos attached yet', labels: ROOM_PHOTO_LABELS })}</span></div>{roomCaptureFor(activeRoom).photos.length > 0 && <div className="thumbGrid roomThumbGrid">{roomCaptureFor(activeRoom).photos.map(photo => <div className="thumbCard" key={photo.id}><div className="thumb">{photo.dataUrl ? <img src={photo.dataUrl} alt={`Overview for ${rooms.find(room=>room.key===activeRoom)?.label || activeRoom}`}/> : <Image size={24}/>}</div><span>Overview</span><span title={photo.name}>{photo.name}</span><button onClick={()=>removeRoomPhoto(activeRoom, photo.id)} aria-label="Remove room overview photo"><X size={14}/></button></div>)}</div>}</div><div className="smartRoomPrompt"><h3>Smart Room Prompt</h3><div className="smartRoomGrid">{SMART_ROOM_PROMPTS.map(group => <p key={group.group}><strong>{group.group}:</strong> {group.prompt}</p>)}</div></div><div className="roomItemsPlaceholder"><h3>Items list for this room</h3>{roomCaptureFor(activeRoom).items.length > 0 ? <ul className="roomItemList">{roomCaptureFor(activeRoom).items.map(item=><li key={item.id} className="roomItemRow"><div><strong>{item.title}</strong><span>{roomItemBucketLabel(item.bucket)}{item.isDiscovery ? ' · Discovery' : ''}</span>{item.notes && <p>{item.notes}</p>}</div><button type="button" onClick={()=>removeRoomItem(activeRoom, item.id)} aria-label={`Remove ${item.title}`}><X size={14}/> Remove</button></li>)}</ul> : <p>No room-level items added yet.</p>}{rows.filter(r=>r.sectionKey===activeRoom && includePMRRow(r)).length > 0 && <><h4>Checklist items currently flagged</h4><ul>{rows.filter(r=>r.sectionKey===activeRoom && includePMRRow(r)).slice(0,5).map(r=><li key={`placeholder-${r.id}`}>{r.item} · {r.answer.status}</li>)}</ul></>}</div></div><p className="lede">Fuller data capture: status, action certainty, suggested trade, time, notes, and photo references.</p>
         {rows.filter(r=>r.sectionKey===activeRoom).map(r => {
           const category = categoryForChecklistItem(r);
           const meta = categoryInfo(category);
           return <div className={`itemCard categoryCard category-${meta.slug}`} key={r.id}>
-          <div className="itemHead"><span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span><div><div className="itemTitleLine"><h2>{r.item}</h2><CategoryBadge category={category}/></div><p>{r.zone} · Suggested: {displayTradeLabel(r.trade)}</p></div>{!r.catchAll && <div className="itemOrderTools"><button onClick={()=>moveItem(r.sectionKey, r.id, -1)} title="Move item up">↑</button><button onClick={()=>moveItem(r.sectionKey, r.id, 1)} title="Move item down">↓</button><button onClick={()=>togglePinItem(r.sectionKey, r.id)} title="Pin to top">{(pinnedItems[r.sectionKey] || []).includes(r.id) ? 'Pinned' : 'Pin'}</button></div>}<span className={`pill ${priority(r.answer.status).toLowerCase()}`}>{priority(r.answer.status) || 'No PMR'}</span></div>
+          <div className="itemHead"><span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span><div><div className="itemTitleLine"><h2>{r.item}</h2><CategoryBadge category={category}/>{isIntakeFollowUp(r) && <span className="sourceBadge">Intake Follow-Up</span>}</div><p>{r.zone} · Suggested: {displayTradeLabel(r.trade)}</p></div>{!r.catchAll && !isIntakeFollowUp(r) && <div className="itemOrderTools"><button onClick={()=>moveItem(r.sectionKey, r.id, -1)} title="Move item up">↑</button><button onClick={()=>moveItem(r.sectionKey, r.id, 1)} title="Move item down">↓</button><button onClick={()=>togglePinItem(r.sectionKey, r.id)} title="Pin to top">{(pinnedItems[r.sectionKey] || []).includes(r.id) ? 'Pinned' : 'Pin'}</button></div>}<span className={`pill ${priority(r.answer.status).toLowerCase()}`}>{priority(r.answer.status) || 'No PMR'}</span></div>
           <div className="prompt"><Search size={16}/><strong>Prompt:</strong> {r.prompt}</div>
+          {isIntakeFollowUp(r) && <div className="intakeReviewNotes"><strong>{r.intakeFieldLabel}:</strong> {r.intakeValue}<br/><span>Target: {r.roomName || r.room} · Source: {r.source}</span></div>}
           <div className="inputs">
             <label>Status<select value={r.answer.status} onChange={e=>update(r.id,{status:e.target.value})}>{STATUS.map(x=><option key={x}>{x}</option>)}</select></label>
             <label>Action Certainty<select value={actionCertaintyFor(r.answer)} onChange={e=>update(r.id,{actionCertainty:e.target.value})}>{ACTION_CERTAINTY.map(x=><option key={x}>{x}</option>)}</select></label>
@@ -954,6 +1040,7 @@ function App() {
             <label>Approx. Time<select value={r.answer.effort} onChange={e=>update(r.id,{effort:e.target.value})}>{EFFORT.map(x=><option key={x}>{x}</option>)}</select></label>
             <label>Homeowner Pace<select value={r.answer.pref} onChange={e=>update(r.id,{pref:e.target.value})}>{PREFS.map(x=><option key={x}>{x}</option>)}</select></label>
             <label>Photo Ref<input value={r.answer.photoRef} onChange={e=>update(r.id,{photoRef:e.target.value})} placeholder="Photo 01 / filename"/></label>
+            {isIntakeFollowUp(r) && <label className="intakeFollowUpReview">Review Status<select value={r.answer.reviewStatus} onChange={e=>update(r.id,{reviewStatus:e.target.value})}>{INTAKE_REVIEW_STATUSES.map(x=><option key={x}>{x}</option>)}</select></label>}
           </div>
           <label className="notes">Notes for PMR detail<textarea value={r.answer.notes} onChange={e=>update(r.id,{notes:e.target.value})} placeholder="What do I see? What would I suggest? What needs confirmation? These notes sharpen the PMR language."/></label>
           <div className="photoBox"><Camera size={18}/><strong>Photo Capture:</strong><label className="uploadInline"><Upload size={16}/> Upload<input type="file" accept="image/*" multiple onChange={e=>{addPhotos(r.id, e.target.files); e.target.value='';}}/></label><span>{photoSummary(r.answer.photos)}</span></div>
@@ -963,7 +1050,7 @@ function App() {
         </div>})}
       </section>
     </main>}
-    {view === 'pmr' && <PMR client={client} intake={intake} pmr={pmr} counts={counts} quickHits={quickHits} pass={pass} />}
+    {view === 'pmr' && <PMR client={client} intake={intake} pmr={pmr} counts={counts} quickHits={quickHits} pass={pass} unreviewedIntakeRows={unreviewedIntakeRows} reviewedIntakeNotes={reviewedIntakeNotes} />}
     {view === 'metrics' && <Metrics rows={rows} pmr={pmr} quickHits={quickHits} pass={pass}/>} 
   </div>
 }
@@ -1017,15 +1104,17 @@ function IntakeView({intake, updateIntake}) {
   </main>
 }
 
-function PMR({client, intake, pmr, counts, quickHits, pass}) {
+function PMR({client, intake, pmr, counts, quickHits, pass, unreviewedIntakeRows = [], reviewedIntakeNotes = []}) {
   const summary = intakeSummary(intake);
   return <main className="pmr">
     <div className="pmrHeader"><div><THALogo variant="full"/><p className="eyebrow">Preventive Maintenance Report</p><h1>{client.address}</h1><p>{client.name} · {client.date}</p></div><div className="compassCard"><Mountain size={48}/><span>You Navigate, We Drive</span></div></div>
+    {unreviewedIntakeRows.length > 0 && <div className="pmrWarning"><AlertTriangle size={18}/><span>Draft warning: {unreviewedIntakeRows.length} Intake Follow-Up row{unreviewedIntakeRows.length === 1 ? '' : 's'} remain Not Reviewed. Use Print Final PMR only after every follow-up is reviewed.</span></div>}
     <section className="pmrBlock intakeSummary"><h2><Home size={20}/> Homeowner Goals & Preferences</h2><div className="findGrid"><p><strong>Primary priorities:</strong><br/>{summary.priorities}</p><p><strong>Preferred pace:</strong><br/>{summary.pace}</p><p><strong>Budget mindset:</strong><br/>{summary.budget}</p><p><strong>Decision style:</strong><br/>{summary.decision}</p><p><strong>Homeowner notes:</strong><br/>{summary.notes}</p><p><strong>PMR interpretation:</strong><br/>Recommendations below are staged to match the homeowner’s goals, urgency, and preferred pace.</p></div></section>
     <section className="pmrBlock intakeSummary"><h2>Context From Intake</h2><div className="findGrid"><p><strong>Systems history:</strong><br/>Panel: {intake.electricalPanel || 'Unknown'}<br/>Water shut-off: {intake.waterShutoff || 'Unknown'}<br/>HVAC: {intake.hvacService || 'Unknown'}</p><p><strong>Known issues:</strong><br/>{intake.plumbingHistory || 'No plumbing history recorded.'}<br/>{intake.comfort || ''}</p><p><strong>Exterior history:</strong><br/>Roof: {intake.roofAge || 'Unknown'}<br/>Drainage: {intake.drainagePooling || 'Unknown'}<br/>Paint/Stain: {intake.paintStain || 'Unknown'}</p><p><strong>Safety history:</strong><br/>Smoke/CO: {intake.smokeCO || 'Unknown'}<br/>Fire extinguishers: {intake.fireExtinguishers || 'Unknown'}</p><p><strong>Misc. history:</strong><br/>Pest: {intake.pests || 'Unknown'}<br/>Chimney: {intake.chimney || 'Unknown'}</p><p><strong>Additional concerns:</strong><br/>{intake.additionalConcerns || 'No additional concerns recorded.'}</p></div></section>
     <section className="snapshot"><h2><Home size={20}/> Home Health Snapshot</h2><div className="stat high"><strong>{counts.high}</strong><span><CertaintyDot label="Needs Discovery"/> Immediate</span></div><div className="stat med"><strong>{counts.med}</strong><span><CertaintyDot label="Likely Path"/> Near‑Term</span></div><div className="stat low"><strong>{counts.low}</strong><span><CertaintyDot label="Clear Path"/> Monitor</span></div></section><section className="guideGrid"><div className="guideCard"><h2><ClipboardList size={20}/> Action Certainty Guide</h2><p><CertaintyDot label="Needs Discovery"/> <strong>Needs Discovery</strong><br/><span>Gather more information before committing.</span></p><p><CertaintyDot label="Likely Path"/> <strong>Likely Path</strong><br/><span>Probable solution; start here and verify.</span></p><p><CertaintyDot label="Clear Path"/> <strong>Clear Path</strong><br/><span>Straightforward solution.</span></p></div><div className="guideCard"><h2><Clock3 size={20}/> Investment Guide (Time)</h2><p><CertaintyDot label="Clear Path"/> <strong>Quick</strong> — 0–2 hrs</p><p><CertaintyDot label="Likely Path"/> <strong>Short</strong> — 2–6 hrs</p><p><CertaintyDot label="Needs Discovery"/> <strong>Long / Trade Scope</strong> — verify first</p></div></section><section className="pmrBlock"><h2><Wrench/> Handy‑Next‑Steps</h2><p className="lede">Quick, practical items that may fit a grouped Handy Services visit, subject to confirmation.</p><ul className="checkList">{quickHits.map(r=><li key={r.id}><TradeIcon trade={r.answer.trade}/> <span><strong>{r.room}: {r.item}</strong><br/><small>{displayTradeLabel(r.answer.trade)} · {r.answer.effort}</small></span><CertaintyDot label={actionCertaintyFor(r.answer)}/></li>)}</ul></section>
 <section className="pmrBlock"><h2><CalendarDays/> P.A.S.S. Reminder Planner</h2><p className="lede">Precision Annual & Seasonal Services: no subscription, only what is relevant.</p><ul className="checkList">{pass.map(r=><li key={r.id}><TradeIcon trade={r.answer.trade}/> <span><strong>{r.item}</strong><br/><small>{r.frequency || 'Recurring'} · {timingFor(r, r.answer.status)}</small></span><CertaintyDot label={actionCertaintyFor(r.answer)}/></li>)}</ul></section>
 
+    {reviewedIntakeNotes.length > 0 && <section className="pmrBlock"><h2>Intake Follow-Up Review Notes</h2><ul className="checkList">{reviewedIntakeNotes.map(r=><li key={`note-${r.id}`}><span className="sourceBadge">Intake Follow-Up</span><span><strong>{r.roomName || r.room} — {r.item}</strong><br/><small>{r.answer.reviewStatus} · {r.intakeFieldLabel}: {r.intakeValue}</small></span></li>)}</ul></section>}
     <section className="pmrBlock"><h2><AlertTriangle/> Priority Action Plan</h2>{pmr.map(r => {
       const certainty = actionCertaintyCopy(r);
       return <article className="finding" key={r.id}>

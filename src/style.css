@@ -86,3 +86,10 @@
 .categoryQuestion .categoryBadge svg{width:11px;height:11px;flex-basis:11px}
 .categoryQuestion input,.categoryQuestion select,.categoryQuestion textarea{margin-top:0}
 @media(max-width:900px){.itemHead{align-items:flex-start;flex-wrap:wrap}.categoryBadge{min-height:24px;padding:5px 9px}.categoryQuestion .categoryBadge{position:static;margin-top:2px}.categoryQuestion input,.categoryQuestion select,.categoryQuestion textarea{margin-top:0}}
+.sourceBadge{display:inline-flex;align-items:center;width:max-content;border-radius:999px;background:#eef2f5;border:1px solid var(--line);color:var(--navy);font-size:11px;font-weight:900;line-height:1;text-transform:uppercase;letter-spacing:.03em;padding:4px 9px;white-space:nowrap}
+.intakeFollowUpReview select{border-color:var(--gold);box-shadow:0 0 0 2px rgba(191,132,32,.12)}
+.pmrWarning{display:flex;align-items:flex-start;gap:10px;margin:14px 0;padding:12px 14px;border-radius:16px;background:var(--yellow);border:1px solid #f1d37a;color:#62440f;font-weight:900;line-height:1.35}
+.pmrWarning svg{flex:0 0 auto;color:#9b5b00;stroke-width:2.6}
+.intakeReviewNotes{margin:10px 0;padding:10px 12px;border-radius:14px;background:#fbf7ef;border:1px solid #eee0ca;color:var(--ink);font-weight:700;line-height:1.35}.intakeReviewNotes span{color:var(--muted);font-size:12px;font-weight:800}
+.finalPrintButton{background:var(--navy);color:white}
+@media(min-width:901px){.clientCard{grid-template-columns:1fr 1.3fr 1fr auto auto auto}}
