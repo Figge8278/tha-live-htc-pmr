@@ -113,12 +113,16 @@ const GOOGLE_CLIENT_ID_KEY = 'tha-google-client-id';
 const SECTION_ORDER_KEY = 'tha-section-order';
 const ITEM_ORDER_KEY = 'tha-item-order';
 const PINNED_ITEMS_KEY = 'tha-pinned-items';
+const LEGACY_CLIENT_KEY = 'tha-client';
+const LEGACY_ANSWERS_KEY = 'tha-answers';
+const LEGACY_INTAKE_KEY = 'tha-intake';
 const ROOM_CAPTURE_KEY = 'tha-room-capture';
 const WALKTHROUGH_SESSIONS_KEY = 'tha-walkthrough-sessions';
 const CURRENT_WALKTHROUGH_ID_KEY = 'tha-current-walkthrough-id';
 const PHOTO_MAX_DIMENSION = 1600;
 const PHOTO_QUALITY = 0.76;
 const PHOTO_BATCH_WARNING_COUNT = 5;
+const PHOTO_AUTOSAVE_FAILURE_MESSAGE = 'Photo added, but autosave failed — download backup or remove photos.';
 const TRADE_OPTIONS = [...Object.keys(ICONS), 'Carpentry', 'General Contractor', 'Design', 'Flooring', 'Landscape', 'Review / Assign Later'];
 
 const INTAKE_DEFAULTS = {
@@ -274,6 +278,16 @@ const DYNAMIC_ROOM_TYPES = {
 };
 const DYNAMIC_TEMPLATE_ROOMS = ['Bedroom', 'Bathroom'];
 const DYNAMIC_ROOMS_KEY = 'tha-dynamic-rooms';
+const DUPLICATE_LEGACY_WALKTHROUGH_KEYS = [
+  LEGACY_CLIENT_KEY,
+  LEGACY_ANSWERS_KEY,
+  LEGACY_INTAKE_KEY,
+  DYNAMIC_ROOMS_KEY,
+  SECTION_ORDER_KEY,
+  ITEM_ORDER_KEY,
+  PINNED_ITEMS_KEY,
+  ROOM_CAPTURE_KEY
+];
 const DEFAULT_DYNAMIC_ROOMS = [
   { id: 'default-living-room-1', roomName: 'Family Room', roomType: 'Living / Family Rooms' },
   { id: 'default-bedroom-1', roomName: 'Bedroom 1', roomType: 'Bedrooms' },
@@ -630,7 +644,7 @@ function safeLocalStorageSet(key, value, onFailure) {
     return true;
   } catch (error) {
     const message = isQuotaExceededError(error)
-      ? 'Storage is full or this browser blocked saving. Download a backup or remove photos.'
+      ? PHOTO_AUTOSAVE_FAILURE_MESSAGE
       : 'This browser blocked saving. Download a backup before leaving the walkthrough.';
     onFailure?.(message, error);
     return false;
@@ -709,10 +723,23 @@ async function buildCompressedPhoto(file, { label, idPrefix }) {
     compressed: processed.compressed
   };
 }
-function saveStatusText(saveStatus) {
+function hasPhotoDataUrlsInAnswers(answers = {}) {
+  return Object.values(answers || {}).some(answer => Array.isArray(answer?.photos) && answer.photos.some(photo => photo?.dataUrl));
+}
+function hasPhotoDataUrlsInRoomCapture(roomCapture = {}) {
+  return Object.values(roomCapture || {}).some(capture => Array.isArray(capture?.photos) && capture.photos.some(photo => photo?.dataUrl));
+}
+function hasVisiblePhotoDataUrls(answers = {}, roomCapture = {}) {
+  return hasPhotoDataUrlsInAnswers(answers) || hasPhotoDataUrlsInRoomCapture(roomCapture);
+}
+function pruneDuplicateLegacyWalkthroughKeys() {
+  DUPLICATE_LEGACY_WALKTHROUGH_KEYS.forEach(key => safeLocalStorageRemove(key));
+}
+function saveStatusText(saveStatus, hasUnsavedVisiblePhotos = false) {
   if (saveStatus.state === 'saving') return 'Autosaving…';
   if (saveStatus.state === 'saved') return saveStatus.time && saveStatus.time !== 'loaded' ? `Autosaved at ${saveStatus.time}` : 'Autosaved just now';
-  if (saveStatus.state === 'failed') return 'Autosave failed — download backup';
+  if (saveStatus.state === 'failed') return hasUnsavedVisiblePhotos ? PHOTO_AUTOSAVE_FAILURE_MESSAGE : 'Autosave failed — download backup';
+  if (hasUnsavedVisiblePhotos) return 'Photo visible — autosave pending';
   return 'Unsaved changes';
 }
 
@@ -737,9 +764,9 @@ function cleanWalkthroughData() {
 function legacyWalkthroughData() {
   const dynamicRooms = safeJsonParse(localStorage.getItem(DYNAMIC_ROOMS_KEY), null);
   return {
-    client: safeJsonParse(localStorage.getItem('tha-client'), { name: 'Christine & Matt', address: 'Sample Home', date: '2026-04 Walkthrough' }),
-    answers: safeJsonParse(localStorage.getItem('tha-answers'), null) || sampleAnswers,
-    intake: safeJsonParse(localStorage.getItem('tha-intake'), null) || INTAKE_DEFAULTS,
+    client: safeJsonParse(localStorage.getItem(LEGACY_CLIENT_KEY), { name: 'Christine & Matt', address: 'Sample Home', date: '2026-04 Walkthrough' }),
+    answers: safeJsonParse(localStorage.getItem(LEGACY_ANSWERS_KEY), null) || sampleAnswers,
+    intake: safeJsonParse(localStorage.getItem(LEGACY_INTAKE_KEY), null) || INTAKE_DEFAULTS,
     dynamicRooms: Array.isArray(dynamicRooms) ? dynamicRooms : DEFAULT_DYNAMIC_ROOMS,
     sectionOrder: safeJsonParse(localStorage.getItem(SECTION_ORDER_KEY), []),
     itemOrder: safeJsonParse(localStorage.getItem(ITEM_ORDER_KEY), {}),
@@ -802,12 +829,11 @@ function App() {
   const [saveStatus, setSaveStatus] = useState({ state: 'saved', time: initialState.activeId ? 'loaded' : '' });
   const autosaveReadyRef = useRef(false);
   const applyStorageFailure = (message) => {
-    setStorageWarning(message);
+    setStorageWarning(hasVisiblePhotoDataUrls(answers, roomCapture) ? PHOTO_AUTOSAVE_FAILURE_MESSAGE : message);
     setSaveStatus({ state: 'failed', time: '' });
   };
   useEffect(()=>{ safeLocalStorageSet(GOOGLE_CLIENT_ID_KEY, driveClientId, applyStorageFailure); }, [driveClientId]);
   useEffect(()=>{ safeLocalStorageSet(DRIVE_META_KEY, JSON.stringify(driveMeta), applyStorageFailure); }, [driveMeta]);
-  useEffect(()=>{ safeLocalStorageSet(WALKTHROUGH_SESSIONS_KEY, JSON.stringify(savedSessions), applyStorageFailure); }, [savedSessions]);
   useEffect(()=>{
     if (activeWalkthroughId) safeLocalStorageSet(CURRENT_WALKTHROUGH_ID_KEY, activeWalkthroughId, applyStorageFailure);
     else safeLocalStorageRemove(CURRENT_WALKTHROUGH_ID_KEY, applyStorageFailure);
@@ -1008,6 +1034,27 @@ function App() {
     pinnedItems,
     roomCapture
   });
+  const persistCurrentWalkthroughSession = () => {
+    const id = activeWalkthroughId || `walkthrough-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const name = walkthroughName.trim() || client.name || client.address || 'Untitled Walkthrough';
+    const session = {
+      id,
+      name,
+      updatedAt: new Date().toISOString(),
+      data: currentWalkthroughData()
+    };
+    const nextSessions = { ...savedSessions, [id]: session };
+    if (!safeLocalStorageSet(WALKTHROUGH_SESSIONS_KEY, JSON.stringify(nextSessions), applyStorageFailure)) return false;
+    if (!safeLocalStorageSet(CURRENT_WALKTHROUGH_ID_KEY, id, applyStorageFailure)) return false;
+    setSavedSessions(nextSessions);
+    setActiveWalkthroughId(id);
+    setSelectedWalkthroughId(id);
+    setWalkthroughName(name);
+    pruneDuplicateLegacyWalkthroughKeys();
+    setStorageWarning('');
+    setSaveStatus({ state: 'saved', time: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) });
+    return true;
+  };
   useEffect(() => {
     if (!autosaveReadyRef.current) {
       autosaveReadyRef.current = true;
@@ -1016,35 +1063,7 @@ function App() {
     setSaveStatus(status => status.state === 'failed' ? status : { state: 'unsaved', time: status.time || '' });
     const timeout = window.setTimeout(() => {
       setSaveStatus({ state: 'saving', time: '' });
-      const id = activeWalkthroughId || `walkthrough-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const name = walkthroughName.trim() || client.name || client.address || 'Untitled Walkthrough';
-      const data = currentWalkthroughData();
-      const session = {
-        id,
-        name,
-        updatedAt: new Date().toISOString(),
-        data
-      };
-      const legacySaved = [
-        safeLocalStorageSet('tha-client', JSON.stringify(data.client), applyStorageFailure),
-        safeLocalStorageSet('tha-answers', JSON.stringify(data.answers), applyStorageFailure),
-        safeLocalStorageSet('tha-intake', JSON.stringify(data.intake), applyStorageFailure),
-        safeLocalStorageSet(DYNAMIC_ROOMS_KEY, JSON.stringify(data.dynamicRooms), applyStorageFailure),
-        safeLocalStorageSet(SECTION_ORDER_KEY, JSON.stringify(data.sectionOrder), applyStorageFailure),
-        safeLocalStorageSet(ITEM_ORDER_KEY, JSON.stringify(data.itemOrder), applyStorageFailure),
-        safeLocalStorageSet(PINNED_ITEMS_KEY, JSON.stringify(data.pinnedItems), applyStorageFailure),
-        safeLocalStorageSet(ROOM_CAPTURE_KEY, JSON.stringify(data.roomCapture), applyStorageFailure)
-      ].every(Boolean);
-      if (!legacySaved) return;
-      const nextSessions = { ...savedSessions, [id]: session };
-      const saved = safeLocalStorageSet(WALKTHROUGH_SESSIONS_KEY, JSON.stringify(nextSessions), applyStorageFailure);
-      if (!saved) return;
-      setSavedSessions(nextSessions);
-      if (!activeWalkthroughId) setActiveWalkthroughId(id);
-      setSelectedWalkthroughId(id);
-      setWalkthroughName(name);
-      setStorageWarning('');
-      setSaveStatus({ state: 'saved', time: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) });
+      persistCurrentWalkthroughSession();
     }, 1000);
     return () => window.clearTimeout(timeout);
   }, [client, answers, intake, dynamicRooms, sectionOrderState, itemOrderState, pinnedItems, roomCapture, walkthroughName]);
@@ -1072,22 +1091,7 @@ function App() {
   };
   const saveWalkthrough = () => {
     setSaveStatus({ state: 'saving', time: '' });
-    const id = activeWalkthroughId || `walkthrough-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const name = walkthroughName.trim() || client.name || client.address || 'Untitled Walkthrough';
-    const session = {
-      id,
-      name,
-      updatedAt: new Date().toISOString(),
-      data: currentWalkthroughData()
-    };
-    const nextSessions = { ...savedSessions, [id]: session };
-    if (!safeLocalStorageSet(WALKTHROUGH_SESSIONS_KEY, JSON.stringify(nextSessions), applyStorageFailure)) return;
-    setSavedSessions(nextSessions);
-    setActiveWalkthroughId(id);
-    setSelectedWalkthroughId(id);
-    setWalkthroughName(name);
-    setStorageWarning('');
-    setSaveStatus({ state: 'saved', time: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) });
+    persistCurrentWalkthroughSession();
   };
   const openSavedWalkthrough = (id) => {
     setSelectedWalkthroughId(id);
@@ -1105,6 +1109,7 @@ function App() {
     setSavedSessions(prev => {
       const next = { ...prev };
       delete next[id];
+      safeLocalStorageSet(WALKTHROUGH_SESSIONS_KEY, JSON.stringify(next), applyStorageFailure);
       return next;
     });
     setSelectedWalkthroughId('');
@@ -1159,6 +1164,7 @@ function App() {
     window.setTimeout(() => window.print(), 0);
   };
   const savedSessionList = Object.values(savedSessions).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  const hasUnsavedVisiblePhotos = saveStatus.state !== 'saved' && hasVisiblePhotoDataUrls(answers, roomCapture);
   const syncDrive = async ({includeDownload=false, retryQueue=false} = {}) => {
     if (includeDownload) downloadJSON();
     const payload = buildDrivePayload({walkthroughName, client, intake, rows, pmr, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture});
@@ -1195,7 +1201,7 @@ function App() {
       <label>Current Walkthrough Name<input value={walkthroughName} onChange={e=>setWalkthroughName(e.target.value)} placeholder="Name this walkthrough"/></label>
       <div className="walkthroughActions" aria-label="Walkthrough save and backup actions">
         <button type="button" onClick={startNewWalkthrough}>Start New Blank Walkthrough</button>
-        <div className="manualSaveGroup"><button type="button" onClick={saveWalkthrough}>Save Working Walkthrough</button><span className={`saveStatus ${saveStatus.state}`} role="status" aria-live="polite"><span className="saveStatusDot" aria-hidden="true"></span>{saveStatusText(saveStatus)}</span></div>
+        <div className="manualSaveGroup"><button type="button" onClick={saveWalkthrough}>Save Working Walkthrough</button><span className={`saveStatus ${saveStatus.state}`} role="status" aria-live="polite"><span className="saveStatusDot" aria-hidden="true"></span>{saveStatusText(saveStatus, hasUnsavedVisiblePhotos)}</span></div>
         <button type="button" onClick={()=>syncDrive({includeDownload:true})}><Download size={16}/> Download Walkthrough Backup</button>
       </div>
       <label>Open Saved Walkthrough<select value={selectedWalkthroughId} onChange={e=>openSavedWalkthrough(e.target.value)}><option value="">Choose saved walkthrough</option>{savedSessionList.map(session=><option key={session.id} value={session.id}>{session.name || 'Untitled Walkthrough'}{session.updatedAt ? ` · ${new Date(session.updatedAt).toLocaleString()}` : ''}</option>)}</select></label>
