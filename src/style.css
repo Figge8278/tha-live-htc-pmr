@@ -93,3 +93,5 @@
 .intakeReviewNotes{margin:10px 0;padding:10px 12px;border-radius:14px;background:#fbf7ef;border:1px solid #eee0ca;color:var(--ink);font-weight:700;line-height:1.35}.intakeReviewNotes span{color:var(--muted);font-size:12px;font-weight:800}
 .finalPrintButton{background:var(--navy);color:white}
 @media(min-width:901px){.clientCard{grid-template-columns:1fr 1.3fr 1fr auto auto auto}}
+.passCandidateToggle{display:flex;flex-direction:row;align-items:flex-start;gap:9px;margin:10px 0;background:#fff8ee;border:1px solid var(--line);border-radius:14px;padding:10px;color:var(--ink)}.passCandidateToggle input{margin-top:3px}.passCandidateToggle small{display:block;color:var(--muted);font-weight:800;margin-top:2px}.passMetaGrid{display:grid;grid-template-columns:1fr 1fr 2fr;gap:10px;margin:10px 0 12px;background:#fbf7ef;border:1px solid #eee0ca;border-radius:14px;padding:10px}
+@media(max-width:900px){.passMetaGrid{grid-template-columns:1fr}}

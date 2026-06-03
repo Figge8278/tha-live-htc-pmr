@@ -84,6 +84,8 @@ const STATUS = ['Good','Monitor','Needs Attention','Immediate Concern','Unknown'
 const EFFORT = ['Unknown','15 min','30 min','45–60 min','1–2 hrs','Half day','Full day','Multi-day / trade scope'];
 const ACTION_CERTAINTY = ['Clear Path','Likely Path','Needs Discovery'];
 const PREFS = ['Do now','Plan soon','Budget for later','Watchlist only'];
+const PASS_CADENCE = ['Monthly','Quarterly','Seasonal','Annual','As Needed'];
+const PASS_RESOURCES = ['Handy Services','HVAC','Plumbing','Roofing','Gutters/Drainage','Pest','Safety','Other'];
 const PHOTO_LABELS = ['Context','Close-up','Detail'];
 const ROOM_PHOTO_LABELS = ['Overview'];
 const ROOM_STATUS_OPTIONS = ['Looking Good','Watch Item / Worth Watching','Handy Services','Trade Attention','Routine Care / PASS','Homeowner Goal'];
@@ -121,7 +123,7 @@ const INTAKE_DEFAULTS = {
   notes: 'Homeowners want a clear plan, staged priorities, and no pressure to do everything at once.',
   electricalPanel: 'Garage wall - verify access and labeling during walkthrough.', electricalUpdates: 'Unknown / ask about recent panel or fixture work.',
   waterShutoff: 'Mechanical room - verify and photo label.', plumbingHistory: 'Slow kitchen drain reported; no known active leak.', waterHeater: 'Last flush unknown.', sewerIrrigation: 'Unknown sewer scope; irrigation service likely seasonal.',
-  hvacFilter: 'Filter replacement date unknown.', hvacService: 'Furnace service likely overdue; A/C service unknown.', comfort: 'No major comfort complaints noted yet.',
+  hvacFilter: 'Filter replacement date unknown.', hvacService: 'Furnace service likely overdue.', hvacAcService: 'A/C service history unknown.', comfort: 'No major comfort complaints noted yet.',
   roofAge: 'Approx. age unknown.', roofHistory: 'No known active leak reported.', solar: 'N/A or verify if present.',
   drainagePooling: 'Water noted near foundation after heavy rain/snowmelt.', drainageHistory: 'No known basement intrusion reported.', gutters: 'Downspout discharge to verify.',
   windowsDoors: 'One bedroom window reported sticky.', fogging: 'Unknown.', paintStain: 'Exterior finish timing unknown.', productsColors: 'Ask for any leftover labels/photos.',
@@ -147,7 +149,7 @@ const INTAKE_FOLLOW_UP_MAPPINGS = [
   { keys: ['electricalPanel','electricalUpdates'], category: 'Electrical', target: 'Electrical / Service Areas', title: 'Electrical intake follow-up', trade: 'Electrical', prompt: 'Verify the homeowner-provided electrical context during the walkthrough, including access, labeling, visible condition, and any reported updates.', why: 'Intake notes can identify electrical questions that need eyes-on confirmation before any recommendation is made.', action: 'Document observations and only elevate to a PMR finding if field review confirms a safety, function, or maintenance concern.' },
   { keys: ['waterShutoff','plumbingHistory','waterHeater'], category: 'Plumbing', target: 'Plumbing / Mechanical', title: 'Plumbing intake follow-up', trade: 'Plumbing', prompt: 'Confirm shutoff location, water heater context, and any homeowner-reported plumbing symptoms or history.', why: 'Reported plumbing history should be verified so routine notes do not become assumed findings.', action: 'Capture practical next steps if the walkthrough confirms leaks, slow drains, maintenance gaps, or access issues.' },
   { keys: ['sewerIrrigation','drainagePooling','drainageHistory','gutters'], category: 'Drainage', target: 'Exterior / Drainage', title: 'Drainage intake follow-up', trade: 'Handyman', prompt: 'Look for grading, downspout discharge, pooling patterns, gutter concerns, irrigation context, and signs of water intrusion.', why: 'Drainage comments from intake need field context before deciding whether they are watch items, maintenance notes, or PMR findings.', action: 'Record the observed drainage condition and stage a practical maintenance or specialist review only if supported by the walkthrough.' },
-  { keys: ['hvacFilter','hvacService','comfort'], category: 'HVAC', target: 'HVAC / Mechanical', title: 'HVAC intake follow-up', trade: 'HVAC', prompt: 'Verify filter condition, service history clues, thermostat/comfort concerns, and visible equipment condition.', why: 'HVAC history and comfort comments help focus the review without automatically implying a defect.', action: 'Recommend service, monitoring, or further evaluation only if the walkthrough confirms the need.' },
+  { keys: ['hvacFilter','hvacService','hvacAcService','comfort'], category: 'HVAC', target: 'HVAC / Mechanical', title: 'HVAC intake follow-up', trade: 'HVAC', prompt: 'Verify filter condition, furnace service/age context, A/C service/age context, thermostat/comfort concerns, and visible equipment condition.', why: 'HVAC history and comfort comments help focus the review without automatically implying a defect.', action: 'Recommend service, monitoring, or further evaluation only if the walkthrough confirms the need.' },
   { keys: ['roofAge','roofHistory','chimney'], category: 'Roofing', target: 'Roof / Chimney', title: 'Roofing / chimney intake follow-up', trade: 'Roof', prompt: 'Review homeowner roof/chimney history, visible roof-adjacent clues, fireplace/chimney context, and service timing if accessible.', why: 'Age and service history are useful context, but PMR findings should come from confirmed review conditions.', action: 'Note the history and add a PMR finding only when the walkthrough supports roof, flashing, leak, or chimney follow-up.' },
   { keys: ['solar'], category: 'Electrical', target: 'Electrical / Solar', title: 'Electrical / solar context follow-up', trade: 'Electrical', prompt: 'Confirm whether solar equipment is present and note visible access, labels, or homeowner context.', why: 'Solar information affects electrical context but still requires review before action is recommended.', action: 'Capture context and refer for electrical or solar-specialist review only if a confirmed concern is observed.' },
   { keys: ['windowsDoors','fogging'], category: 'Openings', target: 'Windows / Doors', title: 'Openings intake follow-up', trade: 'Handyman', prompt: 'Operate reported windows/doors where accessible and look for drafts, sticking, failed seals, locks, or hardware issues.', why: 'Homeowner-reported window and door issues often need a simple function check before prioritizing work.', action: 'Document adjustment, weatherstripping, monitoring, or trade follow-up only when the condition is confirmed.' },
@@ -211,6 +213,26 @@ function isIntakeFollowUp(row = {}) {
 function includePMRRow(row) {
   if (isIntakeFollowUp(row)) return includePMR(row.answer) && row.answer.reviewStatus === INTAKE_PMR_REVIEW_STATUS;
   return includePMR(row.answer);
+}
+function passCadenceFor(item = {}) {
+  const frequency = (item.frequency || '').toLowerCase();
+  if (frequency.includes('month') || frequency.includes('1–3')) return 'Monthly';
+  if (frequency.includes('quarter')) return 'Quarterly';
+  if (frequency.includes('spring') || frequency.includes('fall') || frequency.includes('season')) return 'Seasonal';
+  if (frequency.includes('annual') || frequency.includes('year')) return 'Annual';
+  return 'As Needed';
+}
+function passResourceFor(item = {}) {
+  const category = categoryForChecklistItem(item);
+  const trade = item.trade || '';
+  if (category === 'HVAC' || trade === 'HVAC') return 'HVAC';
+  if (category === 'Plumbing' || trade === 'Plumbing') return 'Plumbing';
+  if (category === 'Roofing' || trade === 'Roof' || trade === 'Chimney') return 'Roofing';
+  if (category === 'Drainage') return 'Gutters/Drainage';
+  if (category === 'Pest' || trade === 'Pest') return 'Pest';
+  if (category === 'Safety' || trade === 'Safety') return 'Safety';
+  if (trade === 'Handyman') return 'Handy Services';
+  return 'Other';
 }
 
 const library = [
@@ -432,7 +454,11 @@ function normalizeAnswer(answer, item) {
     photoRef: answer?.photoRef || '',
     reassignTo: answer?.reassignTo || '',
     isDiscovery: typeof answer?.isDiscovery === 'boolean' ? answer.isDiscovery : false,
-    reviewStatus: answer?.reviewStatus || (isIntakeFollowUp(item) ? 'Not Reviewed' : '')
+    reviewStatus: answer?.reviewStatus || (isIntakeFollowUp(item) ? 'Not Reviewed' : ''),
+    passCandidate: typeof answer?.passCandidate === 'boolean' ? answer.passCandidate : Boolean(item.pass && !isIntakeFollowUp(item)),
+    passCadence: answer?.passCadence || passCadenceFor(item),
+    passResource: answer?.passResource || passResourceFor(item),
+    passNote: answer?.passNote || ''
   };
 }
 function photoSummary(photos, { emptyText = 'No item photos attached yet', labels = PHOTO_LABELS } = {}) {
@@ -728,7 +754,7 @@ function App() {
   const reviewedIntakeNotes = intakeReviewRows.filter(r => r.answer.reviewStatus && r.answer.reviewStatus !== 'Not Reviewed' && r.answer.reviewStatus !== INTAKE_PMR_REVIEW_STATUS);
   const counts = { high: pmr.filter(r=>priority(r.answer.status)==='High').length, med: pmr.filter(r=>priority(r.answer.status)==='Medium').length, low: pmr.filter(r=>priority(r.answer.status)==='Low').length };
   const quickHits = pmr.filter(r => ['Handyman','Safety'].includes(r.answer.trade) && ['15 min','30 min','45–60 min','1–2 hrs'].includes(r.answer.effort));
-  const pass = pmr.filter(r => r.pass);
+  const pass = rows.filter(r => r.answer.passCandidate);
   const roomCaptureFor = (sectionKey) => ({
     status: roomCapture?.[sectionKey]?.status || ROOM_STATUS_OPTIONS[0],
     note: roomCapture?.[sectionKey]?.note || '',
@@ -1042,6 +1068,8 @@ function App() {
             <label>Photo Ref<input value={r.answer.photoRef} onChange={e=>update(r.id,{photoRef:e.target.value})} placeholder="Photo 01 / filename"/></label>
             {isIntakeFollowUp(r) && <label className="intakeFollowUpReview">Review Status<select value={r.answer.reviewStatus} onChange={e=>update(r.id,{reviewStatus:e.target.value})}>{INTAKE_REVIEW_STATUSES.map(x=><option key={x}>{x}</option>)}</select></label>}
           </div>
+          <label className="passCandidateToggle"><input type="checkbox" checked={r.answer.passCandidate} onChange={e=>update(r.id,{passCandidate:e.target.checked})}/><span><strong>PASS Candidate</strong><small>Recurring care only — not urgency or a PMR finding.</small></span></label>
+          {r.answer.passCandidate && <div className="passMetaGrid"><label>PASS Cadence<select value={r.answer.passCadence} onChange={e=>update(r.id,{passCadence:e.target.value})}>{PASS_CADENCE.map(x=><option key={x}>{x}</option>)}</select></label><label>PASS Resource<select value={r.answer.passResource} onChange={e=>update(r.id,{passResource:e.target.value})}>{PASS_RESOURCES.map(x=><option key={x}>{x}</option>)}</select></label><label>PASS Note<input value={r.answer.passNote} onChange={e=>update(r.id,{passNote:e.target.value})} placeholder="Optional recurring care note"/></label></div>}
           <label className="notes">Notes for PMR detail<textarea value={r.answer.notes} onChange={e=>update(r.id,{notes:e.target.value})} placeholder="What do I see? What would I suggest? What needs confirmation? These notes sharpen the PMR language."/></label>
           <div className="photoBox"><Camera size={18}/><strong>Photo Capture:</strong><label className="uploadInline"><Upload size={16}/> Upload<input type="file" accept="image/*" multiple onChange={e=>{addPhotos(r.id, e.target.files); e.target.value='';}}/></label><span>{photoSummary(r.answer.photos)}</span></div>
           {r.answer.photos.length > 0 && <div className="thumbGrid">{r.answer.photos.map(photo => <div className="thumbCard" key={photo.id}><div className="thumb">{photo.dataUrl ? <img src={photo.dataUrl} alt={`${photo.label} for ${r.item}`}/> : <Image size={24}/>}</div><select value={photo.label} onChange={e=>updatePhoto(r.id, photo.id, {label:e.target.value})}>{PHOTO_LABELS.map(label=><option key={label}>{label}</option>)}</select><span title={photo.name}>{photo.name}</span><button onClick={()=>removePhoto(r.id, photo.id)} aria-label="Remove photo"><X size={14}/></button></div>)}</div>}
@@ -1080,7 +1108,8 @@ function IntakeView({intake, updateIntake}) {
       <CategoryLabel category="Plumbing">Water heater flush / age<input value={intake.waterHeater || ''} onChange={e=>updateIntake({waterHeater:e.target.value})}/></CategoryLabel>
       <CategoryLabel category="Drainage">Sewer / irrigation history<input value={intake.sewerIrrigation || ''} onChange={e=>updateIntake({sewerIrrigation:e.target.value})}/></CategoryLabel>
       <CategoryLabel category="HVAC">Furnace filter replacement<input value={intake.hvacFilter || ''} onChange={e=>updateIntake({hvacFilter:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="HVAC">Furnace / A/C service history<input value={intake.hvacService || ''} onChange={e=>updateIntake({hvacService:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="HVAC">Furnace service history / age<input value={intake.hvacService || ''} onChange={e=>updateIntake({hvacService:e.target.value})}/></CategoryLabel>
+      <CategoryLabel category="HVAC">A/C service history / age<input value={intake.hvacAcService || ''} onChange={e=>updateIntake({hvacAcService:e.target.value})}/></CategoryLabel>
       <CategoryLabel category="HVAC">Comfort issues<input value={intake.comfort || ''} onChange={e=>updateIntake({comfort:e.target.value})}/></CategoryLabel>
     </div></section>
     <section className="pmrBlock"><h2>🏠 Roof / 🌧️ Drainage / 🪟 Openings / 🎨 Exterior</h2><div className="intakeGrid">
@@ -1110,11 +1139,8 @@ function PMR({client, intake, pmr, counts, quickHits, pass, unreviewedIntakeRows
     <div className="pmrHeader"><div><THALogo variant="full"/><p className="eyebrow">Preventive Maintenance Report</p><h1>{client.address}</h1><p>{client.name} · {client.date}</p></div><div className="compassCard"><Mountain size={48}/><span>You Navigate, We Drive</span></div></div>
     {unreviewedIntakeRows.length > 0 && <div className="pmrWarning"><AlertTriangle size={18}/><span>Draft warning: {unreviewedIntakeRows.length} Intake Follow-Up row{unreviewedIntakeRows.length === 1 ? '' : 's'} remain Not Reviewed. Use Print Final PMR only after every follow-up is reviewed.</span></div>}
     <section className="pmrBlock intakeSummary"><h2><Home size={20}/> Homeowner Goals & Preferences</h2><div className="findGrid"><p><strong>Primary priorities:</strong><br/>{summary.priorities}</p><p><strong>Preferred pace:</strong><br/>{summary.pace}</p><p><strong>Budget mindset:</strong><br/>{summary.budget}</p><p><strong>Decision style:</strong><br/>{summary.decision}</p><p><strong>Homeowner notes:</strong><br/>{summary.notes}</p><p><strong>PMR interpretation:</strong><br/>Recommendations below are staged to match the homeowner’s goals, urgency, and preferred pace.</p></div></section>
-    <section className="pmrBlock intakeSummary"><h2>Context From Intake</h2><div className="findGrid"><p><strong>Systems history:</strong><br/>Panel: {intake.electricalPanel || 'Unknown'}<br/>Water shut-off: {intake.waterShutoff || 'Unknown'}<br/>HVAC: {intake.hvacService || 'Unknown'}</p><p><strong>Known issues:</strong><br/>{intake.plumbingHistory || 'No plumbing history recorded.'}<br/>{intake.comfort || ''}</p><p><strong>Exterior history:</strong><br/>Roof: {intake.roofAge || 'Unknown'}<br/>Drainage: {intake.drainagePooling || 'Unknown'}<br/>Paint/Stain: {intake.paintStain || 'Unknown'}</p><p><strong>Safety history:</strong><br/>Smoke/CO: {intake.smokeCO || 'Unknown'}<br/>Fire extinguishers: {intake.fireExtinguishers || 'Unknown'}</p><p><strong>Misc. history:</strong><br/>Pest: {intake.pests || 'Unknown'}<br/>Chimney: {intake.chimney || 'Unknown'}</p><p><strong>Additional concerns:</strong><br/>{intake.additionalConcerns || 'No additional concerns recorded.'}</p></div></section>
+    <section className="pmrBlock intakeSummary"><h2>Context From Intake</h2><div className="findGrid"><p><strong>Systems history:</strong><br/>Panel: {intake.electricalPanel || 'Unknown'}<br/>Water shut-off: {intake.waterShutoff || 'Unknown'}<br/>Furnace: {intake.hvacService || 'Unknown'}<br/>A/C: {intake.hvacAcService || 'Unknown'}</p><p><strong>Known issues:</strong><br/>{intake.plumbingHistory || 'No plumbing history recorded.'}<br/>{intake.comfort || ''}</p><p><strong>Exterior history:</strong><br/>Roof: {intake.roofAge || 'Unknown'}<br/>Drainage: {intake.drainagePooling || 'Unknown'}<br/>Paint/Stain: {intake.paintStain || 'Unknown'}</p><p><strong>Safety history:</strong><br/>Smoke/CO: {intake.smokeCO || 'Unknown'}<br/>Fire extinguishers: {intake.fireExtinguishers || 'Unknown'}</p><p><strong>Misc. history:</strong><br/>Pest: {intake.pests || 'Unknown'}<br/>Chimney: {intake.chimney || 'Unknown'}</p><p><strong>Additional concerns:</strong><br/>{intake.additionalConcerns || 'No additional concerns recorded.'}</p></div></section>
     <section className="snapshot"><h2><Home size={20}/> Home Health Snapshot</h2><div className="stat high"><strong>{counts.high}</strong><span><CertaintyDot label="Needs Discovery"/> Immediate</span></div><div className="stat med"><strong>{counts.med}</strong><span><CertaintyDot label="Likely Path"/> Near‑Term</span></div><div className="stat low"><strong>{counts.low}</strong><span><CertaintyDot label="Clear Path"/> Monitor</span></div></section><section className="guideGrid"><div className="guideCard"><h2><ClipboardList size={20}/> Action Certainty Guide</h2><p><CertaintyDot label="Needs Discovery"/> <strong>Needs Discovery</strong><br/><span>Gather more information before committing.</span></p><p><CertaintyDot label="Likely Path"/> <strong>Likely Path</strong><br/><span>Probable solution; start here and verify.</span></p><p><CertaintyDot label="Clear Path"/> <strong>Clear Path</strong><br/><span>Straightforward solution.</span></p></div><div className="guideCard"><h2><Clock3 size={20}/> Investment Guide (Time)</h2><p><CertaintyDot label="Clear Path"/> <strong>Quick</strong> — 0–2 hrs</p><p><CertaintyDot label="Likely Path"/> <strong>Short</strong> — 2–6 hrs</p><p><CertaintyDot label="Needs Discovery"/> <strong>Long / Trade Scope</strong> — verify first</p></div></section><section className="pmrBlock"><h2><Wrench/> Handy‑Next‑Steps</h2><p className="lede">Quick, practical items that may fit a grouped Handy Services visit, subject to confirmation.</p><ul className="checkList">{quickHits.map(r=><li key={r.id}><TradeIcon trade={r.answer.trade}/> <span><strong>{r.room}: {r.item}</strong><br/><small>{displayTradeLabel(r.answer.trade)} · {r.answer.effort}</small></span><CertaintyDot label={actionCertaintyFor(r.answer)}/></li>)}</ul></section>
-<section className="pmrBlock"><h2><CalendarDays/> P.A.S.S. Reminder Planner</h2><p className="lede">Precision Annual & Seasonal Services: no subscription, only what is relevant.</p><ul className="checkList">{pass.map(r=><li key={r.id}><TradeIcon trade={r.answer.trade}/> <span><strong>{r.item}</strong><br/><small>{r.frequency || 'Recurring'} · {timingFor(r, r.answer.status)}</small></span><CertaintyDot label={actionCertaintyFor(r.answer)}/></li>)}</ul></section>
-
-    {reviewedIntakeNotes.length > 0 && <section className="pmrBlock"><h2>Intake Follow-Up Review Notes</h2><ul className="checkList">{reviewedIntakeNotes.map(r=><li key={`note-${r.id}`}><span className="sourceBadge">Intake Follow-Up</span><span><strong>{r.roomName || r.room} — {r.item}</strong><br/><small>{r.answer.reviewStatus} · {r.intakeFieldLabel}: {r.intakeValue}</small></span></li>)}</ul></section>}
     <section className="pmrBlock"><h2><AlertTriangle/> Priority Action Plan</h2>{pmr.map(r => {
       const certainty = actionCertaintyCopy(r);
       return <article className="finding" key={r.id}>
@@ -1122,6 +1148,8 @@ function PMR({client, intake, pmr, counts, quickHits, pass, unreviewedIntakeRows
         <div className="findGrid"><p><strong>What we saw:</strong><br/>{r.answer.notes || 'No additional notes recorded yet.'}</p><p><strong>Why it matters:</strong><br/>{r.why}</p><p><strong>{certainty.title}:</strong><br/>{certainty.body}</p><p><strong>Next step language:</strong><br/>{certainty.next}</p><p><strong>Suggested timing:</strong><br/>{timingFor(r, r.answer.status)} · Homeowner pace: {r.answer.pref}</p><p><strong>Approx. time:</strong><br/>{r.answer.effort} · {displayTradeLabel(r.answer.trade)} · Action certainty: {certainty.label}</p><p><strong>How homeowner intake affects this:</strong><br/>{intakeInfluence(r, intake)}</p><p><strong>Photos / reference:</strong><br/>{photoSummary(r.answer.photos)}</p></div>
       </article>
     })}</section>
+    <section className="pmrBlock"><h2><CalendarDays/> P.A.S.S. Planner — Continued Home Care</h2><p className="lede">PASS Candidates are recurring care reminders only. They are not urgency items and are not PMR findings unless separately listed above.</p><ul className="checkList">{pass.map(r=><li key={r.id}><TradeIcon trade={r.answer.trade}/> <span><strong>{r.item}</strong><br/><small>{r.answer.passCadence || r.frequency || 'As Needed'} · {r.answer.passResource || displayTradeLabel(r.answer.trade)}{r.answer.passNote ? ` · ${r.answer.passNote}` : ''}</small></span></li>)}</ul></section>
+    {reviewedIntakeNotes.length > 0 && <section className="pmrBlock"><h2>Intake Follow-Up Review Notes / Appendix</h2><ul className="checkList">{reviewedIntakeNotes.map(r=><li key={`note-${r.id}`}><span className="sourceBadge">Intake Follow-Up</span><span><strong>{r.roomName || r.room} — {r.item}</strong><br/><small>{r.answer.reviewStatus} · {r.intakeFieldLabel}: {r.intakeValue}</small></span></li>)}</ul></section>}
     <footer className="promise"><ShieldCheck/> You don’t hire trades — you hire The Homeowner Advocate. One point of contact. Every step. Every task.</footer>
   </main>
 }
