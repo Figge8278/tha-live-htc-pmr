@@ -29,19 +29,19 @@ function displayTradeLabel(trade) {
 
 
 const CATEGORY_META = {
-  Electrical: { label: 'Electrical', slug: 'electrical' },
-  Plumbing: { label: 'Plumbing', slug: 'plumbing' },
-  HVAC: { label: 'HVAC', slug: 'hvac' },
-  Roofing: { label: 'Roofing', slug: 'roofing' },
-  Drainage: { label: 'Drainage', slug: 'drainage' },
-  Openings: { label: 'Openings', slug: 'openings' },
-  Exterior: { label: 'Exterior', slug: 'exterior' },
-  Pest: { label: 'Pest', slug: 'pest' },
-  Safety: { label: 'Safety', slug: 'safety' },
-  Surfaces: { label: 'Surfaces', slug: 'surfaces' },
-  Appliances: { label: 'Appliances', slug: 'appliances' },
-  'Handy / Carpentry': { label: 'Handy / Carpentry', slug: 'handy-carpentry' },
-  'General / Misc': { label: 'General / Misc', slug: 'general-misc' }
+  Electrical: { label: 'Electrical', slug: 'electrical', Icon: Plug },
+  Plumbing: { label: 'Plumbing', slug: 'plumbing', Icon: Droplets },
+  HVAC: { label: 'HVAC', slug: 'hvac', Icon: Fan },
+  Roofing: { label: 'Roofing', slug: 'roofing', Icon: Home },
+  Drainage: { label: 'Drainage', slug: 'drainage', Icon: Wind },
+  Openings: { label: 'Openings', slug: 'openings', Icon: DoorOpen },
+  Exterior: { label: 'Exterior', slug: 'exterior', Icon: TreePine },
+  Pest: { label: 'Pest', slug: 'pest', Icon: Bug },
+  Safety: { label: 'Safety', slug: 'safety', Icon: ShieldCheck },
+  Surfaces: { label: 'Surfaces', slug: 'surfaces', Icon: Paintbrush },
+  Appliances: { label: 'Appliances', slug: 'appliances', Icon: Settings },
+  'Handy / Carpentry': { label: 'Handy / Carpentry', slug: 'handy-carpentry', Icon: Hammer },
+  'General / Misc': { label: 'General / Misc', slug: 'general-misc', Icon: ClipboardList }
 };
 
 function categoryInfo(category = 'General / Misc') {
@@ -49,6 +49,7 @@ function categoryInfo(category = 'General / Misc') {
 }
 
 function categoryForChecklistItem(item = {}) {
+  if (item.category && CATEGORY_META[item.category]) return item.category;
   const zone = item.zone || '';
   const trade = item.trade || '';
   const text = `${zone} ${trade} ${item.item || ''}`.toLowerCase();
@@ -70,7 +71,8 @@ function categoryForChecklistItem(item = {}) {
 
 function CategoryBadge({category}) {
   const meta = categoryInfo(category);
-  return <span className={`categoryBadge category-${meta.slug}`} aria-label={`${meta.label} category`}>{meta.label}</span>;
+  const Icon = meta.Icon;
+  return <span className={`categoryBadge category-${meta.slug}`} aria-label={`${meta.label} category`}><Icon aria-hidden="true" />{meta.label}</span>;
 }
 
 function CategoryLabel({category, children}) {
@@ -130,6 +132,41 @@ const INTAKE_PRIORITIES = ['Safety','Function','Efficiency','Aesthetics','Resale
 const INTAKE_PACE = ['Do now','Plan soon','Budget over time','Watchlist only'];
 const INTAKE_BUDGET = ['Minimal fixes','Balanced','Invest where it matters'];
 const INTAKE_DECISION = ['Direct / decisive','Wants options','Needs guidance'];
+const INTAKE_FOLLOW_UP_SOURCE = 'Intake Follow-Up';
+const INTAKE_REVIEW_STATUS = [
+  'Not Reviewed',
+  'Reviewed — No Concern Found',
+  'Reviewed — Added PMR Finding',
+  'Unable to Inspect',
+  'Deferred / Needs Homeowner Follow-Up',
+  'Not Applicable'
+];
+const INTAKE_FOLLOW_UP_FIELDS = [
+  { key: 'electricalPanel', room: 'Garage / Utility', zone: 'Electrical', category: 'Electrical', item: 'Verify electrical panel location and labeling from intake', trade: 'Electrical', effort: '15 min', prompt: 'Use the homeowner intake note to verify panel access, location, labeling, and visible concerns during the walkthrough.', why: 'Homeowner-provided panel details should be verified before they influence PMR findings or service planning.', action: 'Document verified panel location, labels, access, or any field-observed concern before deciding whether this belongs in the PMR.' },
+  { key: 'electricalUpdates', room: 'Whole Home', zone: 'Electrical', category: 'Electrical', item: 'Review reported electrical updates or issues from intake', trade: 'Electrical', effort: '30 min', prompt: 'Compare the intake note with visible devices, panel clues, and homeowner-reported symptoms without changing checklist status automatically.', why: 'Reported electrical history may point to a follow-up question, but field review is required before a PMR finding.', action: 'Confirm whether there is a visible concern, an owner question only, or no issue found.' },
+  { key: 'waterShutoff', room: 'Garage / Utility', zone: 'Plumbing', category: 'Plumbing', item: 'Verify main water shut-off location from intake', trade: 'Plumbing', effort: '15 min', prompt: 'Locate and photo-note the main water shut-off if accessible, based on the intake answer.', why: 'A verified shut-off location helps the homeowner and THA respond quickly, but it is not a plumbing finding by itself.', action: 'Record the confirmed location or note if unable to inspect.' },
+  { key: 'plumbingHistory', room: 'Kitchen', zone: 'Plumbing', category: 'Plumbing', item: 'Review reported plumbing history from intake', trade: 'Plumbing', effort: '30 min', prompt: 'Check the relevant sinks, drains, valves, or visible plumbing areas connected to the homeowner intake note.', why: 'Homeowner-reported plumbing symptoms need field confirmation before PMR inclusion.', action: 'Mark no concern, unable/deferred, or add a PMR finding only if the walkthrough confirms an actionable condition.' },
+  { key: 'waterHeater', room: 'Garage / Utility', zone: 'Plumbing', category: 'Plumbing', item: 'Verify water heater age or flush history from intake', trade: 'Plumbing', effort: '15 min', prompt: 'Review visible water heater date/service clues and compare them to the intake answer.', why: 'Water heater history can guide maintenance planning after field verification.', action: 'Document verified age/service context or create a PMR finding only if a concern is observed.' },
+  { key: 'sewerIrrigation', room: 'Exterior', zone: 'Drainage', category: 'Drainage', item: 'Review sewer or irrigation history from intake', trade: 'Drainage', effort: '30 min', prompt: 'Use the intake note to decide what visible exterior, irrigation, or drainage clues need review.', why: 'Sewer and irrigation history often requires follow-up context, not automatic PMR escalation.', action: 'Note verified context, inability to inspect, or field-observed action items.' },
+  { key: 'hvacFilter', room: 'Mechanical / HVAC', zone: 'HVAC', category: 'HVAC', item: 'Verify HVAC filter replacement information from intake', trade: 'HVAC', effort: '15 min', prompt: 'Check filter size/date/access where visible and compare with the intake answer.', why: 'Filter history is useful maintenance context and should be reviewed without auto-changing checklist status.', action: 'Document current filter context or add a PMR finding only if field conditions support it.' },
+  { key: 'hvacService', room: 'Mechanical / HVAC', zone: 'HVAC', category: 'HVAC', item: 'Review HVAC service history from intake', trade: 'HVAC', effort: '30 min', prompt: 'Look for service tags, visible condition, or homeowner context tied to the intake answer.', why: 'Service history can identify planning needs, but PMR findings should be based on reviewed evidence.', action: 'Record reviewed history, recommend follow-up if needed, or add a PMR finding only after review.' },
+  { key: 'comfort', room: 'Whole Home', zone: 'HVAC', category: 'HVAC', item: 'Review homeowner comfort concerns from intake', trade: 'HVAC', effort: '30 min', prompt: 'Ask/observe for comfort symptoms noted in intake and connect them to rooms or HVAC clues when possible.', why: 'Comfort concerns may require discovery and should not automatically become HVAC findings.', action: 'Capture whether the concern was reviewed, deferred, or supported by a field observation.' },
+  { key: 'roofAge', room: 'Exterior', zone: 'Roofing', category: 'Roofing', item: 'Verify roof age or replacement history from intake', trade: 'Roof', effort: '30 min', prompt: 'Compare intake roof age/history with visible roof, flashing, attic, or documentation clues where accessible.', why: 'Roof age is planning context and requires observed concern or documented need before PMR escalation.', action: 'Document context, recommend follow-up if inaccessible, or add a PMR finding only if supported.' },
+  { key: 'roofHistory', room: 'Exterior', zone: 'Roofing', category: 'Roofing', item: 'Review known roof leak or repair history from intake', trade: 'Roof', effort: '30 min', prompt: 'Look for visible staining, repair clues, or areas tied to the intake note without assuming an active issue.', why: 'Past roof history needs review before it becomes a current PMR finding.', action: 'Classify the review result and connect to a PMR finding only if current evidence supports it.' },
+  { key: 'solar', room: 'Exterior', zone: 'Electrical', category: 'Electrical', item: 'Verify solar panel status from intake', trade: 'Electrical', effort: '30 min', prompt: 'If solar is present or mentioned, note visible equipment/access context and whether specialist follow-up is needed.', why: 'Solar context may affect planning, but it does not automatically imply an electrical finding.', action: 'Record reviewed context, N/A, deferred, or a field-supported PMR item.' },
+  { key: 'drainagePooling', room: 'Exterior', zone: 'Drainage', category: 'Drainage', item: 'Review water pooling areas reported in intake', trade: 'Drainage', effort: '30 min', prompt: 'Walk the reported areas and look for grading, gutter, downspout, or pooling clues.', why: 'Reported pooling needs field context before it becomes a drainage PMR finding.', action: 'Document reviewed condition, follow-up need, or add a PMR finding if observed.' },
+  { key: 'drainageHistory', room: 'Exterior', zone: 'Drainage', category: 'Drainage', item: 'Review drainage or water intrusion history from intake', trade: 'Drainage', effort: '30 min', prompt: 'Check visible drainage paths and any reported intrusion locations tied to intake.', why: 'Water history can be important but should remain review-required until confirmed.', action: 'Mark the reviewed result and add PMR detail only when supported by observation.' },
+  { key: 'gutters', room: 'Exterior', zone: 'Drainage', category: 'Drainage', item: 'Review gutter or downspout concerns from intake', trade: 'Drainage', effort: '30 min', prompt: 'Verify discharge locations, extensions, obvious clogging, or visible deficiencies mentioned in intake.', why: 'Gutter concerns can affect drainage but should be verified before PMR inclusion.', action: 'Document reviewed/no concern, unable/deferred, or add a supported PMR finding.' },
+  { key: 'windowsDoors', room: 'Bedrooms', zone: 'Openings', category: 'Openings', item: 'Review window or door operation concerns from intake', trade: 'Windows', effort: '30 min', prompt: 'Operate or visually review the reported window/door concern if accessible.', why: 'Reported operation issues should be checked before creating a repair finding.', action: 'Record whether no concern was found, inspection was limited, or a PMR finding was added.' },
+  { key: 'fogging', room: 'Whole Home', zone: 'Openings', category: 'Openings', item: 'Review fogging or failed seal concerns from intake', trade: 'Windows', effort: '30 min', prompt: 'Look for visible failed seals or fogging where the homeowner noted concern.', why: 'Window seal concerns require visual confirmation before PMR inclusion.', action: 'Classify the review result and add PMR only if a visible condition is confirmed.' },
+  { key: 'paintStain', room: 'Exterior', zone: 'Exterior', category: 'Exterior', item: 'Review exterior paint or stain timing from intake', trade: 'Paint', effort: '30 min', prompt: 'Compare intake timing with visible siding, trim, caulk, stain, and weather exposure.', why: 'Exterior finish history is planning context and should be tied to observed condition before PMR escalation.', action: 'Document the reviewed condition or create a PMR finding when visible wear supports it.' },
+  { key: 'productsColors', room: 'Whole Home', zone: 'Surfaces', category: 'Surfaces', item: 'Collect product or color label information from intake', trade: 'Paint', effort: '15 min', prompt: 'Use the intake answer to gather labels/photos that help future surface or finish work.', why: 'Product/color info supports future work but is usually not a PMR finding by itself.', action: 'Mark reviewed, N/A, or deferred based on whether information was available.' },
+  { key: 'pests', room: 'Whole Home', zone: 'Pest', category: 'Pest', item: 'Review pest activity or history from intake', trade: 'Pest', effort: '30 min', prompt: 'Check accessible areas for visible pest clues tied to homeowner history.', why: 'Pest history should be reviewed before recommending treatment or follow-up.', action: 'Record no concern, unable/deferred, or add a PMR finding if active evidence is observed.' },
+  { key: 'fireExtinguishers', room: 'Whole Home', zone: 'Safety', category: 'Safety', item: 'Verify fire extinguisher quantity, age, or location from intake', trade: 'Safety', effort: '15 min', prompt: 'Locate visible extinguishers and note age/gauge/location if accessible.', why: 'Safety equipment context is review-required and should not automatically create a finding.', action: 'Document reviewed equipment or add PMR action only if replacement/service concern is observed.' },
+  { key: 'smokeCO', room: 'Whole Home', zone: 'Safety', category: 'Safety', item: 'Verify smoke and CO detector age or replacement needs from intake', trade: 'Safety', effort: '30 min', prompt: 'Check visible detector dates/locations where accessible and compare with the intake answer.', why: 'Detector age can become important, but PMR inclusion should follow review.', action: 'Mark the reviewed result and add a PMR finding if outdated, missing, or uncertain enough to require action.' },
+  { key: 'chimney', room: 'Living / Family Rooms', zone: 'Roofing', category: 'Roofing', item: 'Review chimney inspection or cleaning history from intake', trade: 'Chimney', effort: '30 min', prompt: 'Check fireplace/chimney visible clues and service history noted during intake.', why: 'Chimney history requires confirmation before service recommendations are included as findings.', action: 'Document reviewed history, deferred follow-up, or a field-supported PMR finding.' },
+  { key: 'additionalConcerns', room: 'Whole Home', zone: 'General', category: 'General / Misc', item: 'Review additional homeowner concerns from intake', trade: 'Review / Assign Later', effort: '30 min', prompt: 'Use the additional intake concern as a review-required prompt and assign it if a specific field concern is confirmed.', why: 'Additional homeowner concerns need triage and should not automatically alter checklist or PMR status.', action: 'Record the review result, defer to homeowner follow-up, or connect to a PMR finding after field confirmation.' }
+];
 function intakeSummary(intake) {
   const priorities = Array.isArray(intake.priorities) ? intake.priorities.join(', ') : intake.priorities || 'Not selected';
   return { priorities, pace: intake.pace || 'Not selected', budget: intake.budgetStyle || 'Not selected', decision: intake.decisionStyle || 'Not selected', notes: intake.notes || 'No additional homeowner notes recorded yet.' };
@@ -143,6 +180,68 @@ function intakeInfluence(item, intake) {
   if (budget === 'Minimal fixes') return 'Keep the first step practical and limited unless further discovery changes the scope.';
   if (budget === 'Invest where it matters') return 'Recommend the solution that best protects long-term value, not only the cheapest short-term fix.';
   return 'Balanced approach: address the practical first step and stage larger decisions as needed.';
+}
+
+
+function meaningfulIntakeValue(value) {
+  if (Array.isArray(value)) return value.length ? value.join(', ') : '';
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (/^(n\/?a|not applicable|none)$/i.test(text)) return '';
+  return text;
+}
+function buildIntakeFollowUpItems(intake = {}) {
+  return INTAKE_FOLLOW_UP_FIELDS.map(field => {
+    const intakeValue = meaningfulIntakeValue(intake[field.key]);
+    if (!intakeValue) return null;
+    return {
+      id: `intake-follow-up-${field.key}`,
+      source: INTAKE_FOLLOW_UP_SOURCE,
+      sourceField: field.key,
+      intakeValue,
+      room: field.room,
+      roomType: 'Intake Follow-Up',
+      roomName: 'Intake Follow-Up',
+      sectionKey: INTAKE_FOLLOW_UP_SOURCE,
+      zone: field.zone,
+      category: field.category,
+      item: field.item,
+      trade: field.trade,
+      effort: field.effort,
+      prompt: `${field.prompt} Intake answer: ${intakeValue}`,
+      why: field.why,
+      action: field.action
+    };
+  }).filter(Boolean);
+}
+function isIntakeFollowUp(row = {}) {
+  return row.source === INTAKE_FOLLOW_UP_SOURCE;
+}
+function isReviewedIntakePMRFinding(row = {}) {
+  return isIntakeFollowUp(row) && row.answer?.reviewStatus === 'Reviewed — Added PMR Finding';
+}
+function includeRowInPMR(row) {
+  if (!includePMR(row.answer)) return false;
+  if (isIntakeFollowUp(row)) return isReviewedIntakePMRFinding(row);
+  return true;
+}
+function intakeFollowUpPMRNotes(rows = []) {
+  return rows.filter(isIntakeFollowUp).filter(row => [
+    'Reviewed — No Concern Found',
+    'Unable to Inspect',
+    'Deferred / Needs Homeowner Follow-Up',
+    'Not Applicable'
+  ].includes(row.answer?.reviewStatus));
+}
+
+
+function intakeReviewPMRNote(row) {
+  const status = row.answer?.reviewStatus;
+  if (status === 'Reviewed — No Concern Found') return 'Reviewed during walkthrough; no PMR concern was found.';
+  if (status === 'Unable to Inspect') return 'Unable to inspect during walkthrough; follow-up may be needed before deciding next steps.';
+  if (status === 'Deferred / Needs Homeowner Follow-Up') return 'Deferred for homeowner follow-up or additional information before action is recommended.';
+  if (status === 'Not Applicable') return 'Reviewed as not applicable for this walkthrough.';
+  return 'Reviewed intake item.';
 }
 
 
@@ -364,7 +463,8 @@ function normalizeAnswer(answer, item) {
     photos: photoList(answer),
     photoRef: answer?.photoRef || '',
     reassignTo: answer?.reassignTo || '',
-    isDiscovery: typeof answer?.isDiscovery === 'boolean' ? answer.isDiscovery : false
+    isDiscovery: typeof answer?.isDiscovery === 'boolean' ? answer.isDiscovery : false,
+    reviewStatus: INTAKE_REVIEW_STATUS.includes(answer?.reviewStatus) ? answer.reviewStatus : 'Not Reviewed'
   };
 }
 function photoSummary(photos, { emptyText = 'No item photos attached yet', labels = PHOTO_LABELS } = {}) {
@@ -619,8 +719,10 @@ function App() {
     if (activeWalkthroughId) localStorage.setItem(CURRENT_WALKTHROUGH_ID_KEY, activeWalkthroughId);
     else localStorage.removeItem(CURRENT_WALKTHROUGH_ID_KEY);
   }, [activeWalkthroughId]);
+  const intakeFollowUpRows = useMemo(() => buildIntakeFollowUpItems(intake), [intake]);
   const baseSections = useMemo(() => {
     const list = [];
+    if (intakeFollowUpRows.length) list.push({ key: INTAKE_FOLLOW_UP_SOURCE, label: INTAKE_FOLLOW_UP_SOURCE, rows: intakeFollowUpRows });
     sectionOrder.forEach(room => {
       if (room === 'Kitchen') {
         list.push({ key: room, label: room, rows: buildStaticSectionRows(room) });
@@ -638,7 +740,7 @@ function App() {
       if (!DYNAMIC_TEMPLATE_ROOMS.includes(room)) list.push({ key: room, label: room, rows: buildStaticSectionRows(room) });
     });
     return list;
-  }, [dynamicRooms]);
+  }, [dynamicRooms, intakeFollowUpRows]);
   const sections = useMemo(() => orderedSectionList(baseSections.map(section => ({
     ...section,
     rows: orderSectionRows(section.rows, itemOrderState[section.key], pinnedItems[section.key] || [])
@@ -650,8 +752,19 @@ function App() {
   useEffect(() => {
     if (!sections.some(section => section.key === activeRoom)) setActiveRoom(sections[0]?.key || '');
   }, [sections, activeRoom]);
-  const pmr = rows.filter(r => includePMR(r.answer));
+  const intakeFollowUps = rows.filter(isIntakeFollowUp);
+  const unreviewedIntakeFollowUps = intakeFollowUps.filter(r => r.answer.reviewStatus === 'Not Reviewed');
+  const intakeReviewNotes = intakeFollowUpPMRNotes(rows);
+  const pmr = rows.filter(includeRowInPMR);
   const counts = { high: pmr.filter(r=>priority(r.answer.status)==='High').length, med: pmr.filter(r=>priority(r.answer.status)==='Medium').length, low: pmr.filter(r=>priority(r.answer.status)==='Low').length };
+  const printFinalPMR = () => {
+    if (unreviewedIntakeFollowUps.length) {
+      window.alert(`Final/print-ready PMR requires all Intake Follow-Up Items to be reviewed. ${unreviewedIntakeFollowUps.length} item(s) still need review.`);
+      setView('pmr');
+      return;
+    }
+    window.print();
+  };
   const quickHits = pmr.filter(r => ['Handyman','Safety'].includes(r.answer.trade) && ['15 min','30 min','45–60 min','1–2 hrs'].includes(r.answer.effort));
   const pass = pmr.filter(r => r.pass);
   const roomCaptureFor = (sectionKey) => ({
@@ -925,6 +1038,7 @@ function App() {
       <label>Walkthrough Folder / Date<input value={client.date} onChange={e=>setClient({...client,date:e.target.value})}/></label>
       <button onClick={()=>syncDrive({includeDownload:true})}><Download size={16}/> Download Walkthrough Backup</button>
       <button onClick={()=>window.print()}><Printer size={16}/> Print / Save Draft PMR</button>
+      <button onClick={printFinalPMR}><Printer size={16}/> Print Final PMR</button>
     </section>
     <section className="driveStatus noPrint">
       <label>Google OAuth Client ID<span className="fieldHelp">Requires a Google OAuth Client ID, not a Google Drive folder link.</span><input value={driveClientId} onChange={e=>setDriveClientId(e.target.value)} placeholder="Paste web client ID for Drive upload"/></label>
@@ -944,7 +1058,7 @@ function App() {
           const category = categoryForChecklistItem(r);
           const meta = categoryInfo(category);
           return <div className={`itemCard categoryCard category-${meta.slug}`} key={r.id}>
-          <div className="itemHead"><span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span><div><div className="itemTitleLine"><h2>{r.item}</h2><CategoryBadge category={category}/></div><p>{r.zone} · Suggested: {displayTradeLabel(r.trade)}</p></div>{!r.catchAll && <div className="itemOrderTools"><button onClick={()=>moveItem(r.sectionKey, r.id, -1)} title="Move item up">↑</button><button onClick={()=>moveItem(r.sectionKey, r.id, 1)} title="Move item down">↓</button><button onClick={()=>togglePinItem(r.sectionKey, r.id)} title="Pin to top">{(pinnedItems[r.sectionKey] || []).includes(r.id) ? 'Pinned' : 'Pin'}</button></div>}<span className={`pill ${priority(r.answer.status).toLowerCase()}`}>{priority(r.answer.status) || 'No PMR'}</span></div>
+          <div className="itemHead"><span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span><div><div className="itemTitleLine"><h2>{r.item}</h2><CategoryBadge category={category}/>{isIntakeFollowUp(r) && <span className="sourceBadge">{INTAKE_FOLLOW_UP_SOURCE}</span>}</div><p>{r.zone} · Suggested: {displayTradeLabel(r.trade)}{isIntakeFollowUp(r) ? ` · Review: ${r.answer.reviewStatus}` : ''}</p></div>{!r.catchAll && <div className="itemOrderTools"><button onClick={()=>moveItem(r.sectionKey, r.id, -1)} title="Move item up">↑</button><button onClick={()=>moveItem(r.sectionKey, r.id, 1)} title="Move item down">↓</button><button onClick={()=>togglePinItem(r.sectionKey, r.id)} title="Pin to top">{(pinnedItems[r.sectionKey] || []).includes(r.id) ? 'Pinned' : 'Pin'}</button></div>}<span className={`pill ${priority(r.answer.status).toLowerCase()}`}>{priority(r.answer.status) || 'No PMR'}</span></div>
           <div className="prompt"><Search size={16}/><strong>Prompt:</strong> {r.prompt}</div>
           <div className="inputs">
             <label>Status<select value={r.answer.status} onChange={e=>update(r.id,{status:e.target.value})}>{STATUS.map(x=><option key={x}>{x}</option>)}</select></label>
@@ -953,7 +1067,9 @@ function App() {
             <label>Approx. Time<select value={r.answer.effort} onChange={e=>update(r.id,{effort:e.target.value})}>{EFFORT.map(x=><option key={x}>{x}</option>)}</select></label>
             <label>Homeowner Pace<select value={r.answer.pref} onChange={e=>update(r.id,{pref:e.target.value})}>{PREFS.map(x=><option key={x}>{x}</option>)}</select></label>
             <label>Photo Ref<input value={r.answer.photoRef} onChange={e=>update(r.id,{photoRef:e.target.value})} placeholder="Photo 01 / filename"/></label>
+            {isIntakeFollowUp(r) && <label>Intake Review Status<select value={r.answer.reviewStatus} onChange={e=>update(r.id,{reviewStatus:e.target.value})}>{INTAKE_REVIEW_STATUS.map(x=><option key={x}>{x}</option>)}</select></label>}
           </div>
+          {isIntakeFollowUp(r) && <div className="intakeFollowUpReview"><strong>Review-required Intake Follow-Up:</strong> This item comes from homeowner intake only. It does not change checklist status or enter the main PMR unless you review it and mark it “Reviewed — Added PMR Finding.”</div>}
           <label className="notes">Notes for PMR detail<textarea value={r.answer.notes} onChange={e=>update(r.id,{notes:e.target.value})} placeholder="What do I see? What would I suggest? What needs confirmation? These notes sharpen the PMR language."/></label>
           <div className="photoBox"><Camera size={18}/><strong>Photo Capture:</strong><label className="uploadInline"><Upload size={16}/> Upload<input type="file" accept="image/*" multiple onChange={e=>{addPhotos(r.id, e.target.files); e.target.value='';}}/></label><span>{photoSummary(r.answer.photos)}</span></div>
           {r.answer.photos.length > 0 && <div className="thumbGrid">{r.answer.photos.map(photo => <div className="thumbCard" key={photo.id}><div className="thumb">{photo.dataUrl ? <img src={photo.dataUrl} alt={`${photo.label} for ${r.item}`}/> : <Image size={24}/>}</div><select value={photo.label} onChange={e=>updatePhoto(r.id, photo.id, {label:e.target.value})}>{PHOTO_LABELS.map(label=><option key={label}>{label}</option>)}</select><span title={photo.name}>{photo.name}</span><button onClick={()=>removePhoto(r.id, photo.id)} aria-label="Remove photo"><X size={14}/></button></div>)}</div>}
@@ -962,7 +1078,7 @@ function App() {
         </div>})}
       </section>
     </main>}
-    {view === 'pmr' && <PMR client={client} intake={intake} pmr={pmr} counts={counts} quickHits={quickHits} pass={pass} />}
+    {view === 'pmr' && <PMR client={client} intake={intake} pmr={pmr} counts={counts} quickHits={quickHits} pass={pass} unreviewedIntakeFollowUps={unreviewedIntakeFollowUps} intakeReviewNotes={intakeReviewNotes} />}
     {view === 'metrics' && <Metrics rows={rows} pmr={pmr} quickHits={quickHits} pass={pass}/>} 
   </div>
 }
@@ -1016,19 +1132,21 @@ function IntakeView({intake, updateIntake}) {
   </main>
 }
 
-function PMR({client, intake, pmr, counts, quickHits, pass}) {
+function PMR({client, intake, pmr, counts, quickHits, pass, unreviewedIntakeFollowUps = [], intakeReviewNotes = []}) {
   const summary = intakeSummary(intake);
   return <main className="pmr">
     <div className="pmrHeader"><div><THALogo variant="full"/><p className="eyebrow">Preventive Maintenance Report</p><h1>{client.address}</h1><p>{client.name} · {client.date}</p></div><div className="compassCard"><Mountain size={48}/><span>You Navigate, We Drive</span></div></div>
+    {unreviewedIntakeFollowUps.length > 0 && <section className="pmrWarning"><AlertTriangle size={20}/><div><strong>Draft PMR warning:</strong> {unreviewedIntakeFollowUps.length} Intake Follow-Up Item{unreviewedIntakeFollowUps.length === 1 ? '' : 's'} still need review before this can be treated as final/print-ready. Draft preview remains available.</div></section>}
     <section className="pmrBlock intakeSummary"><h2><Home size={20}/> Homeowner Goals & Preferences</h2><div className="findGrid"><p><strong>Primary priorities:</strong><br/>{summary.priorities}</p><p><strong>Preferred pace:</strong><br/>{summary.pace}</p><p><strong>Budget mindset:</strong><br/>{summary.budget}</p><p><strong>Decision style:</strong><br/>{summary.decision}</p><p><strong>Homeowner notes:</strong><br/>{summary.notes}</p><p><strong>PMR interpretation:</strong><br/>Recommendations below are staged to match the homeowner’s goals, urgency, and preferred pace.</p></div></section>
     <section className="pmrBlock intakeSummary"><h2>Context From Intake</h2><div className="findGrid"><p><strong>Systems history:</strong><br/>Panel: {intake.electricalPanel || 'Unknown'}<br/>Water shut-off: {intake.waterShutoff || 'Unknown'}<br/>HVAC: {intake.hvacService || 'Unknown'}</p><p><strong>Known issues:</strong><br/>{intake.plumbingHistory || 'No plumbing history recorded.'}<br/>{intake.comfort || ''}</p><p><strong>Exterior history:</strong><br/>Roof: {intake.roofAge || 'Unknown'}<br/>Drainage: {intake.drainagePooling || 'Unknown'}<br/>Paint/Stain: {intake.paintStain || 'Unknown'}</p><p><strong>Safety history:</strong><br/>Smoke/CO: {intake.smokeCO || 'Unknown'}<br/>Fire extinguishers: {intake.fireExtinguishers || 'Unknown'}</p><p><strong>Misc. history:</strong><br/>Pest: {intake.pests || 'Unknown'}<br/>Chimney: {intake.chimney || 'Unknown'}</p><p><strong>Additional concerns:</strong><br/>{intake.additionalConcerns || 'No additional concerns recorded.'}</p></div></section>
     <section className="snapshot"><h2><Home size={20}/> Home Health Snapshot</h2><div className="stat high"><strong>{counts.high}</strong><span><CertaintyDot label="Needs Discovery"/> Immediate</span></div><div className="stat med"><strong>{counts.med}</strong><span><CertaintyDot label="Likely Path"/> Near‑Term</span></div><div className="stat low"><strong>{counts.low}</strong><span><CertaintyDot label="Clear Path"/> Monitor</span></div></section><section className="guideGrid"><div className="guideCard"><h2><ClipboardList size={20}/> Action Certainty Guide</h2><p><CertaintyDot label="Needs Discovery"/> <strong>Needs Discovery</strong><br/><span>Gather more information before committing.</span></p><p><CertaintyDot label="Likely Path"/> <strong>Likely Path</strong><br/><span>Probable solution; start here and verify.</span></p><p><CertaintyDot label="Clear Path"/> <strong>Clear Path</strong><br/><span>Straightforward solution.</span></p></div><div className="guideCard"><h2><Clock3 size={20}/> Investment Guide (Time)</h2><p><CertaintyDot label="Clear Path"/> <strong>Quick</strong> — 0–2 hrs</p><p><CertaintyDot label="Likely Path"/> <strong>Short</strong> — 2–6 hrs</p><p><CertaintyDot label="Needs Discovery"/> <strong>Long / Trade Scope</strong> — verify first</p></div></section><section className="pmrBlock"><h2><Wrench/> Handy‑Next‑Steps</h2><p className="lede">Quick, practical items that may fit a grouped Handy Services visit, subject to confirmation.</p><ul className="checkList">{quickHits.map(r=><li key={r.id}><TradeIcon trade={r.answer.trade}/> <span><strong>{r.room}: {r.item}</strong><br/><small>{displayTradeLabel(r.answer.trade)} · {r.answer.effort}</small></span><CertaintyDot label={actionCertaintyFor(r.answer)}/></li>)}</ul></section>
 <section className="pmrBlock"><h2><CalendarDays/> P.A.S.S. Reminder Planner</h2><p className="lede">Precision Annual & Seasonal Services: no subscription, only what is relevant.</p><ul className="checkList">{pass.map(r=><li key={r.id}><TradeIcon trade={r.answer.trade}/> <span><strong>{r.item}</strong><br/><small>{r.frequency || 'Recurring'} · {timingFor(r, r.answer.status)}</small></span><CertaintyDot label={actionCertaintyFor(r.answer)}/></li>)}</ul></section>
 
+    {intakeReviewNotes.length > 0 && <section className="pmrBlock intakeReviewNotes"><h2><ClipboardList size={20}/> Intake Items Reviewed</h2><p className="lede">Homeowner intake items were tracked separately from checklist findings. Only confirmed “Reviewed — Added PMR Finding” items appear in the Priority Action Plan.</p><ul className="checkList">{intakeReviewNotes.map(r=><li key={`intake-review-${r.id}`}><span><strong>{r.item}</strong><br/><small>{r.answer.reviewStatus} · {intakeReviewPMRNote(r)}</small></span></li>)}</ul></section>}
     <section className="pmrBlock"><h2><AlertTriangle/> Priority Action Plan</h2>{pmr.map(r => {
       const certainty = actionCertaintyCopy(r);
       return <article className="finding" key={r.id}>
-        <div className="findTop"><TradeIcon trade={r.answer.trade} big/><div><h3>{r.roomName || r.room} — {r.item}</h3><p>{r.zone} · {r.answer.status} · {displayTradeLabel(r.answer.trade)} · {certainty.label}</p></div><span className="certaintyLabel"><CertaintyDot label={certainty.label}/>{certainty.label}</span><span className={`pill ${priority(r.answer.status).toLowerCase()}`}>{priority(r.answer.status)}</span></div>
+        <div className="findTop"><TradeIcon trade={r.answer.trade} big/><div><h3>{r.roomName || r.room} — {r.item}</h3><p>{isIntakeFollowUp(r) ? `${INTAKE_FOLLOW_UP_SOURCE} · ` : ''}{r.zone} · {r.answer.status} · {displayTradeLabel(r.answer.trade)} · {certainty.label}</p></div><span className="certaintyLabel"><CertaintyDot label={certainty.label}/>{certainty.label}</span><span className={`pill ${priority(r.answer.status).toLowerCase()}`}>{priority(r.answer.status)}</span></div>
         <div className="findGrid"><p><strong>What we saw:</strong><br/>{r.answer.notes || 'No additional notes recorded yet.'}</p><p><strong>Why it matters:</strong><br/>{r.why}</p><p><strong>{certainty.title}:</strong><br/>{certainty.body}</p><p><strong>Next step language:</strong><br/>{certainty.next}</p><p><strong>Suggested timing:</strong><br/>{timingFor(r, r.answer.status)} · Homeowner pace: {r.answer.pref}</p><p><strong>Approx. time:</strong><br/>{r.answer.effort} · {displayTradeLabel(r.answer.trade)} · Action certainty: {certainty.label}</p><p><strong>How homeowner intake affects this:</strong><br/>{intakeInfluence(r, intake)}</p><p><strong>Photos / reference:</strong><br/>{photoSummary(r.answer.photos)}</p></div>
       </article>
     })}</section>

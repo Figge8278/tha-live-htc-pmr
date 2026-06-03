@@ -79,8 +79,11 @@
 .categoryCard{border-left:6px solid var(--category-color);position:relative}
 .itemTitleLine{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .itemTitleLine h2{margin:0}
-.categoryBadge{display:inline-flex;align-items:center;width:max-content;border-radius:999px;padding:4px 9px;background:var(--category-bg);border:1px solid var(--category-border);color:var(--category-text);font-size:11px;font-weight:900;line-height:1;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+.categoryBadge{display:inline-flex;align-items:center;gap:4px;width:max-content;max-width:100%;border-radius:999px;padding:4px 9px;background:var(--category-bg);border:1px solid var(--category-border);color:var(--category-text);font-size:11px;font-weight:900;line-height:1;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+.categoryBadge svg{width:12px;height:12px;flex:0 0 12px;stroke-width:2.4;color:currentColor}
 .categoryQuestion{position:relative;padding:32px 12px 12px 15px;border:1px solid var(--category-border);border-left:5px solid var(--category-color);border-radius:14px;background:#fff;color:var(--navy);gap:7px;box-shadow:0 5px 14px rgba(11,54,88,.04)}
-.categoryQuestion .categoryBadge{position:absolute;top:8px;right:8px;font-size:10px;padding:3px 7px}
+.categoryQuestion .categoryBadge{position:absolute;top:8px;right:8px;font-size:10px;padding:3px 7px;gap:3px}
+.categoryQuestion .categoryBadge svg{width:11px;height:11px;flex-basis:11px}
 .categoryQuestion input,.categoryQuestion select,.categoryQuestion textarea{margin-top:0}
-@media(max-width:900px){.itemHead{align-items:flex-start;flex-wrap:wrap}.categoryQuestion .categoryBadge{position:static;margin-top:2px}.categoryQuestion input,.categoryQuestion select,.categoryQuestion textarea{margin-top:0}}
+@media(max-width:900px){.itemHead{align-items:flex-start;flex-wrap:wrap}.categoryBadge{min-height:24px;padding:5px 9px}.categoryQuestion .categoryBadge{position:static;margin-top:2px}.categoryQuestion input,.categoryQuestion select,.categoryQuestion textarea{margin-top:0}}
+.sourceBadge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 8px;background:#fff8ee;border:1px solid var(--gold);color:#805f00;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}.intakeFollowUpReview,.pmrWarning{display:flex;gap:10px;align-items:flex-start;border-radius:14px;border:1px solid #f1d37a;background:var(--yellow);color:#62440f;font-weight:800;line-height:1.35}.intakeFollowUpReview{margin:12px 0 0;padding:10px}.pmrWarning{margin:16px 0;padding:14px}.pmrWarning svg{flex:0 0 auto}.intakeReviewNotes .checkList{columns:1}.clientCard{grid-template-columns:1fr 1.3fr 1fr auto auto auto}@media(max-width:900px){.clientCard{grid-template-columns:1fr}.sourceBadge{min-height:24px}}
