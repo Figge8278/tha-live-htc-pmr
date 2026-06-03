@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ClipboardCheck, FileText, Camera, Clock3, Download, Printer, Home, AlertTriangle, CheckCircle2, Wrench, CalendarDays, FolderOpen, Search, ShieldCheck, HardHat, Plug, Droplets, Fan, Paintbrush, Hammer, TreePine, Bug, Flame, Mountain, Wind, DoorOpen, Palette, Leaf, Settings, ClipboardList, Upload, Image, X } from 'lucide-react';
 import './style.css';
@@ -116,6 +116,9 @@ const PINNED_ITEMS_KEY = 'tha-pinned-items';
 const ROOM_CAPTURE_KEY = 'tha-room-capture';
 const WALKTHROUGH_SESSIONS_KEY = 'tha-walkthrough-sessions';
 const CURRENT_WALKTHROUGH_ID_KEY = 'tha-current-walkthrough-id';
+const PHOTO_MAX_DIMENSION = 1600;
+const PHOTO_QUALITY = 0.76;
+const PHOTO_BATCH_WARNING_COUNT = 5;
 const TRADE_OPTIONS = [...Object.keys(ICONS), 'Carpentry', 'General Contractor', 'Design', 'Flooring', 'Landscape', 'Review / Assign Later'];
 
 const INTAKE_DEFAULTS = {
@@ -478,10 +481,10 @@ function dataUrlToBlob(dataUrl) {
   for (let i = 0; i < bytes.length; i += 1) buffer[i] = bytes.charCodeAt(i);
   return new Blob([buffer], { type: mime });
 }
-function queueDrivePayload(payload) {
+function queueDrivePayload(payload, onFailure) {
   const queue = safeJsonParse(localStorage.getItem(DRIVE_QUEUE_KEY), []);
   const next = [...queue, { id: Date.now(), createdAt: new Date().toISOString(), payload }];
-  localStorage.setItem(DRIVE_QUEUE_KEY, JSON.stringify(next));
+  safeLocalStorageSet(DRIVE_QUEUE_KEY, JSON.stringify(next), onFailure);
   return next.length;
 }
 function loadGoogleIdentityScript() {
@@ -617,6 +620,102 @@ function safeJsonParse(value, fallback) {
     return fallback;
   }
 }
+
+function isQuotaExceededError(error) {
+  return error?.name === 'QuotaExceededError' || error?.name === 'NS_ERROR_DOM_QUOTA_REACHED' || error?.code === 22 || error?.code === 1014;
+}
+function safeLocalStorageSet(key, value, onFailure) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (error) {
+    const message = isQuotaExceededError(error)
+      ? 'Storage is full or this browser blocked saving. Download a backup or remove photos.'
+      : 'This browser blocked saving. Download a backup before leaving the walkthrough.';
+    onFailure?.(message, error);
+    return false;
+  }
+}
+function safeLocalStorageRemove(key, onFailure) {
+  try {
+    localStorage.removeItem(key);
+    return true;
+  } catch (error) {
+    onFailure?.('This browser blocked saving changes to local storage.', error);
+    return false;
+  }
+}
+function canvasToBlob(canvas, type, quality) {
+  return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+}
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('Unable to read compressed photo.'));
+    reader.readAsDataURL(blob);
+  });
+}
+function loadImageFromFile(file) {
+  const url = URL.createObjectURL(file);
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Photo could not be opened.'));
+    };
+    img.src = url;
+  });
+}
+async function compressPhotoFile(file) {
+  if (!file?.type?.startsWith('image/')) throw new Error('Only image files can be added.');
+  const image = await loadImageFromFile(file);
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  if (!sourceWidth || !sourceHeight) throw new Error('Photo dimensions could not be read.');
+  const scale = Math.min(1, PHOTO_MAX_DIMENSION / Math.max(sourceWidth, sourceHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+  canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Photo processing is unavailable in this browser.');
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const preferredType = file.type === 'image/png' ? 'image/jpeg' : 'image/jpeg';
+  const blob = await canvasToBlob(canvas, preferredType, PHOTO_QUALITY);
+  if (!blob) throw new Error('Photo compression failed.');
+  const dataUrl = await blobToDataUrl(blob);
+  return {
+    dataUrl,
+    type: blob.type || preferredType,
+    compressed: scale < 1 || blob.size < file.size,
+    originalSize: file.size,
+    compressedSize: blob.size
+  };
+}
+async function buildCompressedPhoto(file, { label, idPrefix }) {
+  const processed = await compressPhotoFile(file);
+  return {
+    photo: {
+      id: `${idPrefix}-${Date.now()}-${file.name}-${Math.random().toString(36).slice(2)}`,
+      name: file.name,
+      type: processed.type,
+      label,
+      dataUrl: processed.dataUrl
+    },
+    compressed: processed.compressed
+  };
+}
+function saveStatusText(saveStatus) {
+  if (saveStatus.state === 'saving') return 'Saving…';
+  if (saveStatus.state === 'saved') return `Saved at ${saveStatus.time || 'just now'}`;
+  if (saveStatus.state === 'failed') return 'Save failed — download backup';
+  return 'Unsaved changes';
+}
+
 function cloneData(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -698,20 +797,20 @@ function App() {
   const [roomItemFormOpen, setRoomItemFormOpen] = useState(false);
   const [roomItemDraft, setRoomItemDraft] = useState(EMPTY_ROOM_ITEM_DRAFT);
   const [dragSectionKey, setDragSectionKey] = useState('');
-  useEffect(()=>localStorage.setItem('tha-client', JSON.stringify(client)), [client]);
-  useEffect(()=>localStorage.setItem('tha-answers', JSON.stringify(answers)), [answers]);
-  useEffect(()=>localStorage.setItem('tha-intake', JSON.stringify(intake)), [intake]);
-  useEffect(()=>localStorage.setItem(DYNAMIC_ROOMS_KEY, JSON.stringify(dynamicRooms)), [dynamicRooms]);
-  useEffect(()=>localStorage.setItem(GOOGLE_CLIENT_ID_KEY, driveClientId), [driveClientId]);
-  useEffect(()=>localStorage.setItem(DRIVE_META_KEY, JSON.stringify(driveMeta)), [driveMeta]);
-  useEffect(()=>localStorage.setItem(SECTION_ORDER_KEY, JSON.stringify(sectionOrderState)), [sectionOrderState]);
-  useEffect(()=>localStorage.setItem(ITEM_ORDER_KEY, JSON.stringify(itemOrderState)), [itemOrderState]);
-  useEffect(()=>localStorage.setItem(PINNED_ITEMS_KEY, JSON.stringify(pinnedItems)), [pinnedItems]);
-  useEffect(()=>localStorage.setItem(ROOM_CAPTURE_KEY, JSON.stringify(roomCapture)), [roomCapture]);
-  useEffect(()=>localStorage.setItem(WALKTHROUGH_SESSIONS_KEY, JSON.stringify(savedSessions)), [savedSessions]);
+  const [photoFeedback, setPhotoFeedback] = useState({ state: '', message: '' });
+  const [storageWarning, setStorageWarning] = useState('');
+  const [saveStatus, setSaveStatus] = useState({ state: 'saved', time: initialState.activeId ? 'loaded' : '' });
+  const autosaveReadyRef = useRef(false);
+  const applyStorageFailure = (message) => {
+    setStorageWarning(message);
+    setSaveStatus({ state: 'failed', time: '' });
+  };
+  useEffect(()=>{ safeLocalStorageSet(GOOGLE_CLIENT_ID_KEY, driveClientId, applyStorageFailure); }, [driveClientId]);
+  useEffect(()=>{ safeLocalStorageSet(DRIVE_META_KEY, JSON.stringify(driveMeta), applyStorageFailure); }, [driveMeta]);
+  useEffect(()=>{ safeLocalStorageSet(WALKTHROUGH_SESSIONS_KEY, JSON.stringify(savedSessions), applyStorageFailure); }, [savedSessions]);
   useEffect(()=>{
-    if (activeWalkthroughId) localStorage.setItem(CURRENT_WALKTHROUGH_ID_KEY, activeWalkthroughId);
-    else localStorage.removeItem(CURRENT_WALKTHROUGH_ID_KEY);
+    if (activeWalkthroughId) safeLocalStorageSet(CURRENT_WALKTHROUGH_ID_KEY, activeWalkthroughId, applyStorageFailure);
+    else safeLocalStorageRemove(CURRENT_WALKTHROUGH_ID_KEY, applyStorageFailure);
   }, [activeWalkthroughId]);
   const baseSections = useMemo(() => {
     const list = [];
@@ -804,35 +903,59 @@ function App() {
   };
   const update = (id, patch) => setAnswers(prev => ({...prev, [id]: {...normalizeAnswer(prev[id], itemById[id]), ...patch}}));
   const updateIntake = (patch) => setIntake(prev => ({...prev, ...patch}));
-  const addPhotos = (id, files) => Array.from(files || []).forEach(file => {
-    const reader = new FileReader();
-    reader.onload = event => setAnswers(prev => {
-      const current = normalizeAnswer(prev[id], itemById[id]);
-      return {...prev, [id]: {...current, photos: [...current.photos, {id:`${Date.now()}-${file.name}-${Math.random().toString(36).slice(2)}`, label:'Context', name:file.name, type:file.type, dataUrl:event.target.result}]}};
-    });
-    reader.readAsDataURL(file);
-  });
+  const addPhotos = async (id, files) => {
+    const fileList = Array.from(files || []);
+    if (!fileList.length) return;
+    if (fileList.length > PHOTO_BATCH_WARNING_COUNT) {
+      setPhotoFeedback({ state: 'warning', message: `Processing ${fileList.length} photos one at a time to protect tablet memory.` });
+    }
+    for (const file of fileList) {
+      setPhotoFeedback({ state: 'processing', message: 'Processing photo…' });
+      try {
+        const { photo, compressed } = await buildCompressedPhoto(file, { label: 'Context', idPrefix: 'item' });
+        setAnswers(prev => {
+          const current = normalizeAnswer(prev[id], itemById[id]);
+          return {...prev, [id]: {...current, photos: [...current.photos, photo]}};
+        });
+        setPhotoFeedback({ state: compressed ? 'warning' : 'success', message: compressed ? 'Photo too large — compressed' : 'Photo added' });
+      } catch (error) {
+        setPhotoFeedback({ state: 'error', message: 'Photo could not be added' });
+      }
+    }
+  };
   const updatePhoto = (id, photoId, patch) => update(id, {photos: normalizeAnswer(answers[id], itemById[id]).photos.map(photo => photo.id === photoId ? {...photo, ...patch} : photo)});
   const removePhoto = (id, photoId) => update(id, {photos: normalizeAnswer(answers[id], itemById[id]).photos.filter(photo => photo.id !== photoId)});
-  const addRoomPhotos = (sectionKey, files) => Array.from(files || []).forEach(file => {
-    const reader = new FileReader();
-    reader.onload = event => setRoomCapture(prev => {
-      const current = {
-        status: prev?.[sectionKey]?.status || ROOM_STATUS_OPTIONS[0],
-        note: prev?.[sectionKey]?.note || '',
-        photos: photoList(prev?.[sectionKey]).map(photo => ({ ...photo, label: photo.label || 'Overview' })),
-        items: Array.isArray(prev?.[sectionKey]?.items) ? prev[sectionKey].items : []
-      };
-      return {
-        ...prev,
-        [sectionKey]: {
-          ...current,
-          photos: [...current.photos, { id: `room-${Date.now()}-${file.name}-${Math.random().toString(36).slice(2)}`, name: file.name, label: 'Overview', type: file.type, dataUrl: event.target.result }]
-        }
-      };
-    });
-    reader.readAsDataURL(file);
-  });
+  const addRoomPhotos = async (sectionKey, files) => {
+    const fileList = Array.from(files || []);
+    if (!fileList.length) return;
+    if (fileList.length > PHOTO_BATCH_WARNING_COUNT) {
+      setPhotoFeedback({ state: 'warning', message: `Processing ${fileList.length} photos one at a time to protect tablet memory.` });
+    }
+    for (const file of fileList) {
+      setPhotoFeedback({ state: 'processing', message: 'Processing photo…' });
+      try {
+        const { photo, compressed } = await buildCompressedPhoto(file, { label: 'Overview', idPrefix: 'room' });
+        setRoomCapture(prev => {
+          const current = {
+            status: prev?.[sectionKey]?.status || ROOM_STATUS_OPTIONS[0],
+            note: prev?.[sectionKey]?.note || '',
+            photos: photoList(prev?.[sectionKey]).map(existing => ({ ...existing, label: existing.label || 'Overview' })),
+            items: Array.isArray(prev?.[sectionKey]?.items) ? prev[sectionKey].items : []
+          };
+          return {
+            ...prev,
+            [sectionKey]: {
+              ...current,
+              photos: [...current.photos, photo]
+            }
+          };
+        });
+        setPhotoFeedback({ state: compressed ? 'warning' : 'success', message: compressed ? 'Photo too large — compressed' : 'Photo added' });
+      } catch (error) {
+        setPhotoFeedback({ state: 'error', message: 'Photo could not be added' });
+      }
+    }
+  };
   const removeRoomPhoto = (sectionKey, photoId) => {
     const current = roomCaptureFor(sectionKey);
     updateRoomCapture(sectionKey, { photos: current.photos.filter(photo => photo.id !== photoId) });
@@ -885,6 +1008,46 @@ function App() {
     pinnedItems,
     roomCapture
   });
+  useEffect(() => {
+    if (!autosaveReadyRef.current) {
+      autosaveReadyRef.current = true;
+      return undefined;
+    }
+    setSaveStatus(status => status.state === 'failed' ? status : { state: 'unsaved', time: status.time || '' });
+    const timeout = window.setTimeout(() => {
+      setSaveStatus({ state: 'saving', time: '' });
+      const id = activeWalkthroughId || `walkthrough-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const name = walkthroughName.trim() || client.name || client.address || 'Untitled Walkthrough';
+      const data = currentWalkthroughData();
+      const session = {
+        id,
+        name,
+        updatedAt: new Date().toISOString(),
+        data
+      };
+      const legacySaved = [
+        safeLocalStorageSet('tha-client', JSON.stringify(data.client), applyStorageFailure),
+        safeLocalStorageSet('tha-answers', JSON.stringify(data.answers), applyStorageFailure),
+        safeLocalStorageSet('tha-intake', JSON.stringify(data.intake), applyStorageFailure),
+        safeLocalStorageSet(DYNAMIC_ROOMS_KEY, JSON.stringify(data.dynamicRooms), applyStorageFailure),
+        safeLocalStorageSet(SECTION_ORDER_KEY, JSON.stringify(data.sectionOrder), applyStorageFailure),
+        safeLocalStorageSet(ITEM_ORDER_KEY, JSON.stringify(data.itemOrder), applyStorageFailure),
+        safeLocalStorageSet(PINNED_ITEMS_KEY, JSON.stringify(data.pinnedItems), applyStorageFailure),
+        safeLocalStorageSet(ROOM_CAPTURE_KEY, JSON.stringify(data.roomCapture), applyStorageFailure)
+      ].every(Boolean);
+      if (!legacySaved) return;
+      const nextSessions = { ...savedSessions, [id]: session };
+      const saved = safeLocalStorageSet(WALKTHROUGH_SESSIONS_KEY, JSON.stringify(nextSessions), applyStorageFailure);
+      if (!saved) return;
+      setSavedSessions(nextSessions);
+      if (!activeWalkthroughId) setActiveWalkthroughId(id);
+      setSelectedWalkthroughId(id);
+      setWalkthroughName(name);
+      setStorageWarning('');
+      setSaveStatus({ state: 'saved', time: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) });
+    }, 1000);
+    return () => window.clearTimeout(timeout);
+  }, [client, answers, intake, dynamicRooms, sectionOrderState, itemOrderState, pinnedItems, roomCapture, walkthroughName]);
   const applyWalkthroughData = (data) => {
     const clean = cleanWalkthroughData();
     setClient(data?.client || clean.client);
@@ -908,6 +1071,7 @@ function App() {
     setSelectedWalkthroughId('');
   };
   const saveWalkthrough = () => {
+    setSaveStatus({ state: 'saving', time: '' });
     const id = activeWalkthroughId || `walkthrough-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const name = walkthroughName.trim() || client.name || client.address || 'Untitled Walkthrough';
     const session = {
@@ -916,10 +1080,14 @@ function App() {
       updatedAt: new Date().toISOString(),
       data: currentWalkthroughData()
     };
-    setSavedSessions(prev => ({ ...prev, [id]: session }));
+    const nextSessions = { ...savedSessions, [id]: session };
+    if (!safeLocalStorageSet(WALKTHROUGH_SESSIONS_KEY, JSON.stringify(nextSessions), applyStorageFailure)) return;
+    setSavedSessions(nextSessions);
     setActiveWalkthroughId(id);
     setSelectedWalkthroughId(id);
     setWalkthroughName(name);
+    setStorageWarning('');
+    setSaveStatus({ state: 'saved', time: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) });
   };
   const openSavedWalkthrough = (id) => {
     setSelectedWalkthroughId(id);
@@ -995,7 +1163,7 @@ function App() {
     if (includeDownload) downloadJSON();
     const payload = buildDrivePayload({walkthroughName, client, intake, rows, pmr, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture});
     if (!navigator.onLine || !driveToken) {
-      const count = queueDrivePayload(payload);
+      const count = queueDrivePayload(payload, applyStorageFailure);
       setPendingCount(count);
       setDriveMeta(meta => ({...meta, lastError:'Pending Drive Sync'}));
       return;
@@ -1005,13 +1173,13 @@ function App() {
       if (retryQueue) {
         const queue = safeJsonParse(localStorage.getItem(DRIVE_QUEUE_KEY), []);
         for (const item of queue) await uploadDriveBundle(driveToken, item.payload);
-        localStorage.setItem(DRIVE_QUEUE_KEY, '[]');
+        safeLocalStorageSet(DRIVE_QUEUE_KEY, '[]', applyStorageFailure);
         setPendingCount(0);
       }
       await uploadDriveBundle(driveToken, payload);
       setDriveMeta({lastSaved:new Date().toLocaleString(), lastError:''});
     } catch (error) {
-      const count = queueDrivePayload(payload);
+      const count = queueDrivePayload(payload, applyStorageFailure);
       setPendingCount(count);
       setDriveMeta(meta => ({...meta, lastError:'Pending Drive Sync'}));
     } finally {
@@ -1027,9 +1195,11 @@ function App() {
       <label>Current Walkthrough Name<input value={walkthroughName} onChange={e=>setWalkthroughName(e.target.value)} placeholder="Name this walkthrough"/></label>
       <button type="button" onClick={startNewWalkthrough}>Start New Blank Walkthrough</button>
       <button type="button" onClick={saveWalkthrough}>Save Working Walkthrough</button>
+      <div className={`saveStatus ${saveStatus.state}`} role="status" aria-live="polite"><strong>{saveStatusText(saveStatus)}</strong><small>Autosave protects refresh/pull-to-refresh. Keep Download Walkthrough Backup handy.</small></div>
       <label>Open Saved Walkthrough<select value={selectedWalkthroughId} onChange={e=>openSavedWalkthrough(e.target.value)}><option value="">Choose saved walkthrough</option>{savedSessionList.map(session=><option key={session.id} value={session.id}>{session.name || 'Untitled Walkthrough'}{session.updatedAt ? ` · ${new Date(session.updatedAt).toLocaleString()}` : ''}</option>)}</select></label>
       <button type="button" onClick={deleteSavedWalkthrough} disabled={!selectedWalkthroughId || !savedSessions[selectedWalkthroughId]}>Delete Selected Walkthrough</button>
     </section>
+    {(storageWarning || photoFeedback.message) && <section className="appWarning noPrint" role="alert" aria-live="assertive"><AlertTriangle size={18}/><div>{storageWarning && <strong>{storageWarning}</strong>}{photoFeedback.message && <span className={`photoFeedback ${photoFeedback.state}`}>{photoFeedback.message}</span>}</div></section>}
     <section className="clientCard noPrint">
       <label>Client<input value={client.name} onChange={e=>setClient({...client,name:e.target.value})}/></label>
       <label>Address<input value={client.address} onChange={e=>setClient({...client,address:e.target.value})}/></label>
