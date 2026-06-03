@@ -121,6 +121,9 @@ const WALKTHROUGH_SESSIONS_KEY = 'tha-walkthrough-sessions';
 const CURRENT_WALKTHROUGH_ID_KEY = 'tha-current-walkthrough-id';
 const PHOTO_MAX_DIMENSION = 1600;
 const PHOTO_QUALITY = 0.76;
+const PHOTO_THUMBNAIL_MAX_DIMENSION = 360;
+const PHOTO_THUMBNAIL_QUALITY = 0.62;
+const PHOTO_UPLOAD_STATUS = { LOCAL: 'local', PENDING: 'pending', UPLOADED: 'uploaded', FAILED: 'failed' };
 const PHOTO_BATCH_WARNING_COUNT = 5;
 const PHOTO_AUTOSAVE_FAILURE_MESSAGE = 'Photo added, but autosave failed — download backup or remove photos.';
 const TRADE_OPTIONS = [...Object.keys(ICONS), 'Carpentry', 'General Contractor', 'Design', 'Flooring', 'Landscape', 'Review / Assign Later'];
@@ -450,14 +453,50 @@ function drivePath(client, date, room, item, roomName = room) {
 function cleanDriveName(value) {
   return (value || 'Untitled').replace(/[\\/:*?"<>|]/g, '-').trim().slice(0, 90) || 'Untitled';
 }
+function normalizePhotoRecord(photo = {}) {
+  const hasDriveReference = Boolean(photo.driveFileId || photo.driveViewLink || photo.webViewLink);
+  return {
+    ...photo,
+    uploadStatus: photo.uploadStatus || (hasDriveReference ? PHOTO_UPLOAD_STATUS.UPLOADED : PHOTO_UPLOAD_STATUS.LOCAL),
+    driveFileId: photo.driveFileId || '',
+    driveFileName: photo.driveFileName || '',
+    driveViewLink: photo.driveViewLink || photo.webViewLink || '',
+    webViewLink: photo.webViewLink || photo.driveViewLink || '',
+    uploadedAt: photo.uploadedAt || '',
+    thumbnailDataUrl: photo.thumbnailDataUrl || ''
+  };
+}
 function photoList(answer) {
-  if (Array.isArray(answer?.photos)) return answer.photos;
-  return Object.entries(answer?.photos || {}).filter(([, val]) => val).map(([key]) => ({
+  if (Array.isArray(answer?.photos)) return answer.photos.map(normalizePhotoRecord);
+  return Object.entries(answer?.photos || {}).filter(([, val]) => val).map(([key]) => normalizePhotoRecord({
     id: key,
     label: key === 'close' ? 'Close-up' : key === 'detail' ? 'Detail' : 'Context',
     name: answer?.photoRef || key,
     dataUrl: ''
   }));
+}
+function photoDisplaySrc(photo = {}) {
+  return photo.dataUrl || photo.thumbnailDataUrl || '';
+}
+function photoStatusLabel(photo = {}) {
+  const status = photo.uploadStatus || PHOTO_UPLOAD_STATUS.LOCAL;
+  if (status === PHOTO_UPLOAD_STATUS.PENDING) return 'Pending Drive';
+  if (status === PHOTO_UPLOAD_STATUS.UPLOADED) return 'Uploaded to Drive';
+  if (status === PHOTO_UPLOAD_STATUS.FAILED) return 'Upload failed';
+  return 'Local';
+}
+function photoStatusMessage(photo = {}, driveConnected = false) {
+  const status = photo.uploadStatus || PHOTO_UPLOAD_STATUS.LOCAL;
+  if (status === PHOTO_UPLOAD_STATUS.UPLOADED) return photo.driveFileName ? `Drive: ${photo.driveFileName}` : 'Drive reference saved';
+  if (status === PHOTO_UPLOAD_STATUS.PENDING) return driveConnected ? 'Uploading to Google Drive…' : 'Pending Drive upload';
+  if (status === PHOTO_UPLOAD_STATUS.FAILED) return 'Drive upload failed — sync pending photos to retry';
+  return driveConnected ? 'Local photo — pending Drive upload' : 'Local photo — connect Drive to upload';
+}
+function pendingPhotoUploadCount(answers = {}, roomCapture = {}) {
+  const needsUpload = photo => [PHOTO_UPLOAD_STATUS.LOCAL, PHOTO_UPLOAD_STATUS.PENDING, PHOTO_UPLOAD_STATUS.FAILED].includes(photo?.uploadStatus || PHOTO_UPLOAD_STATUS.LOCAL) && Boolean(photo?.dataUrl);
+  const answerCount = Object.values(answers || {}).reduce((count, answer) => count + photoList(answer).filter(needsUpload).length, 0);
+  const roomCount = Object.values(roomCapture || {}).reduce((count, capture) => count + photoList(capture).filter(needsUpload).length, 0);
+  return answerCount + roomCount;
 }
 function normalizeAnswer(answer, item) {
   return {
@@ -569,7 +608,7 @@ async function uploadDriveBlob(accessToken, folderId, name, blob, mimeType) {
     blob,
     `\r\n--${boundary}--`
   ], { type: `multipart/related; boundary=${boundary}` });
-  return driveFetch(accessToken, 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name', {
+  return driveFetch(accessToken, 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink', {
     method: 'POST',
     headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
     body
@@ -578,8 +617,51 @@ async function uploadDriveBlob(accessToken, folderId, name, blob, mimeType) {
 function uploadDriveJson(accessToken, folderId, name, data) {
   return uploadDriveBlob(accessToken, folderId, name, new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), 'application/json');
 }
+function driveSectionFlow(sections = []) {
+  return sections.map((section, index) => ({
+    order: index + 1,
+    key: section.key,
+    label: section.label,
+    roomType: section.roomType || section.label,
+    roomName: section.roomName || section.label
+  }));
+}
+async function findOrCreateDrivePhotoFolder(accessToken, { client, sectionFlow = [], row = null, sectionKey = '', itemName = '' }) {
+  const clientFolderName = cleanDriveName(`${client.name || 'Client'} - ${client.address || 'Property Address'}`);
+  const dateFolderName = cleanDriveName(client.date || 'Walkthrough Date');
+  const rootId = await findOrCreateDriveFolder(accessToken, 'THA Clients');
+  const clientId = await findOrCreateDriveFolder(accessToken, clientFolderName, rootId);
+  const dateId = await findOrCreateDriveFolder(accessToken, dateFolderName, clientId);
+  const photosId = await findOrCreateDriveFolder(accessToken, 'Photos', dateId);
+  const sectionOrderLookup = Object.fromEntries(sectionFlow.map(section => [section.key, section.order]));
+  const sectionLookup = Object.fromEntries(sectionFlow.map(section => [section.key, section]));
+  const section = row ? sectionLookup[row.sectionKey] || {} : sectionLookup[sectionKey] || {};
+  const roomType = row?.roomType || row?.room || section.roomType || section.label || sectionKey || 'Room';
+  const roomName = row?.roomName || row?.room || section.roomName || section.label || sectionKey || 'Room';
+  const orderKey = row?.sectionKey || sectionKey;
+  const orderPrefix = sectionOrderLookup[orderKey] ? `${String(sectionOrderLookup[orderKey]).padStart(2, '0')} - ` : '';
+  const roomTypeId = await findOrCreateDriveFolder(accessToken, cleanDriveName(roomType), photosId);
+  const roomNameId = await findOrCreateDriveFolder(accessToken, cleanDriveName(`${orderPrefix}${roomName}`), roomTypeId);
+  return findOrCreateDriveFolder(accessToken, cleanDriveName(itemName || row?.item || 'Room Overview'), roomNameId);
+}
+async function uploadDrivePhoto(accessToken, folderId, photo, fallbackName) {
+  const blob = dataUrlToBlob(photo.dataUrl);
+  const extension = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+  const baseName = cleanDriveName(fallbackName || photo.name || 'photo');
+  const fileName = `${baseName}.${extension}`;
+  const uploaded = await uploadDriveBlob(accessToken, folderId, fileName, blob, blob.type);
+  return {
+    uploadStatus: PHOTO_UPLOAD_STATUS.UPLOADED,
+    driveFileId: uploaded.id || '',
+    driveFileName: uploaded.name || fileName,
+    driveViewLink: uploaded.webViewLink || '',
+    webViewLink: uploaded.webViewLink || '',
+    uploadedAt: new Date().toISOString(),
+    dataUrl: ''
+  };
+}
 function buildDrivePayload({ walkthroughName = '', client, intake, rows, pmr, dynamicRooms = [], sections = [], sectionOrderState = [], itemOrderState = {}, pinnedItems = {}, roomCapture = {} }) {
-  return { walkthroughName, client, intake, dynamicRooms, roomCapture, sectionFlow: sections.map((section, index) => ({ order: index + 1, key: section.key, label: section.label, roomType: section.roomType || section.label, roomName: section.roomName || section.label })), sectionOrder: sectionOrderState, itemOrder: itemOrderState, pinnedItems, rows, pmr, exportedAt: new Date().toISOString() };
+  return { walkthroughName, client, intake, dynamicRooms, roomCapture, sectionFlow: driveSectionFlow(sections), sectionOrder: sectionOrderState, itemOrder: itemOrderState, pinnedItems, rows, pmr, exportedAt: new Date().toISOString() };
 }
 async function uploadDriveBundle(accessToken, payload) {
   const clientFolderName = cleanDriveName(`${payload.client.name || 'Client'} - ${payload.client.address || 'Property Address'}`);
@@ -701,9 +783,19 @@ async function compressPhotoFile(file) {
   const preferredType = file.type === 'image/png' ? 'image/jpeg' : 'image/jpeg';
   const blob = await canvasToBlob(canvas, preferredType, PHOTO_QUALITY);
   if (!blob) throw new Error('Photo compression failed.');
+  const thumbnailScale = Math.min(1, PHOTO_THUMBNAIL_MAX_DIMENSION / Math.max(canvas.width, canvas.height));
+  const thumbCanvas = document.createElement('canvas');
+  thumbCanvas.width = Math.max(1, Math.round(canvas.width * thumbnailScale));
+  thumbCanvas.height = Math.max(1, Math.round(canvas.height * thumbnailScale));
+  const thumbContext = thumbCanvas.getContext('2d');
+  if (!thumbContext) throw new Error('Photo thumbnail processing is unavailable in this browser.');
+  thumbContext.drawImage(canvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
+  const thumbnailBlob = await canvasToBlob(thumbCanvas, preferredType, PHOTO_THUMBNAIL_QUALITY);
   const dataUrl = await blobToDataUrl(blob);
+  const thumbnailDataUrl = thumbnailBlob ? await blobToDataUrl(thumbnailBlob) : dataUrl;
   return {
     dataUrl,
+    thumbnailDataUrl,
     type: blob.type || preferredType,
     compressed: scale < 1 || blob.size < file.size,
     originalSize: file.size,
@@ -718,7 +810,14 @@ async function buildCompressedPhoto(file, { label, idPrefix }) {
       name: file.name,
       type: processed.type,
       label,
-      dataUrl: processed.dataUrl
+      dataUrl: processed.dataUrl,
+      thumbnailDataUrl: processed.thumbnailDataUrl,
+      uploadStatus: PHOTO_UPLOAD_STATUS.LOCAL,
+      driveFileId: '',
+      driveFileName: '',
+      driveViewLink: '',
+      webViewLink: '',
+      uploadedAt: ''
     },
     compressed: processed.compressed
   };
@@ -880,6 +979,7 @@ function App() {
   const counts = { high: pmr.filter(r=>priority(r.answer.status)==='High').length, med: pmr.filter(r=>priority(r.answer.status)==='Medium').length, low: pmr.filter(r=>priority(r.answer.status)==='Low').length };
   const quickHits = pmr.filter(r => ['Handyman','Safety'].includes(r.answer.trade) && ['15 min','30 min','45–60 min','1–2 hrs'].includes(r.answer.effort));
   const pass = rows.filter(r => r.answer.passCandidate);
+  const pendingPhotoCount = pendingPhotoUploadCount(answers, roomCapture);
   const roomCaptureFor = (sectionKey) => ({
     status: roomCapture?.[sectionKey]?.status || ROOM_STATUS_OPTIONS[0],
     note: roomCapture?.[sectionKey]?.note || '',
@@ -939,11 +1039,13 @@ function App() {
       setPhotoFeedback({ state: 'processing', message: 'Processing photo…' });
       try {
         const { photo, compressed } = await buildCompressedPhoto(file, { label: 'Context', idPrefix: 'item' });
+        const nextPhoto = { ...photo, uploadStatus: driveToken ? PHOTO_UPLOAD_STATUS.PENDING : PHOTO_UPLOAD_STATUS.LOCAL };
         setAnswers(prev => {
           const current = normalizeAnswer(prev[id], itemById[id]);
-          return {...prev, [id]: {...current, photos: [...current.photos, photo]}};
+          return {...prev, [id]: {...current, photos: [...current.photos, nextPhoto]}};
         });
-        setPhotoFeedback({ state: compressed ? 'warning' : 'success', message: compressed ? 'Photo too large — compressed' : 'Photo added' });
+        setPhotoFeedback({ state: compressed ? 'warning' : 'success', message: driveToken ? 'Photo added — uploading to Drive…' : (compressed ? 'Photo too large — compressed; local until Drive is connected' : 'Photo added locally') });
+        if (driveToken) uploadItemPhotoToDrive(id, nextPhoto);
       } catch (error) {
         setPhotoFeedback({ state: 'error', message: 'Photo could not be added' });
       }
@@ -961,6 +1063,7 @@ function App() {
       setPhotoFeedback({ state: 'processing', message: 'Processing photo…' });
       try {
         const { photo, compressed } = await buildCompressedPhoto(file, { label: 'Overview', idPrefix: 'room' });
+        const nextPhoto = { ...photo, uploadStatus: driveToken ? PHOTO_UPLOAD_STATUS.PENDING : PHOTO_UPLOAD_STATUS.LOCAL };
         setRoomCapture(prev => {
           const current = {
             status: prev?.[sectionKey]?.status || ROOM_STATUS_OPTIONS[0],
@@ -972,11 +1075,12 @@ function App() {
             ...prev,
             [sectionKey]: {
               ...current,
-              photos: [...current.photos, photo]
+              photos: [...current.photos, nextPhoto]
             }
           };
         });
-        setPhotoFeedback({ state: compressed ? 'warning' : 'success', message: compressed ? 'Photo too large — compressed' : 'Photo added' });
+        setPhotoFeedback({ state: compressed ? 'warning' : 'success', message: driveToken ? 'Room photo added — uploading to Drive…' : (compressed ? 'Photo too large — compressed; local until Drive is connected' : 'Room photo added locally') });
+        if (driveToken) uploadRoomPhotoToDrive(sectionKey, nextPhoto);
       } catch (error) {
         setPhotoFeedback({ state: 'error', message: 'Photo could not be added' });
       }
@@ -985,6 +1089,93 @@ function App() {
   const removeRoomPhoto = (sectionKey, photoId) => {
     const current = roomCaptureFor(sectionKey);
     updateRoomCapture(sectionKey, { photos: current.photos.filter(photo => photo.id !== photoId) });
+  };
+  const markItemPhoto = (id, photoId, patch) => {
+    setAnswers(prev => {
+      const current = normalizeAnswer(prev[id], itemById[id]);
+      return {
+        ...prev,
+        [id]: {
+          ...current,
+          photos: current.photos.map(photo => photo.id === photoId ? { ...photo, ...patch } : photo)
+        }
+      };
+    });
+  };
+  const markRoomPhoto = (sectionKey, photoId, patch) => {
+    setRoomCapture(prev => {
+      const current = {
+        status: prev?.[sectionKey]?.status || ROOM_STATUS_OPTIONS[0],
+        note: prev?.[sectionKey]?.note || '',
+        photos: photoList(prev?.[sectionKey]).map(existing => ({ ...existing, label: existing.label || 'Overview' })),
+        items: Array.isArray(prev?.[sectionKey]?.items) ? prev[sectionKey].items : []
+      };
+      return {
+        ...prev,
+        [sectionKey]: {
+          ...current,
+          photos: current.photos.map(existing => existing.id === photoId ? { ...existing, ...patch } : existing)
+        }
+      };
+    });
+  };
+  const uploadItemPhotoToDrive = async (id, photo) => {
+    if (!driveToken || !photo?.dataUrl) return false;
+    markItemPhoto(id, photo.id, { uploadStatus: PHOTO_UPLOAD_STATUS.PENDING });
+    try {
+      const row = rows.find(candidate => candidate.id === id) || itemById[id];
+      const folderId = await findOrCreateDrivePhotoFolder(driveToken, { client, sectionFlow: driveSectionFlow(sections), row });
+      const labelPrefix = photo.label || 'Photo';
+      const uploaded = await uploadDrivePhoto(driveToken, folderId, photo, `${labelPrefix} - ${photo.name || row?.item || 'photo'}`);
+      markItemPhoto(id, photo.id, uploaded);
+      setPhotoFeedback({ state: 'success', message: 'Photo uploaded to Drive' });
+      return true;
+    } catch (error) {
+      markItemPhoto(id, photo.id, { uploadStatus: PHOTO_UPLOAD_STATUS.FAILED });
+      setPhotoFeedback({ state: 'error', message: 'Photo upload failed — use Sync pending photos to Drive' });
+      return false;
+    }
+  };
+  const uploadRoomPhotoToDrive = async (sectionKey, photo) => {
+    if (!driveToken || !photo?.dataUrl) return false;
+    markRoomPhoto(sectionKey, photo.id, { uploadStatus: PHOTO_UPLOAD_STATUS.PENDING });
+    try {
+      const folderId = await findOrCreateDrivePhotoFolder(driveToken, { client, sectionFlow: driveSectionFlow(sections), sectionKey, itemName: 'Room Overview' });
+      const uploaded = await uploadDrivePhoto(driveToken, folderId, photo, `Overview - ${photo.name || sectionKey || 'photo'}`);
+      markRoomPhoto(sectionKey, photo.id, uploaded);
+      setPhotoFeedback({ state: 'success', message: 'Room photo uploaded to Drive' });
+      return true;
+    } catch (error) {
+      markRoomPhoto(sectionKey, photo.id, { uploadStatus: PHOTO_UPLOAD_STATUS.FAILED });
+      setPhotoFeedback({ state: 'error', message: 'Room photo upload failed — use Sync pending photos to Drive' });
+      return false;
+    }
+  };
+  const syncPendingPhotosToDrive = async () => {
+    if (!driveToken) {
+      setPhotoFeedback({ state: 'warning', message: 'Connect Google Drive before syncing pending photos.' });
+      return;
+    }
+    setDriveBusy(true);
+    setPhotoFeedback({ state: 'processing', message: 'Syncing pending photos to Drive…' });
+    try {
+      const answerEntries = Object.entries(answers || {}).flatMap(([id, answer]) => photoList(answer)
+        .filter(photo => photo.dataUrl && photo.uploadStatus !== PHOTO_UPLOAD_STATUS.UPLOADED)
+        .map(photo => ({ id, photo })));
+      const roomEntries = Object.entries(roomCapture || {}).flatMap(([sectionKey, capture]) => photoList(capture)
+        .filter(photo => photo.dataUrl && photo.uploadStatus !== PHOTO_UPLOAD_STATUS.UPLOADED)
+        .map(photo => ({ sectionKey, photo })));
+      let uploadedCount = 0;
+      for (const entry of roomEntries) {
+        if (await uploadRoomPhotoToDrive(entry.sectionKey, entry.photo)) uploadedCount += 1;
+      }
+      for (const entry of answerEntries) {
+        if (await uploadItemPhotoToDrive(entry.id, entry.photo)) uploadedCount += 1;
+      }
+      setPhotoFeedback({ state: uploadedCount ? 'success' : 'warning', message: uploadedCount ? `Uploaded ${uploadedCount} pending photo${uploadedCount === 1 ? '' : 's'} to Drive` : 'No pending local photos with saved data were found.' });
+    } finally {
+      setDriveBusy(false);
+    }
   };
   const addDynamicRoom = (roomType) => {
     const config = Object.values(DYNAMIC_ROOM_TYPES).find(x => x.roomType === roomType);
@@ -1218,16 +1409,18 @@ function App() {
       <label>Google OAuth Client ID<span className="fieldHelp">Requires a Google OAuth Client ID, not a Google Drive folder link.</span><input value={driveClientId} onChange={e=>setDriveClientId(e.target.value)} placeholder="Paste web client ID for Drive upload"/></label>
       <button onClick={connectDrive} disabled={driveBusy}><FolderOpen size={16}/> Connect Google Drive</button>
       <button onClick={()=>syncDrive({retryQueue:true})} disabled={driveBusy || !driveToken}><Upload size={16}/> Save to Drive</button>
+      <button onClick={syncPendingPhotosToDrive} disabled={driveBusy || !driveToken || !pendingPhotoCount}><Upload size={16}/> Sync pending photos to Drive</button>
       <span className={driveToken ? 'drivePill connected' : 'drivePill'}>{driveToken ? 'Connected' : 'Not connected'}</span>
       <span>Last saved to Drive: {driveMeta.lastSaved || 'Never'}</span>
       <span className={pendingCount ? 'pendingSync on' : 'pendingSync'}>{pendingCount ? `Pending Drive Sync: ${pendingCount}` : 'Pending sync count: 0'}</span>
+      <span className={pendingPhotoCount ? 'pendingSync on' : 'pendingSync'}>{pendingPhotoCount ? `Pending photos: ${pendingPhotoCount}` : 'Pending photos: 0'}</span>
       <small className="driveSetupNote">Google Drive export is still in setup/testing. Use Download Walkthrough Backup for now.</small>
     </section>
     {view === 'intake' && <IntakeView intake={intake} updateIntake={updateIntake} />}
     {view === 'form' && <main className="grid">
       <aside className="roomNav noPrint"><h3>Walkthrough Sections</h3><div className="addRoomTools">{Object.values(DYNAMIC_ROOM_TYPES).map(type => <button key={type.roomType} onClick={()=>addDynamicRoom(type.roomType)}>{type.addLabel} {type.roomType}</button>)}</div>{rooms.map(r => <div key={r.key} className="sectionNavRow" draggable onDragStart={()=>setDragSectionKey(r.key)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); moveSection(dragSectionKey, r.key); setDragSectionKey('');}} onDragEnd={()=>setDragSectionKey('')}><span className="sectionDragHandle" title="Drag to reorder walkthrough flow">⋮⋮</span><button className={`sectionSelect ${activeRoom===r.key?'active':''}`} onClick={()=>setActiveRoom(r.key)}>{r.label}</button></div>)}<div className="hint"><Camera size={18}/> Prompt: Capture context, close-up, and detail photos. Store by room/item folder path.</div></aside>
       <section className="formPanel">
-        <h1>{rooms.find(r=>r.key===activeRoom)?.label || activeRoom} HTC</h1><div className="roomCaptureShell"><div className="roomCaptureTop"><label>Overall Room Status<select value={roomCaptureFor(activeRoom).status} onChange={e=>updateRoomCapture(activeRoom,{status:e.target.value})}>{ROOM_STATUS_OPTIONS.map(x=><option key={x}>{x}</option>)}</select></label><button type="button" onClick={openRoomItemForm}>Add Item</button></div><span className="roomCaptureHelp">Add anything that needs tracking beyond ‘looks good.’</span>{roomItemFormOpen && <div className="roomItemForm"><div className="inputs roomItemInputs"><label>Item title<input value={roomItemDraft.title} onChange={e=>updateRoomItemDraft({title:e.target.value})} placeholder="e.g., Loose towel bar" autoFocus/></label><label>Item bucket/type<select value={roomItemDraft.bucket} onChange={e=>updateRoomItemDraft({bucket:e.target.value})}>{ROOM_ITEM_BUCKETS.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label></div><label className="discoveryCheck"><input type="checkbox" checked={roomItemDraft.isDiscovery} onChange={e=>updateRoomItemDraft({isDiscovery:e.target.checked})}/><span><strong>Discovery</strong><small>Unexpected, hidden, unusual, or out of the ordinary.</small></span></label><label className="notes">Notes<textarea value={roomItemDraft.notes} onChange={e=>updateRoomItemDraft({notes:e.target.value})} placeholder="Add room-level context, next step, or follow-up note."/></label><div className="roomItemActions"><button type="button" onClick={saveRoomItem} disabled={!roomItemDraft.title.trim()}>Save</button><button type="button" onClick={cancelRoomItemForm}>Cancel</button></div></div>}<label className="notes">Room Note / Voice Transcript<textarea value={roomCaptureFor(activeRoom).note} onChange={e=>updateRoomCapture(activeRoom,{note:e.target.value})} placeholder="Capture room-level context, voice transcript, or summary notes for this space."/></label><div className="roomPhotoBox"><div className="photoBox"><Camera size={18}/><strong>Room Overview Photos:</strong><label className="uploadInline"><Upload size={16}/> Add Room Overview Photo<input type="file" accept="image/*" multiple onChange={e=>{addRoomPhotos(activeRoom, e.target.files); e.target.value='';}}/></label><span>{photoSummary(roomCaptureFor(activeRoom).photos, { emptyText: 'No room overview photos attached yet', labels: ROOM_PHOTO_LABELS })}</span></div>{roomCaptureFor(activeRoom).photos.length > 0 && <div className="thumbGrid roomThumbGrid">{roomCaptureFor(activeRoom).photos.map(photo => <div className="thumbCard" key={photo.id}><div className="thumb">{photo.dataUrl ? <img src={photo.dataUrl} alt={`Overview for ${rooms.find(room=>room.key===activeRoom)?.label || activeRoom}`}/> : <Image size={24}/>}</div><span>Overview</span><span title={photo.name}>{photo.name}</span><button onClick={()=>removeRoomPhoto(activeRoom, photo.id)} aria-label="Remove room overview photo"><X size={14}/></button></div>)}</div>}</div><div className="smartRoomPrompt"><h3>Smart Room Prompt</h3><div className="smartRoomGrid">{SMART_ROOM_PROMPTS.map(group => <p key={group.group}><strong>{group.group}:</strong> {group.prompt}</p>)}</div></div><div className="roomItemsPlaceholder"><h3>Items list for this room</h3>{roomCaptureFor(activeRoom).items.length > 0 ? <ul className="roomItemList">{roomCaptureFor(activeRoom).items.map(item=><li key={item.id} className="roomItemRow"><div><strong>{item.title}</strong><span>{roomItemBucketLabel(item.bucket)}{item.isDiscovery ? ' · Discovery' : ''}</span>{item.notes && <p>{item.notes}</p>}</div><button type="button" onClick={()=>removeRoomItem(activeRoom, item.id)} aria-label={`Remove ${item.title}`}><X size={14}/> Remove</button></li>)}</ul> : <p>No room-level items added yet.</p>}{rows.filter(r=>r.sectionKey===activeRoom && includePMRRow(r)).length > 0 && <><h4>Checklist items currently flagged</h4><ul>{rows.filter(r=>r.sectionKey===activeRoom && includePMRRow(r)).slice(0,5).map(r=><li key={`placeholder-${r.id}`}>{r.item} · {r.answer.status}</li>)}</ul></>}</div></div><p className="lede">Fuller data capture: status, action certainty, suggested trade, time, notes, and photo references.</p>
+        <h1>{rooms.find(r=>r.key===activeRoom)?.label || activeRoom} HTC</h1><div className="roomCaptureShell"><div className="roomCaptureTop"><label>Overall Room Status<select value={roomCaptureFor(activeRoom).status} onChange={e=>updateRoomCapture(activeRoom,{status:e.target.value})}>{ROOM_STATUS_OPTIONS.map(x=><option key={x}>{x}</option>)}</select></label><button type="button" onClick={openRoomItemForm}>Add Item</button></div><span className="roomCaptureHelp">Add anything that needs tracking beyond ‘looks good.’</span>{roomItemFormOpen && <div className="roomItemForm"><div className="inputs roomItemInputs"><label>Item title<input value={roomItemDraft.title} onChange={e=>updateRoomItemDraft({title:e.target.value})} placeholder="e.g., Loose towel bar" autoFocus/></label><label>Item bucket/type<select value={roomItemDraft.bucket} onChange={e=>updateRoomItemDraft({bucket:e.target.value})}>{ROOM_ITEM_BUCKETS.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label></div><label className="discoveryCheck"><input type="checkbox" checked={roomItemDraft.isDiscovery} onChange={e=>updateRoomItemDraft({isDiscovery:e.target.checked})}/><span><strong>Discovery</strong><small>Unexpected, hidden, unusual, or out of the ordinary.</small></span></label><label className="notes">Notes<textarea value={roomItemDraft.notes} onChange={e=>updateRoomItemDraft({notes:e.target.value})} placeholder="Add room-level context, next step, or follow-up note."/></label><div className="roomItemActions"><button type="button" onClick={saveRoomItem} disabled={!roomItemDraft.title.trim()}>Save</button><button type="button" onClick={cancelRoomItemForm}>Cancel</button></div></div>}<label className="notes">Room Note / Voice Transcript<textarea value={roomCaptureFor(activeRoom).note} onChange={e=>updateRoomCapture(activeRoom,{note:e.target.value})} placeholder="Capture room-level context, voice transcript, or summary notes for this space."/></label><div className="roomPhotoBox"><div className="photoBox"><Camera size={18}/><strong>Room Overview Photos:</strong><label className="uploadInline"><Upload size={16}/> Add Room Overview Photo<input type="file" accept="image/*" multiple onChange={e=>{addRoomPhotos(activeRoom, e.target.files); e.target.value='';}}/></label><span>{photoSummary(roomCaptureFor(activeRoom).photos, { emptyText: 'No room overview photos attached yet', labels: ROOM_PHOTO_LABELS })}</span></div>{roomCaptureFor(activeRoom).photos.length > 0 && <div className="thumbGrid roomThumbGrid">{roomCaptureFor(activeRoom).photos.map(photo => { const displaySrc = photoDisplaySrc(photo); return <div className="thumbCard" key={photo.id}><div className="thumb">{displaySrc ? <img src={displaySrc} alt={`Overview for ${rooms.find(room=>room.key===activeRoom)?.label || activeRoom}`}/> : <Image size={24}/>}</div><span>Overview</span><span title={photo.name}>{photo.name}</span><span className={`photoStatusBadge ${photo.uploadStatus || PHOTO_UPLOAD_STATUS.LOCAL}`}>{photoStatusLabel(photo)}</span><span className="photoStatusText">{photoStatusMessage(photo, Boolean(driveToken))}</span><button onClick={()=>removeRoomPhoto(activeRoom, photo.id)} aria-label="Remove room overview photo"><X size={14}/></button></div>; })}</div>}</div><div className="smartRoomPrompt"><h3>Smart Room Prompt</h3><div className="smartRoomGrid">{SMART_ROOM_PROMPTS.map(group => <p key={group.group}><strong>{group.group}:</strong> {group.prompt}</p>)}</div></div><div className="roomItemsPlaceholder"><h3>Items list for this room</h3>{roomCaptureFor(activeRoom).items.length > 0 ? <ul className="roomItemList">{roomCaptureFor(activeRoom).items.map(item=><li key={item.id} className="roomItemRow"><div><strong>{item.title}</strong><span>{roomItemBucketLabel(item.bucket)}{item.isDiscovery ? ' · Discovery' : ''}</span>{item.notes && <p>{item.notes}</p>}</div><button type="button" onClick={()=>removeRoomItem(activeRoom, item.id)} aria-label={`Remove ${item.title}`}><X size={14}/> Remove</button></li>)}</ul> : <p>No room-level items added yet.</p>}{rows.filter(r=>r.sectionKey===activeRoom && includePMRRow(r)).length > 0 && <><h4>Checklist items currently flagged</h4><ul>{rows.filter(r=>r.sectionKey===activeRoom && includePMRRow(r)).slice(0,5).map(r=><li key={`placeholder-${r.id}`}>{r.item} · {r.answer.status}</li>)}</ul></>}</div></div><p className="lede">Fuller data capture: status, action certainty, suggested trade, time, notes, and photo references.</p>
         {rows.filter(r=>r.sectionKey===activeRoom).map(r => {
           const category = categoryForChecklistItem(r);
           const meta = categoryInfo(category);
@@ -1248,7 +1441,7 @@ function App() {
           {r.answer.passCandidate && <div className="passMetaGrid"><label>PASS Cadence<select value={r.answer.passCadence} onChange={e=>update(r.id,{passCadence:e.target.value})}>{PASS_CADENCE.map(x=><option key={x}>{x}</option>)}</select></label><label>PASS Resource<select value={r.answer.passResource} onChange={e=>update(r.id,{passResource:e.target.value})}>{PASS_RESOURCES.map(x=><option key={x}>{x}</option>)}</select></label><label>PASS Note<input value={r.answer.passNote} onChange={e=>update(r.id,{passNote:e.target.value})} placeholder="Optional recurring care note"/></label></div>}
           <label className="notes">Notes for PMR detail<textarea value={r.answer.notes} onChange={e=>update(r.id,{notes:e.target.value})} placeholder="What do I see? What would I suggest? What needs confirmation? These notes sharpen the PMR language."/></label>
           <div className="photoBox"><Camera size={18}/><strong>Photo Capture:</strong><label className="uploadInline"><Upload size={16}/> Upload<input type="file" accept="image/*" multiple onChange={e=>{addPhotos(r.id, e.target.files); e.target.value='';}}/></label><span>{photoSummary(r.answer.photos)}</span></div>
-          {r.answer.photos.length > 0 && <div className="thumbGrid">{r.answer.photos.map(photo => <div className="thumbCard" key={photo.id}><div className="thumb">{photo.dataUrl ? <img src={photo.dataUrl} alt={`${photo.label} for ${r.item}`}/> : <Image size={24}/>}</div><select value={photo.label} onChange={e=>updatePhoto(r.id, photo.id, {label:e.target.value})}>{PHOTO_LABELS.map(label=><option key={label}>{label}</option>)}</select><span title={photo.name}>{photo.name}</span><button onClick={()=>removePhoto(r.id, photo.id)} aria-label="Remove photo"><X size={14}/></button></div>)}</div>}
+          {r.answer.photos.length > 0 && <div className="thumbGrid">{r.answer.photos.map(photo => { const displaySrc = photoDisplaySrc(photo); return <div className="thumbCard" key={photo.id}><div className="thumb">{displaySrc ? <img src={displaySrc} alt={`${photo.label} for ${r.item}`}/> : <Image size={24}/>}</div><select value={photo.label} onChange={e=>updatePhoto(r.id, photo.id, {label:e.target.value})}>{PHOTO_LABELS.map(label=><option key={label}>{label}</option>)}</select><span title={photo.name}>{photo.name}</span><span className={`photoStatusBadge ${photo.uploadStatus || PHOTO_UPLOAD_STATUS.LOCAL}`}>{photoStatusLabel(photo)}</span><span className="photoStatusText">{photoStatusMessage(photo, Boolean(driveToken))}</span><button onClick={()=>removePhoto(r.id, photo.id)} aria-label="Remove photo"><X size={14}/></button></div>; })}</div>}
           {r.catchAll && <div className="reassignBox"><label>Reassign Catch-All Notes<select value={r.answer.reassignTo} onChange={e=>update(r.id,{reassignTo:e.target.value})}><option value="">Choose Section-Item</option>{rows.filter(target=>target.sectionKey===r.sectionKey && !target.catchAll).map(target=><option key={target.id} value={target.id}>{target.item}</option>)}</select></label><button onClick={()=>reassignCatchAll(r.id)} disabled={!r.answer.reassignTo}>Reassign</button></div>}
           <div className="drivePath"><FolderOpen size={16}/> {drivePath(client.name, client.date, r.roomType || r.room, r.item, r.roomName || r.room)}</div>
         </div>})}
