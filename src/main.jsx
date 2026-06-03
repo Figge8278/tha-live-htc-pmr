@@ -710,9 +710,9 @@ async function buildCompressedPhoto(file, { label, idPrefix }) {
   };
 }
 function saveStatusText(saveStatus) {
-  if (saveStatus.state === 'saving') return 'Saving…';
-  if (saveStatus.state === 'saved') return `Saved at ${saveStatus.time || 'just now'}`;
-  if (saveStatus.state === 'failed') return 'Save failed — download backup';
+  if (saveStatus.state === 'saving') return 'Autosaving…';
+  if (saveStatus.state === 'saved') return saveStatus.time && saveStatus.time !== 'loaded' ? `Autosaved at ${saveStatus.time}` : 'Autosaved just now';
+  if (saveStatus.state === 'failed') return 'Autosave failed — download backup';
   return 'Unsaved changes';
 }
 
@@ -1191,11 +1191,13 @@ function App() {
       <div className="brand"><THALogo variant="full"/><div><span>Intake → HTC → PMR → PASS</span></div></div>
       <nav><button onClick={()=>setView('intake')} className={view==='intake'?'on':''}><Home size={18}/> Intake</button><button onClick={()=>setView('form')} className={view==='form'?'on':''}><ClipboardCheck size={18}/> HTC</button><button onClick={()=>setView('pmr')} className={view==='pmr'?'on':''}><FileText size={18}/> PMR</button><button onClick={()=>setView('metrics')} className={view==='metrics'?'on':''}><Clock3 size={18}/> Metrics</button></nav>
     </header>
-    <section className="sessionCard noPrint">
+    <section className="sessionCard noPrint" aria-label="Walkthrough save controls">
       <label>Current Walkthrough Name<input value={walkthroughName} onChange={e=>setWalkthroughName(e.target.value)} placeholder="Name this walkthrough"/></label>
-      <button type="button" onClick={startNewWalkthrough}>Start New Blank Walkthrough</button>
-      <button type="button" onClick={saveWalkthrough}>Save Working Walkthrough</button>
-      <div className={`saveStatus ${saveStatus.state}`} role="status" aria-live="polite"><strong>{saveStatusText(saveStatus)}</strong><small>Autosave protects refresh/pull-to-refresh. Keep Download Walkthrough Backup handy.</small></div>
+      <div className="walkthroughActions" aria-label="Walkthrough save and backup actions">
+        <button type="button" onClick={startNewWalkthrough}>Start New Blank Walkthrough</button>
+        <div className="manualSaveGroup"><button type="button" onClick={saveWalkthrough}>Save Working Walkthrough</button><span className={`saveStatus ${saveStatus.state}`} role="status" aria-live="polite"><span className="saveStatusDot" aria-hidden="true"></span>{saveStatusText(saveStatus)}</span></div>
+        <button type="button" onClick={()=>syncDrive({includeDownload:true})}><Download size={16}/> Download Walkthrough Backup</button>
+      </div>
       <label>Open Saved Walkthrough<select value={selectedWalkthroughId} onChange={e=>openSavedWalkthrough(e.target.value)}><option value="">Choose saved walkthrough</option>{savedSessionList.map(session=><option key={session.id} value={session.id}>{session.name || 'Untitled Walkthrough'}{session.updatedAt ? ` · ${new Date(session.updatedAt).toLocaleString()}` : ''}</option>)}</select></label>
       <button type="button" onClick={deleteSavedWalkthrough} disabled={!selectedWalkthroughId || !savedSessions[selectedWalkthroughId]}>Delete Selected Walkthrough</button>
     </section>
@@ -1204,9 +1206,7 @@ function App() {
       <label>Client<input value={client.name} onChange={e=>setClient({...client,name:e.target.value})}/></label>
       <label>Address<input value={client.address} onChange={e=>setClient({...client,address:e.target.value})}/></label>
       <label>Walkthrough Folder / Date<input value={client.date} onChange={e=>setClient({...client,date:e.target.value})}/></label>
-      <button onClick={()=>syncDrive({includeDownload:true})}><Download size={16}/> Download Walkthrough Backup</button>
-      <button onClick={()=>window.print()}><Printer size={16}/> Print / Save Draft PMR</button>
-      <button className="finalPrintButton" onClick={printFinalPMR}><Printer size={16}/> Print Final PMR</button>
+      <div className="pmrPrintActions" aria-label="PMR print actions"><button onClick={()=>window.print()}><Printer size={16}/> Print / Save Draft PMR</button><button className="finalPrintButton" onClick={printFinalPMR}><Printer size={16}/> Print Final PMR</button></div>
     </section>
     <section className="driveStatus noPrint">
       <label>Google OAuth Client ID<span className="fieldHelp">Requires a Google OAuth Client ID, not a Google Drive folder link.</span><input value={driveClientId} onChange={e=>setDriveClientId(e.target.value)} placeholder="Paste web client ID for Drive upload"/></label>
