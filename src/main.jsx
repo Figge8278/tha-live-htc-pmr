@@ -456,10 +456,30 @@ function actionCertaintyCopy(row) {
 }
 function drivePath(client, date, room, item, roomName = room) {
   const clean = s => (s || '').replace(/[\\/:*?"<>|]/g,'-').slice(0,40);
-  return `THA Drive / Clients / ${clean(client)} / ${date || 'Walkthrough'} / Photos / ${clean(room)} / ${clean(roomName)} / ${clean(item)}`;
+  return `THA Clients / _HTC PMR Incoming / ${clean(date || 'Walkthrough Date')} - ${clean(client || 'Client')} / Photos / ${clean(roomName || room)} - ${clean(item || 'Overview')}`;
 }
 function cleanDriveName(value) {
   return (value || 'Untitled').replace(/[\\/:*?"<>|]/g, '-').trim().slice(0, 90) || 'Untitled';
+}
+function htmlEscape(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+}
+function htmlText(value, fallback = 'Not recorded') {
+  const text = String(value ?? '').trim();
+  return htmlEscape(text || fallback).replace(/\n/g, '<br/>');
+}
+function stripFileExtension(name = '') {
+  return String(name || '').replace(/\.[^.\/]+$/, '');
+}
+function drivePackageFolderName(client = {}) {
+  return cleanDriveName(`${client.date || 'Walkthrough Date'} - ${client.name || 'Client'} - ${client.address || 'Property Address'}`);
+}
+function driveFolderUrl(folderId) {
+  return folderId ? `https://drive.google.com/drive/folders/${folderId}` : '';
+}
+function flatPhotoDriveName({ room = 'Room', item = 'Overview', label = 'Photo', originalName = 'photo' } = {}) {
+  const base = [room, item || 'Overview', label || 'Photo', stripFileExtension(originalName) || 'photo'].map(cleanDriveName).join(' - ');
+  return `${base}.jpg`;
 }
 function normalizePhotoRecord(photo = {}) {
   const hasDriveReference = Boolean(photo.driveFileId || photo.driveViewLink || photo.webViewLink);
@@ -700,6 +720,12 @@ async function uploadDriveBlob(accessToken, folderId, name, blob, mimeType) {
 function uploadDriveJson(accessToken, folderId, name, data) {
   return uploadDriveBlob(accessToken, folderId, name, new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), 'application/json');
 }
+function uploadDriveHtml(accessToken, folderId, name, html) {
+  return uploadDriveBlob(accessToken, folderId, name, new Blob([html], { type: 'text/html' }), 'text/html');
+}
+async function getDriveFileInfo(accessToken, fileId) {
+  return driveFetch(accessToken, `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,webViewLink`);
+}
 function driveSectionFlow(sections = []) {
   return sections.map((section, index) => ({
     order: index + 1,
@@ -709,23 +735,11 @@ function driveSectionFlow(sections = []) {
     roomName: section.roomName || section.label
   }));
 }
-async function findOrCreateDrivePhotoFolder(accessToken, { client, sectionFlow = [], row = null, sectionKey = '', itemName = '' }) {
-  const clientFolderName = cleanDriveName(`${client.name || 'Client'} - ${client.address || 'Property Address'}`);
-  const dateFolderName = cleanDriveName(client.date || 'Walkthrough Date');
+async function findOrCreateDrivePhotoFolder(accessToken, { client }) {
   const rootId = await findOrCreateDriveFolder(accessToken, 'THA Clients');
-  const clientId = await findOrCreateDriveFolder(accessToken, clientFolderName, rootId);
-  const dateId = await findOrCreateDriveFolder(accessToken, dateFolderName, clientId);
-  const photosId = await findOrCreateDriveFolder(accessToken, 'Photos', dateId);
-  const sectionOrderLookup = Object.fromEntries(sectionFlow.map(section => [section.key, section.order]));
-  const sectionLookup = Object.fromEntries(sectionFlow.map(section => [section.key, section]));
-  const section = row ? sectionLookup[row.sectionKey] || {} : sectionLookup[sectionKey] || {};
-  const roomType = row?.roomType || row?.room || section.roomType || section.label || sectionKey || 'Room';
-  const roomName = row?.roomName || row?.room || section.roomName || section.label || sectionKey || 'Room';
-  const orderKey = row?.sectionKey || sectionKey;
-  const orderPrefix = sectionOrderLookup[orderKey] ? `${String(sectionOrderLookup[orderKey]).padStart(2, '0')} - ` : '';
-  const roomTypeId = await findOrCreateDriveFolder(accessToken, cleanDriveName(roomType), photosId);
-  const roomNameId = await findOrCreateDriveFolder(accessToken, cleanDriveName(`${orderPrefix}${roomName}`), roomTypeId);
-  return findOrCreateDriveFolder(accessToken, cleanDriveName(itemName || row?.item || 'Room Overview'), roomNameId);
+  const incomingId = await findOrCreateDriveFolder(accessToken, '_HTC PMR Incoming', rootId);
+  const packageId = await findOrCreateDriveFolder(accessToken, drivePackageFolderName(client), incomingId);
+  return findOrCreateDriveFolder(accessToken, 'Photos', packageId);
 }
 async function uploadDrivePhoto(accessToken, folderId, photo, fallbackName) {
   const blob = dataUrlToBlob(photo.dataUrl);
@@ -746,51 +760,128 @@ async function uploadDrivePhoto(accessToken, folderId, photo, fallbackName) {
 function buildDrivePayload({ walkthroughName = '', client, intake, rows, pmr, dynamicRooms = [], sections = [], sectionOrderState = [], itemOrderState = {}, pinnedItems = {}, roomCapture = {} }) {
   return { walkthroughName, client, intake, dynamicRooms, roomCapture, sectionFlow: driveSectionFlow(sections), sectionOrder: sectionOrderState, itemOrder: itemOrderState, pinnedItems, rows, pmr, exportedAt: new Date().toISOString() };
 }
-async function uploadDriveBundle(accessToken, payload) {
-  const clientFolderName = cleanDriveName(`${payload.client.name || 'Client'} - ${payload.client.address || 'Property Address'}`);
-  const dateFolderName = cleanDriveName(payload.client.date || 'Walkthrough Date');
-  const rootId = await findOrCreateDriveFolder(accessToken, 'THA Clients');
-  const clientId = await findOrCreateDriveFolder(accessToken, clientFolderName, rootId);
-  const dateId = await findOrCreateDriveFolder(accessToken, dateFolderName, clientId);
-  const intakeId = await findOrCreateDriveFolder(accessToken, 'Intake', dateId);
-  const htcId = await findOrCreateDriveFolder(accessToken, 'HTC Walkthrough', dateId);
-  const pmrId = await findOrCreateDriveFolder(accessToken, 'PMR Reports', dateId);
-  const photosId = await findOrCreateDriveFolder(accessToken, 'Photos', dateId);
-  await uploadDriveJson(accessToken, intakeId, 'intake.json', { client: payload.client, intake: payload.intake });
-  await uploadDriveJson(accessToken, htcId, 'htc-walkthrough.json', { client: payload.client, roomCapture: payload.roomCapture || {}, rows: payload.rows });
-  await uploadDriveJson(accessToken, pmrId, 'pmr-data.json', { client: payload.client, intake: payload.intake, pmr: payload.pmr });
-  const sectionFlow = payload.sectionFlow || [];
-  const sectionOrderLookup = Object.fromEntries(sectionFlow.map(section => [section.key, section.order]));
-  const sectionLookup = Object.fromEntries(sectionFlow.map(section => [section.key, section]));
-  for (const [sectionKey, capture] of Object.entries(payload.roomCapture || {})) {
-    const photos = photoList(capture).filter(photo => photo.dataUrl);
-    if (!photos.length) continue;
+
+const INTAKE_EXPORT_FIELDS = [
+  ['Priorities', intake => (intake.priorities || []).join(', ')],
+  ['Preferred Pace', 'pace'], ['Budget Mindset', 'budgetStyle'], ['Decision Style', 'decisionStyle'], ['Homeowner Goals / Priorities', 'notes'],
+  ['Electrical Panel Location', 'electricalPanel'], ['Known Electrical Issues or Updates', 'electricalUpdates'],
+  ['Main Water Shut-off Location', 'waterShutoff'], ['Known Leaks, Slow Drains, or Plumbing History', 'plumbingHistory'], ['Water Heater Flush / Age', 'waterHeater'], ['Sewer / Irrigation History', 'sewerIrrigation'],
+  ['Furnace Filter Replacement', 'hvacFilter'], ['Furnace Service History / Age', 'hvacService'], ['A/C Service History / Age', 'hvacAcService'], ['Comfort Notes', 'comfort'],
+  ['Roof Age', 'roofAge'], ['Roof History', 'roofHistory'], ['Solar Context', 'solar'], ['Drainage / Pooling', 'drainagePooling'], ['Drainage History', 'drainageHistory'], ['Gutters / Downspouts', 'gutters'],
+  ['Windows / Doors', 'windowsDoors'], ['Fogging / Failed Seals', 'fogging'], ['Paint / Stain Timing', 'paintStain'], ['Products / Colors', 'productsColors'],
+  ['Pests', 'pests'], ['Fire Extinguishers', 'fireExtinguishers'], ['Smoke / CO Detectors', 'smokeCO'], ['Chimney / Fireplace', 'chimney'], ['Additional Concerns', 'additionalConcerns']
+];
+
+function reportShell(title, client, body) {
+  return `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>${htmlEscape(title)}</title><style>
+    :root{--navy:#0b3658;--gold:#bf8420;--cream:#f6efe3;--ink:#203040;--muted:#65727d;--line:#d9cbb4;--soft:#edf3f6;--green:#dfeedd;--red:#f5d7d3;--yellow:#fff1c6}
+    body{margin:0;background:var(--cream);color:var(--ink);font-family:Inter,Segoe UI,Arial,sans-serif;line-height:1.45} main{max-width:1120px;margin:0 auto;padding:22px}
+    header{background:#fff;border-bottom:6px solid var(--gold);padding:24px;border-radius:0 0 24px 24px} h1{color:var(--navy);font-size:34px;margin:0 0 8px} h2{color:var(--navy);border-bottom:1px solid var(--line);padding-bottom:7px} h3{color:var(--navy);margin-bottom:4px}
+    .meta{color:var(--muted);font-weight:700}.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;margin:16px 0;box-shadow:0 8px 22px rgba(13,44,73,.08)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.stat{background:var(--soft);border-radius:14px;padding:14px;text-align:center}.stat strong{font-size:30px;color:var(--navy);display:block}.pill{display:inline-block;border-radius:999px;background:var(--soft);padding:4px 9px;font-weight:800}.high{background:var(--red)}.medium{background:var(--yellow)}.low{background:var(--green)}
+    table{width:100%;border-collapse:collapse;background:#fff} th,td{border:1px solid var(--line);padding:8px;text-align:left;vertical-align:top} th{background:var(--navy);color:#fff} tr:nth-child(even) td{background:#fbf7ef} a{color:#0b5cad;font-weight:700} .small{font-size:12px;color:var(--muted)} ul{padding-left:20px}
+    @media(max-width:720px){main{padding:12px}header{border-radius:0}table{font-size:13px}th,td{padding:6px}}
+  </style></head><body><header><h1>${htmlEscape(title)}</h1><div class="meta">${htmlText(client.name, 'Client not recorded')} · ${htmlText(client.address, 'Address not recorded')} · ${htmlText(client.date, 'Walkthrough date not recorded')}</div></header><main>${body}</main></body></html>`;
+}
+function tableRows(items, columns) {
+  return items.map(item => `<tr>${columns.map(col => `<td>${typeof col.value === 'function' ? col.value(item) : htmlText(item[col.value])}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${columns.length}">Nothing recorded.</td></tr>`;
+}
+function photoEntriesForPayload(payload, uploadedLookup = {}) {
+  const sectionLookup = Object.fromEntries((payload.sectionFlow || []).map(section => [section.key, section]));
+  const entries = [];
+  Object.entries(payload.roomCapture || {}).forEach(([sectionKey, capture]) => {
     const section = sectionLookup[sectionKey] || {};
-    const roomTypeId = await findOrCreateDriveFolder(accessToken, cleanDriveName(section.roomType || section.label || sectionKey), photosId);
-    const orderPrefix = sectionOrderLookup[sectionKey] ? `${String(sectionOrderLookup[sectionKey]).padStart(2, '0')} - ` : '';
-    const roomNameId = await findOrCreateDriveFolder(accessToken, cleanDriveName(`${orderPrefix}${section.roomName || section.label || sectionKey}`), roomTypeId);
-    const overviewId = await findOrCreateDriveFolder(accessToken, 'Room Overview', roomNameId);
-    for (const [index, photo] of photos.entries()) {
+    photoList(capture).forEach((photo, index) => {
+      const uploaded = uploadedLookup[`room:${sectionKey}:${photo.id}`] || {};
+      const room = section.roomName || section.label || sectionKey || 'Room';
+      entries.push({ key: `room:${sectionKey}:${photo.id}`, room, item: 'Room Overview', label: photo.label || 'Overview', originalName: photo.name || `overview-${index + 1}`, driveFileName: uploaded.driveFileName || photo.driveFileName || '', driveViewLink: uploaded.driveViewLink || photo.driveViewLink || photo.webViewLink || '', countLabel: photo.label || 'Overview' });
+    });
+  });
+  (payload.rows || []).forEach(row => {
+    photoList(row.answer).forEach((photo, index) => {
+      const uploaded = uploadedLookup[`item:${row.id}:${photo.id}`] || {};
+      entries.push({ key: `item:${row.id}:${photo.id}`, room: row.roomName || row.room || 'Room', item: row.item || 'Checklist Item', label: photo.label || 'Photo', originalName: photo.name || `photo-${index + 1}`, driveFileName: uploaded.driveFileName || photo.driveFileName || '', driveViewLink: uploaded.driveViewLink || photo.driveViewLink || photo.webViewLink || '', relatedStatus: row.answer?.status || '' });
+    });
+  });
+  return entries;
+}
+function buildPmrReportHtml(payload, photoEntries = []) {
+  const counts = { high: payload.pmr.filter(r=>priority(r.answer.status)==='High').length, med: payload.pmr.filter(r=>priority(r.answer.status)==='Medium').length, low: payload.pmr.filter(r=>priority(r.answer.status)==='Low').length };
+  const quickHits = payload.pmr.filter(r => ['Handyman','Safety'].includes(r.answer.trade) && ['15 min','30 min','45–60 min','1–2 hrs'].includes(r.answer.effort));
+  const pass = (payload.rows || []).filter(r => r.answer?.passCandidate);
+  const reviewedIntakeNotes = (payload.rows || []).filter(r => isIntakeFollowUp(r) && r.answer.reviewStatus && r.answer.reviewStatus !== 'Not Reviewed' && r.answer.reviewStatus !== INTAKE_PMR_REVIEW_STATUS);
+  const photoCountFor = row => photoEntries.filter(entry => entry.item === row.item && entry.room === (row.roomName || row.room)).length;
+  const body = `<section class="card"><h2>Home Health Snapshot / Summary</h2><div class="grid"><div class="stat high"><strong>${counts.high}</strong>Immediate</div><div class="stat medium"><strong>${counts.med}</strong>Near-Term</div><div class="stat low"><strong>${counts.low}</strong>Monitor</div><div class="stat"><strong>${payload.pmr.length}</strong>PMR Findings</div></div><p>${htmlText(payload.intake?.notes, 'No homeowner summary notes recorded.')}</p></section>
+    <section class="card"><h2>Handy Next Steps</h2><ul>${quickHits.map(r=>`<li><strong>${htmlEscape(r.roomName || r.room)} — ${htmlEscape(r.item)}</strong>: ${htmlEscape(displayTradeLabel(r.answer.trade))} · ${htmlEscape(r.answer.effort)} · ${htmlEscape(actionCertaintyFor(r.answer))}</li>`).join('') || '<li>No quick-hit Handy Next Steps recorded.</li>'}</ul></section>
+    <section class="card"><h2>Priority Action Plan</h2>${payload.pmr.map(r=>{ const certainty = actionCertaintyCopy(r); return `<article><h3>${htmlEscape(r.roomName || r.room)} — ${htmlEscape(r.item)}</h3><p><span class="pill ${priority(r.answer.status).toLowerCase()}">${htmlEscape(priority(r.answer.status))}</span> ${htmlEscape(r.answer.status)} · ${htmlEscape(displayTradeLabel(r.answer.trade))} · ${htmlEscape(certainty.label)}</p><ul><li><strong>What we saw:</strong> ${htmlText(r.answer.notes, 'No additional notes recorded yet.')}</li><li><strong>Why it matters:</strong> ${htmlText(r.why)}</li><li><strong>${htmlEscape(certainty.title)}:</strong> ${htmlText(certainty.body)}</li><li><strong>Next step language:</strong> ${htmlText(certainty.next)}</li><li><strong>Timing / pace:</strong> ${htmlEscape(timingFor(r, r.answer.status))} · ${htmlEscape(r.answer.pref)}</li><li><strong>Approx. time:</strong> ${htmlEscape(r.answer.effort)}</li><li><strong>Photos:</strong> ${photoCountFor(r)} linked in Photo Index</li></ul></article>`}).join('') || '<p>No PMR findings recorded.</p>'}</section>
+    <section class="card"><h2>PASS — Continued Home Care</h2><ul>${pass.map(r=>`<li><strong>${htmlEscape(r.item)}</strong>: ${htmlEscape(r.answer.passCadence || r.frequency || 'As Needed')} · ${htmlEscape(r.answer.passResource || displayTradeLabel(r.answer.trade))}${r.answer.passNote ? ` · ${htmlEscape(r.answer.passNote)}` : ''}</li>`).join('') || '<li>No PASS candidates recorded.</li>'}</ul></section>
+    <section class="card"><h2>Intake Follow-Up Review Notes / Appendix</h2><ul>${reviewedIntakeNotes.map(r=>`<li><strong>${htmlEscape(r.roomName || r.room)} — ${htmlEscape(r.item)}</strong>: ${htmlEscape(r.answer.reviewStatus)} · ${htmlEscape(r.intakeFieldLabel)}: ${htmlText(r.intakeValue)}</li>`).join('') || '<li>No reviewed intake follow-up appendix notes recorded.</li>'}</ul></section>`;
+  return reportShell('01 - PMR Report', payload.client, body);
+}
+function buildHtcChecklistHtml(payload, photoEntries = []) {
+  const rows = (payload.rows || []).map(row => ({ ...row, photoEntries: photoEntries.filter(entry => entry.item === row.item && entry.room === (row.roomName || row.room)) }));
+  const columns = [
+    { value: r => htmlText(r.roomName || r.room) }, { value: r => htmlText(r.item) }, { value: r => htmlText(r.answer.status) }, { value: r => htmlText(r.answer.notes, '') },
+    { value: r => htmlText(displayTradeLabel(r.answer.trade)) }, { value: r => htmlText(r.answer.pref) }, { value: r => htmlText(actionCertaintyFor(r.answer)) }, { value: r => htmlText(r.answer.effort) },
+    { value: r => r.answer.passCandidate ? 'Yes' : 'No' }, { value: r => r.photoEntries.length ? `${r.photoEntries.length}: ${r.photoEntries.map(p=>htmlEscape(p.driveFileName || p.originalName)).join('<br/>')}` : '0' }
+  ];
+  const body = `<section class="card"><h2>HTC Checklist</h2><table><thead><tr><th>Room / Section</th><th>Checklist Item</th><th>Status</th><th>Notes</th><th>Suggested Trade / Resource</th><th>Homeowner Pace</th><th>Action Certainty</th><th>Approx. Time</th><th>PASS Candidate</th><th>Photos</th></tr></thead><tbody>${tableRows(rows, columns)}</tbody></table></section>`;
+  return reportShell('02 - HTC Checklist', payload.client, body);
+}
+function buildIntakeSummaryHtml(payload) {
+  const rows = INTAKE_EXPORT_FIELDS.map(([label, key]) => ({ label, value: typeof key === 'function' ? key(payload.intake || {}) : (payload.intake || {})[key] }));
+  const body = `<section class="card"><h2>Homeowner Context From Intake</h2><table><thead><tr><th>Topic</th><th>Homeowner Context</th></tr></thead><tbody>${tableRows(rows, [{value:r=>htmlText(r.label)}, {value:r=>htmlText(r.value, '')}])}</tbody></table></section>`;
+  return reportShell('03 - Intake Summary', payload.client, body);
+}
+function buildPhotoIndexHtml(payload, photoEntries = []) {
+  const grouped = photoEntries.reduce((acc, entry) => { const room = entry.room || 'Room'; acc[room] = [...(acc[room] || []), entry]; return acc; }, {});
+  const sections = Object.entries(grouped).map(([room, entries]) => `<section class="card"><h2>${htmlEscape(room)}</h2><table><thead><tr><th>Photo Label</th><th>Related Checklist Item / Overview</th><th>Drive File Name</th><th>Drive Link</th></tr></thead><tbody>${tableRows(entries, [{value:e=>htmlText(e.label)}, {value:e=>htmlText(e.item)}, {value:e=>htmlText(e.driveFileName || flatPhotoDriveName({room:e.room,item:e.item,label:e.label,originalName:e.originalName}))}, {value:e=>e.driveViewLink ? `<a href="${htmlEscape(e.driveViewLink)}">Open photo</a>` : 'Link not available'}])}</tbody></table></section>`).join('') || '<section class="card"><p>No photos recorded.</p></section>';
+  return reportShell('04 - Photo Index', payload.client, sections);
+}
+async function uploadDriveBundle(accessToken, payload) {
+  const rootId = await findOrCreateDriveFolder(accessToken, 'THA Clients');
+  const incomingId = await findOrCreateDriveFolder(accessToken, '_HTC PMR Incoming', rootId);
+  const packageFolderName = drivePackageFolderName(payload.client);
+  const packageId = await findOrCreateDriveFolder(accessToken, packageFolderName, incomingId);
+  const photosId = await findOrCreateDriveFolder(accessToken, 'Photos', packageId);
+  const backupId = await findOrCreateDriveFolder(accessToken, 'Backup Data', packageId);
+  const uploadedLookup = {};
+  const sectionLookup = Object.fromEntries((payload.sectionFlow || []).map(section => [section.key, section]));
+
+  for (const [sectionKey, capture] of Object.entries(payload.roomCapture || {})) {
+    const section = sectionLookup[sectionKey] || {};
+    const room = section.roomName || section.label || sectionKey || 'Room';
+    const photos = photoList(capture).filter(photo => photo.dataUrl);
+    for (const photo of photos) {
+      const fileName = flatPhotoDriveName({ room, item: 'Overview', label: photo.label || 'Overview', originalName: photo.name });
       const blob = dataUrlToBlob(photo.dataUrl);
-      const extension = blob.type.split('/')[1] || 'jpg';
-      await uploadDriveBlob(accessToken, overviewId, `${String(index + 1).padStart(2, '0')} - ${photo.label || 'Overview'} - ${cleanDriveName(photo.name)}.${extension}`, blob, blob.type);
+      const uploaded = await uploadDriveBlob(accessToken, photosId, fileName, blob, blob.type || 'image/jpeg');
+      uploadedLookup[`room:${sectionKey}:${photo.id}`] = { driveFileName: uploaded.name || fileName, driveViewLink: uploaded.webViewLink || '' };
     }
   }
   for (const row of payload.rows) {
+    const room = row.roomName || row.room || 'Room';
     const photos = photoList(row.answer).filter(photo => photo.dataUrl);
-    if (!photos.length) continue;
-    const roomTypeId = await findOrCreateDriveFolder(accessToken, cleanDriveName(row.roomType || row.room), photosId);
-    const orderPrefix = sectionOrderLookup[row.sectionKey] ? `${String(sectionOrderLookup[row.sectionKey]).padStart(2, '0')} - ` : '';
-    const roomNameId = await findOrCreateDriveFolder(accessToken, cleanDriveName(`${orderPrefix}${row.roomName || row.room}`), roomTypeId);
-    const itemId = await findOrCreateDriveFolder(accessToken, cleanDriveName(row.item), roomNameId);
-    for (const [index, photo] of photos.entries()) {
+    for (const photo of photos) {
+      const fileName = flatPhotoDriveName({ room, item: row.item || 'Checklist Item', label: photo.label || 'Photo', originalName: photo.name });
       const blob = dataUrlToBlob(photo.dataUrl);
-      const extension = blob.type.split('/')[1] || 'jpg';
-      await uploadDriveBlob(accessToken, itemId, `${String(index + 1).padStart(2, '0')} - ${photo.label} - ${cleanDriveName(photo.name)}.${extension}`, blob, blob.type);
+      const uploaded = await uploadDriveBlob(accessToken, photosId, fileName, blob, blob.type || 'image/jpeg');
+      uploadedLookup[`item:${row.id}:${photo.id}`] = { driveFileName: uploaded.name || fileName, driveViewLink: uploaded.webViewLink || '' };
     }
   }
-}
 
+  const photoEntries = photoEntriesForPayload(payload, uploadedLookup);
+  await uploadDriveHtml(accessToken, packageId, '01 - PMR Report.html', buildPmrReportHtml(payload, photoEntries));
+  await uploadDriveHtml(accessToken, packageId, '02 - HTC Checklist.html', buildHtcChecklistHtml(payload, photoEntries));
+  await uploadDriveHtml(accessToken, packageId, '03 - Intake Summary.html', buildIntakeSummaryHtml(payload));
+  await uploadDriveHtml(accessToken, packageId, '04 - Photo Index.html', buildPhotoIndexHtml(payload, photoEntries));
+  await uploadDriveJson(accessToken, backupId, 'intake.json', { client: payload.client, intake: payload.intake });
+  await uploadDriveJson(accessToken, backupId, 'htc-walkthrough.json', { client: payload.client, roomCapture: payload.roomCapture || {}, rows: payload.rows });
+  await uploadDriveJson(accessToken, backupId, 'pmr-data.json', { client: payload.client, intake: payload.intake, pmr: payload.pmr });
+  await uploadDriveJson(accessToken, backupId, 'full-walkthrough-export.json', payload);
+  const folderInfo = await getDriveFileInfo(accessToken, packageId).catch(() => ({ id: packageId, name: packageFolderName, webViewLink: driveFolderUrl(packageId) }));
+  return { folderId: packageId, folderName: folderInfo.name || packageFolderName, folderLink: folderInfo.webViewLink || driveFolderUrl(packageId) };
+}
 function safeJsonParse(value, fallback) {
   try {
     const parsed = JSON.parse(value || 'null');
@@ -996,7 +1087,7 @@ function App() {
   const [view, setView] = useState('intake');
   const [driveToken, setDriveToken] = useState('');
   const [driveClientId, setDriveClientId] = useState(() => localStorage.getItem(GOOGLE_CLIENT_ID_KEY) || '');
-  const [driveMeta, setDriveMeta] = useState(() => ({ lastSaved: '', lastStatus: '', lastStatusTone: '', lastError: '', lastErrorDetails: '', ...(safeJsonParse(localStorage.getItem(DRIVE_META_KEY), null) || {}) }));
+  const [driveMeta, setDriveMeta] = useState(() => ({ lastSaved: '', lastStatus: '', lastStatusTone: '', lastError: '', lastErrorDetails: '', lastFolderName: '', lastFolderLink: '', ...(safeJsonParse(localStorage.getItem(DRIVE_META_KEY), null) || {}) }));
   const [pendingCount, setPendingCount] = useState(() => safeJsonParse(localStorage.getItem(DRIVE_QUEUE_KEY), []).length);
   const [driveBusy, setDriveBusy] = useState(false);
   const [sectionOrderState, setSectionOrderState] = useState(initialState.data.sectionOrder);
@@ -1209,9 +1300,8 @@ function App() {
     markItemPhoto(id, photo.id, { uploadStatus: PHOTO_UPLOAD_STATUS.PENDING });
     try {
       const row = rows.find(candidate => candidate.id === id) || itemById[id];
-      const folderId = await findOrCreateDrivePhotoFolder(driveToken, { client, sectionFlow: driveSectionFlow(sections), row });
-      const labelPrefix = photo.label || 'Photo';
-      const uploaded = await uploadDrivePhoto(driveToken, folderId, photo, `${labelPrefix} - ${photo.name || row?.item || 'photo'}`);
+      const folderId = await findOrCreateDrivePhotoFolder(driveToken, { client });
+      const uploaded = await uploadDrivePhoto(driveToken, folderId, photo, stripFileExtension(flatPhotoDriveName({ room: row?.roomName || row?.room || 'Room', item: row?.item || 'Checklist Item', label: photo.label || 'Photo', originalName: photo.name })));
       markItemPhoto(id, photo.id, uploaded);
       setPhotoFeedback({ state: 'success', message: 'Photo uploaded to Drive' });
       return true;
@@ -1226,8 +1316,9 @@ function App() {
     if (!driveToken || !photo?.dataUrl) return false;
     markRoomPhoto(sectionKey, photo.id, { uploadStatus: PHOTO_UPLOAD_STATUS.PENDING });
     try {
-      const folderId = await findOrCreateDrivePhotoFolder(driveToken, { client, sectionFlow: driveSectionFlow(sections), sectionKey, itemName: 'Room Overview' });
-      const uploaded = await uploadDrivePhoto(driveToken, folderId, photo, `Overview - ${photo.name || sectionKey || 'photo'}`);
+      const section = driveSectionFlow(sections).find(candidate => candidate.key === sectionKey) || {};
+      const folderId = await findOrCreateDrivePhotoFolder(driveToken, { client });
+      const uploaded = await uploadDrivePhoto(driveToken, folderId, photo, stripFileExtension(flatPhotoDriveName({ room: section.roomName || section.label || sectionKey || 'Room', item: 'Overview', label: photo.label || 'Overview', originalName: photo.name })));
       markRoomPhoto(sectionKey, photo.id, uploaded);
       setPhotoFeedback({ state: 'success', message: 'Room photo uploaded to Drive' });
       return true;
@@ -1476,10 +1567,16 @@ function App() {
         safeLocalStorageSet(DRIVE_QUEUE_KEY, '[]', applyStorageFailure);
         setPendingCount(0);
       }
-      await uploadDriveBundle(driveToken, payload);
+      const drivePackage = await uploadDriveBundle(driveToken, payload);
       const savedAt = driveSavedTime();
       setPendingCount(0);
-      setDriveMeta(meta => ({...meta, lastSaved: savedAt, ...driveStatusState(`Saved to Drive at ${savedAt}`, 'success')}));
+      setDriveMeta(meta => ({
+        ...meta,
+        lastSaved: savedAt,
+        lastFolderName: drivePackage.folderName || '',
+        lastFolderLink: drivePackage.folderLink || '',
+        ...driveStatusState(`Saved to Drive at ${savedAt} — exported folder: ${drivePackage.folderName}`, 'success')
+      }));
     } catch (error) {
       if (isDriveSessionExpired(error)) setDriveToken('');
       const count = isDriveSessionExpired(error) ? pendingCount : queueDrivePayload(payload, applyStorageFailure);
@@ -1543,7 +1640,8 @@ function App() {
       {driveMeta.lastStatus && <div className={`driveStatusBox ${driveMeta.lastStatusTone || 'info'}`} role="status" aria-live="polite"><CheckCircle2 size={16}/><strong>{driveMeta.lastStatus}</strong></div>}
       {driveMeta.lastError && <div className="driveErrorBox" role="alert"><AlertTriangle size={16}/><div><strong>{driveMeta.lastError}</strong>{driveMeta.lastErrorDetails && <details><summary>Technical details</summary><pre>{driveMeta.lastErrorDetails}</pre></details>}</div></div>}
       <div className="driveMetaRow">
-        <span>Last saved to Drive: {driveMeta.lastSaved || 'Never'}</span>
+        <span>Last saved to Drive: {driveMeta.lastSaved || 'Never'}{driveMeta.lastFolderName ? ` · ${driveMeta.lastFolderName}` : ''}</span>
+        {driveMeta.lastFolderLink && <a className="driveFolderLink" href={driveMeta.lastFolderLink} target="_blank" rel="noreferrer"><FolderOpen size={14}/> Open Drive Folder</a>}
         <span className={pendingCount ? 'pendingSync on' : 'pendingSync'}>{pendingCount ? `Pending Drive Sync: ${pendingCount}` : 'Pending sync count: 0'}</span>
         <span className={pendingPhotoCount ? 'pendingSync on' : 'pendingSync'}>{pendingPhotoCount ? `Pending photos: ${pendingPhotoCount}` : 'Pending photos: 0'}</span>
       </div>
