@@ -565,6 +565,7 @@ function serializeErrorDetails(error) {
 }
 function driveErrorMessage(error, fallback = 'Unable to connect Google Drive') {
   const rawText = [error?.message, error?.code, error?.error, error?.description, error?.error_description, error?.body].filter(Boolean).join(' ').toLowerCase();
+  if (error?.status === 401 || rawText.includes('invalid_token') || rawText.includes('unauthorized')) return 'Drive session expired — reconnect';
   if (error?.code === 'missing_client_id' || rawText.includes('client id is required')) return 'Missing Client ID — paste a Google OAuth Client ID for a Web application. This is not a Drive folder URL.';
   if (error?.code === 'gis_load_failed') return 'Google Identity Services failed to load. Check internet access, browser/script blocking, then try again.';
   if (rawText.includes('access_denied') || rawText.includes('user canceled') || rawText.includes('cancelled') || rawText.includes('popup_closed')) return 'Access denied / user canceled — approve the Google consent prompt to connect Drive.';
@@ -576,9 +577,21 @@ function driveErrorMessage(error, fallback = 'Unable to connect Google Drive') {
 }
 function buildDriveErrorState(error, fallback) {
   return {
+    lastStatus: '',
+    lastStatusTone: '',
     lastError: driveErrorMessage(error, fallback),
     lastErrorDetails: serializeErrorDetails(error)
   };
+}
+function driveStatusState(message, tone = 'info') {
+  return { lastStatus: message, lastStatusTone: tone, lastError: '', lastErrorDetails: '' };
+}
+function driveSavedTime() {
+  return new Date().toLocaleString();
+}
+function isDriveSessionExpired(error) {
+  const rawText = [error?.message, error?.code, error?.error, error?.description, error?.error_description, error?.body].filter(Boolean).join(' ').toLowerCase();
+  return error?.status === 401 || rawText.includes('invalid_token') || rawText.includes('unauthorized');
 }
 function setupChecklistText(origin) {
   return [
@@ -983,7 +996,7 @@ function App() {
   const [view, setView] = useState('intake');
   const [driveToken, setDriveToken] = useState('');
   const [driveClientId, setDriveClientId] = useState(() => localStorage.getItem(GOOGLE_CLIENT_ID_KEY) || '');
-  const [driveMeta, setDriveMeta] = useState(() => safeJsonParse(localStorage.getItem(DRIVE_META_KEY), null) || { lastSaved: '', lastError: '', lastErrorDetails: '' });
+  const [driveMeta, setDriveMeta] = useState(() => ({ lastSaved: '', lastStatus: '', lastStatusTone: '', lastError: '', lastErrorDetails: '', ...(safeJsonParse(localStorage.getItem(DRIVE_META_KEY), null) || {}) }));
   const [pendingCount, setPendingCount] = useState(() => safeJsonParse(localStorage.getItem(DRIVE_QUEUE_KEY), []).length);
   const [driveBusy, setDriveBusy] = useState(false);
   const [sectionOrderState, setSectionOrderState] = useState(initialState.data.sectionOrder);
@@ -1416,12 +1429,14 @@ function App() {
   };
   const connectDrive = async () => {
     setDriveBusy(true);
+    setDriveMeta(meta => ({...meta, ...driveStatusState('Connecting to Google Drive…', 'info')}));
     try {
       await loadGoogleIdentityScript();
       const token = await requestDriveToken(driveClientId);
       setDriveToken(token);
-      setDriveMeta(meta => ({...meta, lastError:'', lastErrorDetails:''}));
+      setDriveMeta(meta => ({...meta, ...driveStatusState('Drive connected — ready to save', 'success')}));
     } catch (error) {
+      setDriveToken('');
       setDriveMeta(meta => ({...meta, ...buildDriveErrorState(error, 'Unable to connect Google Drive')}));
     } finally {
       setDriveBusy(false);
@@ -1442,13 +1457,18 @@ function App() {
   const syncDrive = async ({includeDownload=false, retryQueue=false} = {}) => {
     if (includeDownload) downloadJSON();
     const payload = buildDrivePayload({walkthroughName, client, intake, rows, pmr, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture});
-    if (!navigator.onLine || !driveToken) {
+    if (!driveToken) {
+      setDriveMeta(meta => ({...meta, lastStatus: '', lastStatusTone: '', lastError: 'Reconnect Google Drive before saving', lastErrorDetails: ''}));
+      return;
+    }
+    if (!navigator.onLine) {
       const count = queueDrivePayload(payload, applyStorageFailure);
       setPendingCount(count);
-      setDriveMeta(meta => ({...meta, lastError:'Pending Drive Sync'}));
+      setDriveMeta(meta => ({...meta, lastStatus: '', lastStatusTone: '', lastError: 'Pending Drive Sync — browser is offline; reconnect to the internet and save again.', lastErrorDetails: ''}));
       return;
     }
     setDriveBusy(true);
+    setDriveMeta(meta => ({...meta, ...driveStatusState('Saving walkthrough to Drive…', 'info')}));
     try {
       if (retryQueue) {
         const queue = safeJsonParse(localStorage.getItem(DRIVE_QUEUE_KEY), []);
@@ -1457,11 +1477,14 @@ function App() {
         setPendingCount(0);
       }
       await uploadDriveBundle(driveToken, payload);
-      setDriveMeta({lastSaved:new Date().toLocaleString(), lastError:'', lastErrorDetails:''});
+      const savedAt = driveSavedTime();
+      setPendingCount(0);
+      setDriveMeta(meta => ({...meta, lastSaved: savedAt, ...driveStatusState(`Saved to Drive at ${savedAt}`, 'success')}));
     } catch (error) {
-      const count = queueDrivePayload(payload, applyStorageFailure);
+      if (isDriveSessionExpired(error)) setDriveToken('');
+      const count = isDriveSessionExpired(error) ? pendingCount : queueDrivePayload(payload, applyStorageFailure);
       setPendingCount(count);
-      setDriveMeta(meta => ({...meta, ...buildDriveErrorState(error, 'Pending Drive Sync')}));
+      setDriveMeta(meta => ({...meta, ...buildDriveErrorState(error, 'Drive save failed — walkthrough queued for retry.')}));
     } finally {
       setDriveBusy(false);
     }
@@ -1493,6 +1516,7 @@ function App() {
         <div>
           <h2>Google Drive connection</h2>
           <p>This app needs a <strong>Google OAuth Client ID for a Web application</strong>. A Google Drive folder URL will not work.</p>
+          <p className="driveActionHelp">Connect Google Drive authorizes this browser session. Save current walkthrough to Drive creates/updates the Drive folders and files.</p>
         </div>
         <span className={driveToken ? 'drivePill connected' : 'drivePill'}>{driveToken ? 'Connected' : 'Not connected'}</span>
       </div>
@@ -1506,7 +1530,7 @@ function App() {
       </div>
       <div className="driveSetupActions">
         <button onClick={connectDrive} disabled={driveBusy}><FolderOpen size={16}/> Connect Google Drive</button>
-        <button onClick={()=>syncDrive({retryQueue:true})} disabled={driveBusy || !driveToken}><Upload size={16}/> Save to Drive</button>
+        <button onClick={()=>syncDrive({retryQueue:true})} disabled={driveBusy}><Upload size={16}/> Save current walkthrough to Drive</button>
         <button onClick={syncPendingPhotosToDrive} disabled={driveBusy || !driveToken || !pendingPhotoCount}><Upload size={16}/> Sync pending photos to Drive</button>
         <button type="button" onClick={()=>copyDriveText(setupChecklistText(appOrigin), 'Setup checklist')}><ClipboardCheck size={16}/> Copy setup checklist</button>
         {copyFeedback && <span className="copyFeedback" role="status">{copyFeedback}</span>}
@@ -1516,6 +1540,7 @@ function App() {
         <ol>{GOOGLE_DRIVE_SETUP_STEPS.map(step => <li key={step}><CheckCircle2 size={15}/><span>{step}{step.includes('authorized JavaScript origin') && <>: <code>{appOrigin}</code></>}</span></li>)}</ol>
       </div>
       {!driveClientId.trim() && <div className="driveErrorBox" role="status"><AlertTriangle size={16}/><span>Missing Client ID — paste a Google OAuth Client ID before connecting Drive.</span></div>}
+      {driveMeta.lastStatus && <div className={`driveStatusBox ${driveMeta.lastStatusTone || 'info'}`} role="status" aria-live="polite"><CheckCircle2 size={16}/><strong>{driveMeta.lastStatus}</strong></div>}
       {driveMeta.lastError && <div className="driveErrorBox" role="alert"><AlertTriangle size={16}/><div><strong>{driveMeta.lastError}</strong>{driveMeta.lastErrorDetails && <details><summary>Technical details</summary><pre>{driveMeta.lastErrorDetails}</pre></details>}</div></div>}
       <div className="driveMetaRow">
         <span>Last saved to Drive: {driveMeta.lastSaved || 'Never'}</span>
