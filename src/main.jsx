@@ -130,6 +130,7 @@ const LEGACY_INTAKE_KEY = 'tha-intake';
 const ROOM_CAPTURE_KEY = 'tha-room-capture';
 const WALKTHROUGH_SESSIONS_KEY = 'tha-walkthrough-sessions';
 const CURRENT_WALKTHROUGH_ID_KEY = 'tha-current-walkthrough-id';
+const WALKTHROUGH_CONTROLS_COLLAPSED_KEY = 'tha-walkthrough-controls-collapsed';
 const PHOTO_MAX_DIMENSION = 1600;
 const PHOTO_QUALITY = 0.76;
 const PHOTO_THUMBNAIL_MAX_DIMENSION = 360;
@@ -1105,6 +1106,13 @@ function App() {
   const [copyFeedback, setCopyFeedback] = useState('');
   const [storageWarning, setStorageWarning] = useState('');
   const [saveStatus, setSaveStatus] = useState({ state: 'saved', time: initialState.activeId ? 'loaded' : '' });
+  const [controlsCollapsed, setControlsCollapsed] = useState(() => {
+    const initialClient = initialState.data.client || {};
+    const missingBasicInfo = !initialClient.name?.trim() || !initialClient.address?.trim() || !initialClient.date?.trim();
+    const savedDriveMeta = safeJsonParse(localStorage.getItem(DRIVE_META_KEY), null);
+    const hasDriveError = Boolean(savedDriveMeta?.lastError);
+    return Boolean(initialState.activeId && !missingBasicInfo && !hasDriveError && localStorage.getItem(WALKTHROUGH_CONTROLS_COLLAPSED_KEY) === 'true');
+  });
   const autosaveReadyRef = useRef(false);
   const forceDriveConsentRef = useRef(false);
   const appOrigin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -1131,6 +1139,9 @@ function App() {
     if (activeWalkthroughId) safeLocalStorageSet(CURRENT_WALKTHROUGH_ID_KEY, activeWalkthroughId, applyStorageFailure);
     else safeLocalStorageRemove(CURRENT_WALKTHROUGH_ID_KEY, applyStorageFailure);
   }, [activeWalkthroughId]);
+  useEffect(()=>{
+    safeLocalStorageSet(WALKTHROUGH_CONTROLS_COLLAPSED_KEY, controlsCollapsed ? 'true' : 'false', applyStorageFailure);
+  }, [controlsCollapsed]);
   const baseSections = useMemo(() => {
     const list = [];
     sectionOrder.forEach(room => {
@@ -1526,6 +1537,7 @@ function App() {
     setWalkthroughName(nextName);
     setActiveWalkthroughId(nextId);
     setSelectedWalkthroughId('');
+    setControlsCollapsed(false);
   };
   const saveWalkthrough = () => {
     setSaveStatus({ state: 'saving', time: '' });
@@ -1539,6 +1551,9 @@ function App() {
     applyWalkthroughData(session.data);
     setActiveWalkthroughId(id);
     setWalkthroughName(session.name || 'Untitled Walkthrough');
+    const openedClient = session.data.client || {};
+    const openedMissingBasicInfo = !openedClient.name?.trim() || !openedClient.address?.trim() || !openedClient.date?.trim();
+    setControlsCollapsed(openedMissingBasicInfo ? false : localStorage.getItem(WALKTHROUGH_CONTROLS_COLLAPSED_KEY) === 'true');
   };
   const deleteSavedWalkthrough = () => {
     const id = selectedWalkthroughId;
@@ -1616,6 +1631,30 @@ function App() {
   };
   const savedSessionList = Object.values(savedSessions).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
   const hasUnsavedVisiblePhotos = saveStatus.state !== 'saved' && hasVisiblePhotoDataUrls(answers, roomCapture);
+  const controlsMissingFields = [
+    !client.name?.trim() && 'Client Name',
+    !client.address?.trim() && 'Project Address',
+    !client.date?.trim() && 'Walkthrough Date / Visit Label'
+  ].filter(Boolean);
+  const controlsNeedsAttention = Boolean(controlsMissingFields.length || storageWarning || photoFeedback.message || driveMeta.lastError || saveStatus.state === 'failed' || pendingCount || pendingPhotoCount);
+  const controlsAttentionText = controlsMissingFields.length
+    ? `Needs ${controlsMissingFields.join(', ')}`
+    : storageWarning || photoFeedback.message || driveMeta.lastError || (saveStatus.state === 'failed' ? saveStatusText(saveStatus, hasUnsavedVisiblePhotos) : 'Attention needed');
+  const driveSummaryText = driveMeta.lastError
+    ? `Drive error: ${driveMeta.lastError}`
+    : pendingCount
+      ? `Drive sync pending: ${pendingCount}`
+      : pendingPhotoCount
+        ? `Pending photos: ${pendingPhotoCount}`
+        : driveToken
+          ? 'Drive connected'
+          : driveConfigured
+            ? 'Drive configured'
+            : 'Drive not configured';
+  const setControlsCollapsedPreference = (collapsed) => {
+    setControlsCollapsed(collapsed);
+    safeLocalStorageSet(WALKTHROUGH_CONTROLS_COLLAPSED_KEY, collapsed ? 'true' : 'false', applyStorageFailure);
+  };
   const syncDrive = async ({includeDownload=false, retryQueue=false} = {}) => {
     if (includeDownload) downloadJSON();
     const payload = buildDrivePayload({walkthroughName, client, intake, rows, pmr, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture});
@@ -1663,90 +1702,116 @@ function App() {
       <div className="brand"><THALogo variant="full"/><div><span>Intake → HTC → PMR → PASS</span></div></div>
       <nav><button onClick={()=>setView('intake')} className={view==='intake'?'on':''}><Home size={18}/> Intake</button><button onClick={()=>setView('form')} className={view==='form'?'on':''}><ClipboardCheck size={18}/> HTC</button><button onClick={()=>setView('pmr')} className={view==='pmr'?'on':''}><FileText size={18}/> PMR</button><button onClick={()=>setView('metrics')} className={view==='metrics'?'on':''}><Clock3 size={18}/> Metrics</button></nav>
     </header>
-    <section className="sessionCard noPrint" aria-label="Walkthrough save controls">
-      <label>Working Session Name<input value={walkthroughName} onChange={e=>setWalkthroughName(e.target.value)} placeholder="Name this working session"/></label>
-      <div className="walkthroughActions" aria-label="Walkthrough save and backup actions">
-        <button type="button" onClick={startNewWalkthrough}>Start New Blank Walkthrough</button>
-        <div className="manualSaveGroup"><button type="button" onClick={saveWalkthrough}>Save Working Walkthrough</button><span className={`saveStatus ${saveStatus.state}`} role="status" aria-live="polite"><span className="saveStatusDot" aria-hidden="true"></span>{saveStatusText(saveStatus, hasUnsavedVisiblePhotos)}</span></div>
-        <button type="button" onClick={()=>syncDrive({includeDownload:true})}><Download size={16}/> Download Emergency Backup</button>
+    <section className={`walkthroughControlsPanel noPrint ${controlsCollapsed ? 'collapsed' : 'expanded'} ${controlsNeedsAttention ? 'needsAttention' : ''}`} aria-label="Walkthrough Control Panel">
+      <div className="walkthroughControlsHeader">
+        <div>
+          <h2>Walkthrough Control Panel</h2>
+          <p>{controlsCollapsed ? 'Compact walkthrough setup summary.' : 'Name, save, export, and output controls for this walkthrough.'}</p>
+        </div>
+        {!controlsCollapsed && <button type="button" onClick={()=>setControlsCollapsedPreference(true)}>Hide Controls</button>}
       </div>
-      <label>Open Saved Walkthrough<select value={selectedWalkthroughId} onChange={e=>openSavedWalkthrough(e.target.value)}><option value="">Choose saved walkthrough</option>{savedSessionList.map(session=><option key={session.id} value={session.id}>{session.name || 'Untitled Walkthrough'}{session.updatedAt ? ` · ${new Date(session.updatedAt).toLocaleString()}` : ''}</option>)}</select></label>
-      <button type="button" onClick={deleteSavedWalkthrough} disabled={!selectedWalkthroughId || !savedSessions[selectedWalkthroughId]}>Delete Selected Walkthrough</button>
+      <div className="walkthroughControlsSummary" aria-label="Walkthrough control summary">
+        <div className="summaryItem"><span>Working Session Name</span><strong title={walkthroughName || 'Untitled Walkthrough'}>{walkthroughName || 'Untitled Walkthrough'}</strong></div>
+        <div className="summaryItem"><span>Client Name</span><strong title={client.name || 'Missing'}>{client.name || 'Missing'}</strong></div>
+        <div className="summaryItem"><span>Project Address</span><strong title={client.address || 'Missing'}>{client.address || 'Missing'}</strong></div>
+        <div className="summaryItem"><span>Walkthrough Date / Visit Label</span><strong title={client.date || 'Missing'}>{client.date || 'Missing'}</strong></div>
+        <span className={`saveStatus ${saveStatus.state}`} role="status" aria-live="polite"><span className="saveStatusDot" aria-hidden="true"></span>{saveStatusText(saveStatus, hasUnsavedVisiblePhotos)}</span>
+        <span className={`driveSummaryPill ${driveMeta.lastError ? 'error' : (driveToken ? 'connected' : '')}`} title={driveSummaryText}>{driveSummaryText}</span>
+        {controlsNeedsAttention && <span className="controlAttentionPill" role="status"><AlertTriangle size={14}/> {controlsAttentionText}</span>}
+        {controlsCollapsed && <button type="button" className="openControlsButton" onClick={()=>setControlsCollapsedPreference(false)}>Open Controls</button>}
+      </div>
+      {!controlsCollapsed && <div className="walkthroughControlsBody">
+        <section className="controlGroup sessionCard" aria-label="Walkthrough Info">
+          <div className="controlGroupTitle"><h3>Walkthrough Info</h3></div>
+          <label>Working Session Name<input value={walkthroughName} onChange={e=>setWalkthroughName(e.target.value)} placeholder="Name this working session"/></label>
+          <label>Client Name<input value={client.name} onChange={e=>setClient({...client,name:e.target.value})}/></label>
+          <label>Project Address<input value={client.address} onChange={e=>setClient({...client,address:e.target.value})}/></label>
+          <label>Walkthrough Date / Visit Label<input value={client.date} onChange={e=>setClient({...client,date:e.target.value})}/></label>
+        </section>
+        <section className="controlGroup sessionCard" aria-label="Local Work">
+          <div className="controlGroupTitle"><h3>Local Work</h3></div>
+          <div className="walkthroughActions" aria-label="Walkthrough save and backup actions">
+            <button type="button" onClick={startNewWalkthrough}>Start New Blank Walkthrough</button>
+            <div className="manualSaveGroup"><button type="button" onClick={saveWalkthrough}>Save Working Walkthrough</button><span className={`saveStatus ${saveStatus.state}`} role="status" aria-live="polite"><span className="saveStatusDot" aria-hidden="true"></span>{saveStatusText(saveStatus, hasUnsavedVisiblePhotos)}</span></div>
+            <button type="button" onClick={()=>syncDrive({includeDownload:true})}><Download size={16}/> Download Emergency Backup</button>
+          </div>
+          <label>Open Saved Walkthrough<select value={selectedWalkthroughId} onChange={e=>openSavedWalkthrough(e.target.value)}><option value="">Choose saved walkthrough</option>{savedSessionList.map(session=><option key={session.id} value={session.id}>{session.name || 'Untitled Walkthrough'}{session.updatedAt ? ` · ${new Date(session.updatedAt).toLocaleString()}` : ''}</option>)}</select></label>
+          <button type="button" onClick={deleteSavedWalkthrough} disabled={!selectedWalkthroughId || !savedSessions[selectedWalkthroughId]}>Delete Selected Walkthrough</button>
+        </section>
+        <section className="controlGroup clientCard" aria-label="PMR Output">
+          <div className="controlGroupTitle"><h3>PMR Output</h3></div>
+          <div className="pmrPrintActions" aria-label="PMR print actions"><button onClick={()=>window.print()}><Printer size={16}/> Print / Save Draft PMR</button><button className="finalPrintButton" onClick={printFinalPMR}><Printer size={16}/> Print Final PMR</button></div>
+        </section>
+        <section className="controlGroup driveStatus driveSetupPanel" aria-label="Drive Export">
+          <div className="driveSetupHeader">
+            <div>
+              <h3>Drive Export</h3>
+              <p>The OAuth Client ID is app configuration. Field users should not need to paste it on each device.</p>
+              <p className="driveActionHelp">Google Drive authorization still applies to the current browser session, so users may need to reconnect on another device or after the session expires.</p>
+            </div>
+            <span className={driveToken ? 'drivePill connected' : 'drivePill'}>{driveToken ? 'Connected' : (driveConfigured ? 'Configured' : 'Not configured')}</span>
+          </div>
+          <div className="driveSetupGrid drivePrimaryGrid">
+            <div className="driveBrowserStatus" role="status" aria-live="polite">
+              <strong>{driveStatusMessage}</strong>
+              <span>{hasAppDriveClientId && !usingManualDriveOverride ? 'Drive configured for this app.' : `Client ID source: ${driveClientIdSourceLabel}.`}</span>
+              <span>Connect Google Drive authorizes this browser session. Save Readable Package to Drive uploads the report package.</span>
+            </div>
+            <div className="originCard">
+              <span>Drive field workflow</span>
+              <p>The OAuth Client ID is app configuration. Field users should not need to paste it on each device.</p>
+              <p>Reconnect is usually enough on this browser; full setup is only needed after reset, a new browser/device, or browser storage being cleared.</p>
+            </div>
+          </div>
+          <div className="driveSetupActions">
+            <button onClick={connectDrive} disabled={driveBusy || !driveConfigured}><FolderOpen size={16}/> Connect Google Drive</button>
+            <button onClick={()=>syncDrive({retryQueue:true})} disabled={driveBusy || !driveToken}><Upload size={16}/> Save Readable Package to Drive</button>
+            {driveMeta.lastFolderLink ? <a className="driveFolderLink driveActionLink" href={driveMeta.lastFolderLink} target="_blank" rel="noreferrer"><FolderOpen size={14}/> Open Last Drive Folder</a> : <button type="button" disabled><FolderOpen size={16}/> Open Last Drive Folder</button>}
+            <button onClick={syncPendingPhotosToDrive} disabled={driveBusy || !driveToken || !pendingPhotoCount}><Upload size={16}/> Sync Pending Photos</button>
+            {copyFeedback && <span className="copyFeedback" role="status">{copyFeedback}</span>}
+          </div>
+          {!driveConfigured && <div className="driveErrorBox" role="status"><AlertTriangle size={16}/><span>Drive is not configured. Add the OAuth Client ID in Drive Setup Help or use Download Emergency Backup.</span></div>}
+          {driveMeta.lastStatus && <div className={`driveStatusBox ${driveMeta.lastStatusTone || 'info'}`} role="status" aria-live="polite"><CheckCircle2 size={16}/><strong>{driveMeta.lastStatus}</strong></div>}
+          {driveMeta.lastError && <div className="driveErrorBox" role="alert"><AlertTriangle size={16}/><div><strong>{driveMeta.lastError}</strong>{driveMeta.lastErrorDetails && <details open><summary>Technical details</summary><pre>{driveMeta.lastErrorDetails}</pre></details>}</div></div>}
+          <div className="driveMetaRow">
+            <span>Last saved to Drive: {driveMeta.lastSaved || 'Never'}{driveMeta.lastFolderName ? ` · ${driveMeta.lastFolderName}` : ''}</span>
+            {driveMeta.lastFolderLink && <a className="driveFolderLink" href={driveMeta.lastFolderLink} target="_blank" rel="noreferrer"><FolderOpen size={14}/> Open Drive Folder</a>}
+            <span className={pendingCount ? 'pendingSync on' : 'pendingSync'}>{pendingCount ? `Pending Drive Sync: ${pendingCount}` : 'Pending sync count: 0'}</span>
+            <span className={pendingPhotoCount ? 'pendingSync on' : 'pendingSync'}>{pendingPhotoCount ? `Pending photos: ${pendingPhotoCount}` : 'Pending photos: 0'}</span>
+          </div>
+          <details className="driveTroubleshooting">
+            <summary>Drive Setup Help / Troubleshooting</summary>
+            <div className="driveSetupGrid">
+              <div className="originCard">
+                <span>Current app origin for Google Cloud</span>
+                <code>{appOrigin}</code>
+                <p>Authorized JavaScript origin in Google Cloud must include the deployed app origin.</p>
+                <button type="button" onClick={()=>copyDriveText(appOrigin, 'Current app origin')}><ClipboardCheck size={16}/> Copy current app origin</button>
+              </div>
+              <div className="originCard">
+                <span>Manual OAuth Client ID fallback</span>
+                {hasAppDriveClientId && <label className="driveOverrideToggle"><input type="checkbox" checked={useDriveClientIdOverride} onChange={e=>setUseDriveClientIdOverride(e.target.checked)}/><span>Use manual Client ID override on this browser</span></label>}
+                <label>Google OAuth Client ID<span className="fieldHelp">Paste a Web application Client ID only when app-level configuration is missing or you intentionally need a browser override. Do not paste a Client Secret or Drive folder link.</span><input value={driveClientId} onChange={e=>updateDriveClientId(e.target.value)} disabled={hasAppDriveClientId && !useDriveClientIdOverride} placeholder="Paste OAuth Web Client ID for Drive upload"/></label>
+              </div>
+              <div className="originCard">
+                <span>Production setup</span>
+                <p>Add <code>VITE_GOOGLE_OAUTH_CLIENT_ID</code> in Vercel environment variables and redeploy.</p>
+                <p>Authorized JavaScript origin in Google Cloud must include the deployed app origin.</p>
+                <button type="button" onClick={()=>copyDriveText(setupChecklistText(appOrigin), 'Setup checklist')}><ClipboardCheck size={16}/> Copy setup checklist</button>
+              </div>
+            </div>
+            <div className="driveSetupChecklist">
+              <h3>Setup checklist</h3>
+              <ol>{GOOGLE_DRIVE_SETUP_STEPS.map(step => <li key={step}><CheckCircle2 size={15}/><span>{step}{step.includes('authorized JavaScript origin') && <>: <code>{appOrigin}</code></>}</span></li>)}</ol>
+              <p className="driveTechnicalNote"><strong>Technical setup notes:</strong> Store only the OAuth Web Client ID in this app. Do not paste or store a Client Secret. Enable the Google Drive API and use a Web application OAuth Client ID with this browser origin authorized.</p>
+              <button type="button" className="driveResetButton" onClick={resetDriveSetup}>Reset Drive setup on this browser</button>
+            </div>
+          </details>
+          <small className="driveSetupNote">{driveWarningText}</small>
+        </section>
+      </div>}
     </section>
     {(storageWarning || photoFeedback.message) && <section className="appWarning noPrint" role="alert" aria-live="assertive"><AlertTriangle size={18}/><div>{storageWarning && <strong>{storageWarning}</strong>}{photoFeedback.message && <span className={`photoFeedback ${photoFeedback.state}`}>{photoFeedback.message}</span>}</div></section>}
-    <section className="clientCard noPrint">
-      <label>Client Name<input value={client.name} onChange={e=>setClient({...client,name:e.target.value})}/></label>
-      <label>Project Address<input value={client.address} onChange={e=>setClient({...client,address:e.target.value})}/></label>
-      <label>Walkthrough Date / Visit Label<input value={client.date} onChange={e=>setClient({...client,date:e.target.value})}/></label>
-      <div className="pmrPrintActions" aria-label="PMR print actions"><button onClick={()=>window.print()}><Printer size={16}/> Print / Save Draft PMR</button><button className="finalPrintButton" onClick={printFinalPMR}><Printer size={16}/> Print Final PMR</button></div>
-    </section>
-    <section className="driveStatus driveSetupPanel noPrint" aria-label="Google Drive connection setup">
-      <div className="driveSetupHeader">
-        <div>
-          <h2>Google Drive connection</h2>
-          <p>The OAuth Client ID is app configuration. Field users should not need to paste it on each device.</p>
-          <p className="driveActionHelp">Google Drive authorization still applies to the current browser session, so users may need to reconnect on another device or after the session expires.</p>
-        </div>
-        <span className={driveToken ? 'drivePill connected' : 'drivePill'}>{driveToken ? 'Connected' : (driveConfigured ? 'Configured' : 'Not configured')}</span>
-      </div>
-      <div className="driveSetupGrid drivePrimaryGrid">
-        <div className="driveBrowserStatus" role="status" aria-live="polite">
-          <strong>{driveStatusMessage}</strong>
-          <span>{hasAppDriveClientId && !usingManualDriveOverride ? 'Drive configured for this app.' : `Client ID source: ${driveClientIdSourceLabel}.`}</span>
-          <span>Connect Google Drive authorizes this browser session. Save Readable Package to Drive uploads the report package.</span>
-        </div>
-        <div className="originCard">
-          <span>Drive field workflow</span>
-          <p>The OAuth Client ID is app configuration. Field users should not need to paste it on each device.</p>
-          <p>Reconnect is usually enough on this browser; full setup is only needed after reset, a new browser/device, or browser storage being cleared.</p>
-        </div>
-      </div>
-      <div className="driveSetupActions">
-        <button onClick={connectDrive} disabled={driveBusy || !driveConfigured}><FolderOpen size={16}/> Connect Google Drive</button>
-        <button onClick={()=>syncDrive({retryQueue:true})} disabled={driveBusy || !driveToken}><Upload size={16}/> Save Readable Package to Drive</button>
-        {driveMeta.lastFolderLink ? <a className="driveFolderLink driveActionLink" href={driveMeta.lastFolderLink} target="_blank" rel="noreferrer"><FolderOpen size={14}/> Open Last Drive Folder</a> : <button type="button" disabled><FolderOpen size={16}/> Open Last Drive Folder</button>}
-        <button onClick={syncPendingPhotosToDrive} disabled={driveBusy || !driveToken || !pendingPhotoCount}><Upload size={16}/> Sync Pending Photos</button>
-        {copyFeedback && <span className="copyFeedback" role="status">{copyFeedback}</span>}
-      </div>
-      {!driveConfigured && <div className="driveErrorBox" role="status"><AlertTriangle size={16}/><span>Drive is not configured. Add the OAuth Client ID in Drive Setup Help or use Download Emergency Backup.</span></div>}
-      {driveMeta.lastStatus && <div className={`driveStatusBox ${driveMeta.lastStatusTone || 'info'}`} role="status" aria-live="polite"><CheckCircle2 size={16}/><strong>{driveMeta.lastStatus}</strong></div>}
-      {driveMeta.lastError && <div className="driveErrorBox" role="alert"><AlertTriangle size={16}/><div><strong>{driveMeta.lastError}</strong>{driveMeta.lastErrorDetails && <details open><summary>Technical details</summary><pre>{driveMeta.lastErrorDetails}</pre></details>}</div></div>}
-      <div className="driveMetaRow">
-        <span>Last saved to Drive: {driveMeta.lastSaved || 'Never'}{driveMeta.lastFolderName ? ` · ${driveMeta.lastFolderName}` : ''}</span>
-        {driveMeta.lastFolderLink && <a className="driveFolderLink" href={driveMeta.lastFolderLink} target="_blank" rel="noreferrer"><FolderOpen size={14}/> Open Drive Folder</a>}
-        <span className={pendingCount ? 'pendingSync on' : 'pendingSync'}>{pendingCount ? `Pending Drive Sync: ${pendingCount}` : 'Pending sync count: 0'}</span>
-        <span className={pendingPhotoCount ? 'pendingSync on' : 'pendingSync'}>{pendingPhotoCount ? `Pending photos: ${pendingPhotoCount}` : 'Pending photos: 0'}</span>
-      </div>
-      <details className="driveTroubleshooting">
-        <summary>Drive Setup Help / Troubleshooting</summary>
-        <div className="driveSetupGrid">
-          <div className="originCard">
-            <span>Current app origin for Google Cloud</span>
-            <code>{appOrigin}</code>
-            <p>Authorized JavaScript origin in Google Cloud must include the deployed app origin.</p>
-            <button type="button" onClick={()=>copyDriveText(appOrigin, 'Current app origin')}><ClipboardCheck size={16}/> Copy current app origin</button>
-          </div>
-          <div className="originCard">
-            <span>Manual OAuth Client ID fallback</span>
-            {hasAppDriveClientId && <label className="driveOverrideToggle"><input type="checkbox" checked={useDriveClientIdOverride} onChange={e=>setUseDriveClientIdOverride(e.target.checked)}/><span>Use manual Client ID override on this browser</span></label>}
-            <label>Google OAuth Client ID<span className="fieldHelp">Paste a Web application Client ID only when app-level configuration is missing or you intentionally need a browser override. Do not paste a Client Secret or Drive folder link.</span><input value={driveClientId} onChange={e=>updateDriveClientId(e.target.value)} disabled={hasAppDriveClientId && !useDriveClientIdOverride} placeholder="Paste OAuth Web Client ID for Drive upload"/></label>
-          </div>
-          <div className="originCard">
-            <span>Production setup</span>
-            <p>Add <code>VITE_GOOGLE_OAUTH_CLIENT_ID</code> in Vercel environment variables and redeploy.</p>
-            <p>Authorized JavaScript origin in Google Cloud must include the deployed app origin.</p>
-            <button type="button" onClick={()=>copyDriveText(setupChecklistText(appOrigin), 'Setup checklist')}><ClipboardCheck size={16}/> Copy setup checklist</button>
-          </div>
-        </div>
-        <div className="driveSetupChecklist">
-          <h3>Setup checklist</h3>
-          <ol>{GOOGLE_DRIVE_SETUP_STEPS.map(step => <li key={step}><CheckCircle2 size={15}/><span>{step}{step.includes('authorized JavaScript origin') && <>: <code>{appOrigin}</code></>}</span></li>)}</ol>
-          <p className="driveTechnicalNote"><strong>Technical setup notes:</strong> Store only the OAuth Web Client ID in this app. Do not paste or store a Client Secret. Enable the Google Drive API and use a Web application OAuth Client ID with this browser origin authorized.</p>
-          <button type="button" className="driveResetButton" onClick={resetDriveSetup}>Reset Drive setup on this browser</button>
-        </div>
-      </details>
-      <small className="driveSetupNote">{driveWarningText}</small>
-    </section>
     {view === 'intake' && <IntakeView intake={intake} updateIntake={updateIntake} />}
     {view === 'form' && <main className="grid">
       <aside className="roomNav noPrint"><h3>Walkthrough Sections</h3><div className="addRoomTools">{Object.values(DYNAMIC_ROOM_TYPES).map(type => <button key={type.roomType} onClick={()=>addDynamicRoom(type.roomType)}>{type.addLabel} {type.roomType}</button>)}</div>{rooms.map(r => <div key={r.key} className="sectionNavRow" draggable onDragStart={()=>setDragSectionKey(r.key)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); moveSection(dragSectionKey, r.key); setDragSectionKey('');}} onDragEnd={()=>setDragSectionKey('')}><span className="sectionDragHandle" title="Drag to reorder walkthrough flow">⋮⋮</span><button className={`sectionSelect ${activeRoom===r.key?'active':''}`} onClick={()=>setActiveRoom(r.key)}>{r.label}</button></div>)}<div className="hint"><Camera size={18}/> Prompt: Capture context, close-up, and detail photos. Store by room/item folder path.</div></aside>
