@@ -101,13 +101,17 @@
 .driveSetupPanel{display:block;padding:16px 20px;background:#fff;border-bottom:1px solid var(--line);color:var(--navy)}
 .driveSetupHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:12px}
 .driveSetupHeader h2{margin:0;color:var(--navy);font-size:22px}
-.driveSetupHeader p{margin:5px 0 0;color:var(--ink);font-weight:700;line-height:1.35}
+.driveSetupHeader p{margin:5px 0 0;color:var(--ink);font-weight:700;line-height:1.35}.driveSetupHeader .driveActionHelp{color:var(--navy);font-weight:900}
 .driveSetupGrid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(280px,1fr);gap:12px;align-items:stretch}
 .originCard{display:flex;flex-direction:column;gap:7px;border:1px solid var(--line);border-radius:14px;background:#fbf7ef;padding:12px;font-weight:900;color:var(--navy)}
 .originCard code,.driveSetupChecklist code{display:inline-block;max-width:100%;overflow-wrap:anywhere;background:#fff;border:1px solid #eadbc2;border-radius:8px;padding:3px 6px;color:#62440f;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px}
 .originCard button{width:max-content;max-width:100%}
 .driveSetupActions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}
 .copyFeedback{color:#285c30;font-weight:900}
+.driveStatusBox{display:flex;gap:8px;align-items:center;margin-top:10px;border:1px solid #dbe7ef;background:#f7fbfd;color:var(--navy);border-radius:14px;padding:10px;font-weight:900;line-height:1.35}
+.driveStatusBox.success{border-color:#d8e8d1;background:#f3f8f1;color:#285c30}
+.driveStatusBox.info{border-color:#dbe7ef;background:#f7fbfd;color:var(--navy)}
+.driveStatusBox svg{flex:0 0 auto}
 .driveSetupChecklist{border:1px solid #dbe7ef;background:#f7fbfd;border-radius:16px;padding:12px;margin-top:8px}
 .driveSetupChecklist h3{margin:0 0 8px;color:var(--navy)}
 .driveSetupChecklist ol{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:8px 14px;margin:0;padding:0;list-style:none}
