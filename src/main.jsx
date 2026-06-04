@@ -456,7 +456,7 @@ function actionCertaintyCopy(row) {
 }
 function drivePath(client, date, room, item, roomName = room) {
   const clean = s => (s || '').replace(/[\\/:*?"<>|]/g,'-').slice(0,40);
-  return `THA Clients / _HTC PMR Incoming / ${clean(date || 'Walkthrough Date / Visit Label')} - ${clean(client || 'Client')} / Photos / ${clean(roomName || room)} - ${clean(item || 'Overview')}`;
+  return `THA Clients / _HTC PMR Incoming / ${clean(date || 'Walkthrough Date / Visit Label')} - ${clean(client || 'Client Name')} / Photos / ${clean(roomName || room)} - ${clean(item || 'Overview')}`;
 }
 function cleanDriveName(value) {
   return (value || 'Untitled').replace(/[\\/:*?"<>|]/g, '-').trim().slice(0, 90) || 'Untitled';
@@ -472,7 +472,7 @@ function stripFileExtension(name = '') {
   return String(name || '').replace(/\.[^.\/]+$/, '');
 }
 function drivePackageFolderName(client = {}) {
-  return cleanDriveName(`${client.date || 'Walkthrough Date / Visit Label'} - ${client.name || 'Client'} - ${client.address || 'Project Address'}`);
+  return cleanDriveName(`${client.date || 'Walkthrough Date / Visit Label'} - ${client.name || 'Client Name'} - ${client.address || 'Project Address'}`);
 }
 function driveFolderUrl(folderId) {
   return folderId ? `https://drive.google.com/drive/folders/${folderId}` : '';
@@ -781,7 +781,7 @@ function reportShell(title, client, body) {
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.stat{background:var(--soft);border-radius:14px;padding:14px;text-align:center}.stat strong{font-size:30px;color:var(--navy);display:block}.pill{display:inline-block;border-radius:999px;background:var(--soft);padding:4px 9px;font-weight:800}.high{background:var(--red)}.medium{background:var(--yellow)}.low{background:var(--green)}
     table{width:100%;border-collapse:collapse;background:#fff} th,td{border:1px solid var(--line);padding:8px;text-align:left;vertical-align:top} th{background:var(--navy);color:#fff} tr:nth-child(even) td{background:#fbf7ef} a{color:#0b5cad;font-weight:700} .small{font-size:12px;color:var(--muted)} ul{padding-left:20px}
     @media(max-width:720px){main{padding:12px}header{border-radius:0}table{font-size:13px}th,td{padding:6px}}
-  </style></head><body><header><h1>${htmlEscape(title)}</h1><div class="meta">${htmlText(client.name, 'Client not recorded')} · ${htmlText(client.address, 'Project address not recorded')} · ${htmlText(client.date, 'Walkthrough date / visit label not recorded')}</div></header><main>${body}</main></body></html>`;
+  </style></head><body><header><h1>${htmlEscape(title)}</h1><div class="meta">${htmlText(client.name, 'Client name not recorded')} · ${htmlText(client.address, 'Project address not recorded')} · ${htmlText(client.date, 'Walkthrough date / visit label not recorded')}</div></header><main>${body}</main></body></html>`;
 }
 function tableRows(items, columns) {
   return items.map(item => `<tr>${columns.map(col => `<td>${typeof col.value === 'function' ? col.value(item) : htmlText(item[col.value])}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${columns.length}">Nothing recorded.</td></tr>`;
