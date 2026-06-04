@@ -125,3 +125,4 @@
 .driveMetaRow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;font-weight:800;color:var(--navy)}
 .driveSetupPanel .driveSetupNote{display:block;margin-top:10px;grid-column:auto}
 @media(max-width:900px){.driveSetupGrid,.driveSetupChecklist ol{grid-template-columns:1fr}.driveSetupHeader{flex-direction:column}.originCard button{width:100%}.driveSetupActions button{width:100%;justify-content:center}}
+.driveFolderLink{align-self:center;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--navy);font-weight:900;padding:7px 10px;text-decoration:none}.driveFolderLink:hover{text-decoration:underline}
