@@ -109,7 +109,8 @@ const SMART_ROOM_PROMPTS = [
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const DRIVE_QUEUE_KEY = 'tha-drive-pending-queue';
 const DRIVE_META_KEY = 'tha-drive-meta';
-const GOOGLE_CLIENT_ID_KEY = 'tha-google-client-id';
+const DRIVE_CLIENT_ID_KEY = 'tha-google-drive-client-id';
+const LEGACY_GOOGLE_CLIENT_ID_KEY = 'tha-google-client-id';
 const GOOGLE_DRIVE_SETUP_STEPS = [
   'Create/select Google Cloud project',
   'Enable Google Drive API',
@@ -654,7 +655,7 @@ function loadGoogleIdentityScript() {
     document.head.appendChild(script);
   });
 }
-function requestDriveToken(clientId) {
+function requestDriveToken(clientId, { forceConsent = false } = {}) {
   return new Promise((resolve, reject) => {
     if (!clientId?.trim()) {
       reject(Object.assign(new Error('Google OAuth Client ID is required.'), { code: 'missing_client_id' }));
@@ -669,7 +670,7 @@ function requestDriveToken(clientId) {
           else resolve(response.access_token);
         }
       });
-      tokenClient.requestAccessToken({ prompt: 'consent' });
+      tokenClient.requestAccessToken({ prompt: forceConsent ? 'consent' : '' });
     } catch (error) {
       reject(error);
     }
@@ -1086,8 +1087,8 @@ function App() {
   const [activeRoom, setActiveRoom] = useState(sectionOrder[0] || 'Kitchen');
   const [view, setView] = useState('intake');
   const [driveToken, setDriveToken] = useState('');
-  const [driveClientId, setDriveClientId] = useState(() => localStorage.getItem(GOOGLE_CLIENT_ID_KEY) || '');
-  const [driveMeta, setDriveMeta] = useState(() => ({ lastSaved: '', lastStatus: '', lastStatusTone: '', lastError: '', lastErrorDetails: '', lastFolderName: '', lastFolderLink: '', ...(safeJsonParse(localStorage.getItem(DRIVE_META_KEY), null) || {}) }));
+  const [driveClientId, setDriveClientId] = useState(() => localStorage.getItem(DRIVE_CLIENT_ID_KEY) || localStorage.getItem(LEGACY_GOOGLE_CLIENT_ID_KEY) || '');
+  const [driveMeta, setDriveMeta] = useState(() => ({ lastSaved: '', lastStatus: '', lastStatusTone: '', lastError: '', lastErrorDetails: '', lastFolderName: '', lastFolderLink: '', hasConnected: false, ...(safeJsonParse(localStorage.getItem(DRIVE_META_KEY), null) || {}) }));
   const [pendingCount, setPendingCount] = useState(() => safeJsonParse(localStorage.getItem(DRIVE_QUEUE_KEY), []).length);
   const [driveBusy, setDriveBusy] = useState(false);
   const [sectionOrderState, setSectionOrderState] = useState(initialState.data.sectionOrder);
@@ -1102,12 +1103,22 @@ function App() {
   const [storageWarning, setStorageWarning] = useState('');
   const [saveStatus, setSaveStatus] = useState({ state: 'saved', time: initialState.activeId ? 'loaded' : '' });
   const autosaveReadyRef = useRef(false);
+  const forceDriveConsentRef = useRef(false);
   const appOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   const applyStorageFailure = (message) => {
     setStorageWarning(hasVisiblePhotoDataUrls(answers, roomCapture) ? PHOTO_AUTOSAVE_FAILURE_MESSAGE : message);
     setSaveStatus({ state: 'failed', time: '' });
   };
-  useEffect(()=>{ safeLocalStorageSet(GOOGLE_CLIENT_ID_KEY, driveClientId, applyStorageFailure); }, [driveClientId]);
+  useEffect(()=>{
+    const trimmedClientId = driveClientId.trim();
+    if (trimmedClientId) {
+      safeLocalStorageSet(DRIVE_CLIENT_ID_KEY, trimmedClientId, applyStorageFailure);
+      safeLocalStorageRemove(LEGACY_GOOGLE_CLIENT_ID_KEY, applyStorageFailure);
+    } else {
+      safeLocalStorageRemove(DRIVE_CLIENT_ID_KEY, applyStorageFailure);
+      safeLocalStorageRemove(LEGACY_GOOGLE_CLIENT_ID_KEY, applyStorageFailure);
+    }
+  }, [driveClientId]);
   useEffect(()=>{ safeLocalStorageSet(DRIVE_META_KEY, JSON.stringify(driveMeta), applyStorageFailure); }, [driveMeta]);
   useEffect(()=>{
     if (activeWalkthroughId) safeLocalStorageSet(CURRENT_WALKTHROUGH_ID_KEY, activeWalkthroughId, applyStorageFailure);
@@ -1156,6 +1167,45 @@ function App() {
   const quickHits = pmr.filter(r => ['Handyman','Safety'].includes(r.answer.trade) && ['15 min','30 min','45–60 min','1–2 hrs'].includes(r.answer.effort));
   const pass = rows.filter(r => r.answer.passCandidate);
   const pendingPhotoCount = pendingPhotoUploadCount(answers, roomCapture);
+  const driveConfigured = Boolean(driveClientId.trim());
+  const driveSessionExpired = Boolean(driveMeta.lastError && driveErrorMessage({ message: driveMeta.lastError }).includes('session expired'));
+  const driveStatusMessage = driveSessionExpired
+    ? 'Drive session expired — reconnect to export.'
+    : driveMeta.lastSaved
+      ? `Readable Drive package saved at ${driveMeta.lastSaved}.`
+      : driveToken
+        ? 'Drive connected — ready to export.'
+        : driveConfigured
+          ? 'Drive is configured on this browser. Connect before exporting.'
+          : 'Paste OAuth Client ID to configure Drive on this browser.';
+  const driveWarningText = driveMeta.lastSaved
+    ? 'Drive export is active. Download Emergency Backup is still recommended as a safety copy.'
+    : driveToken
+      ? 'Drive connected. Save a readable package to Drive when ready.'
+      : driveConfigured
+        ? 'Drive is configured. Connect Google Drive before exporting.'
+        : 'Drive is not configured on this browser. Use Download Emergency Backup until configured.';
+  const updateDriveClientId = (value) => {
+    setDriveClientId(value);
+    if (value.trim()) {
+      setDriveMeta(meta => meta.lastError === 'Missing Client ID — paste a Google OAuth Client ID before connecting Drive.' ? {...meta, lastError: '', lastErrorDetails: ''} : meta);
+    } else {
+      setDriveToken('');
+    }
+  };
+  const resetDriveSetup = () => {
+    setDriveClientId('');
+    setDriveToken('');
+    setPendingCount(0);
+    forceDriveConsentRef.current = true;
+    safeLocalStorageRemove(DRIVE_CLIENT_ID_KEY, applyStorageFailure);
+    safeLocalStorageRemove(LEGACY_GOOGLE_CLIENT_ID_KEY, applyStorageFailure);
+    safeLocalStorageRemove(DRIVE_META_KEY, applyStorageFailure);
+    safeLocalStorageSet(DRIVE_QUEUE_KEY, '[]', applyStorageFailure);
+    setDriveMeta({ lastSaved: '', lastStatus: '', lastStatusTone: '', lastError: '', lastErrorDetails: '', lastFolderName: '', lastFolderLink: '', hasConnected: false });
+    setCopyFeedback('Drive setup reset on this browser');
+    window.setTimeout(() => setCopyFeedback(''), 2500);
+  };
   const roomCaptureFor = (sectionKey) => ({
     status: roomCapture?.[sectionKey]?.status || ROOM_STATUS_OPTIONS[0],
     note: roomCapture?.[sectionKey]?.note || '',
@@ -1523,9 +1573,11 @@ function App() {
     setDriveMeta(meta => ({...meta, ...driveStatusState('Connecting to Google Drive…', 'info')}));
     try {
       await loadGoogleIdentityScript();
-      const token = await requestDriveToken(driveClientId);
+      const forceConsent = forceDriveConsentRef.current || !driveMeta.hasConnected;
+      const token = await requestDriveToken(driveClientId, { forceConsent });
+      forceDriveConsentRef.current = false;
       setDriveToken(token);
-      setDriveMeta(meta => ({...meta, ...driveStatusState('Drive connected — ready to save', 'success')}));
+      setDriveMeta(meta => ({...meta, hasConnected: true, ...driveStatusState('Drive connected — ready to export.', 'success')}));
     } catch (error) {
       setDriveToken('');
       setDriveMeta(meta => ({...meta, ...buildDriveErrorState(error, 'Unable to connect Google Drive')}));
@@ -1549,7 +1601,7 @@ function App() {
     if (includeDownload) downloadJSON();
     const payload = buildDrivePayload({walkthroughName, client, intake, rows, pmr, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture});
     if (!driveToken) {
-      setDriveMeta(meta => ({...meta, lastStatus: '', lastStatusTone: '', lastError: 'Reconnect Google Drive before saving', lastErrorDetails: ''}));
+      setDriveMeta(meta => ({...meta, lastStatus: '', lastStatusTone: '', lastError: driveConfigured ? 'Drive session expired — reconnect to export.' : 'Paste OAuth Client ID to configure Drive on this browser.', lastErrorDetails: ''}));
       return;
     }
     if (!navigator.onLine) {
@@ -1572,10 +1624,11 @@ function App() {
       setPendingCount(0);
       setDriveMeta(meta => ({
         ...meta,
+        hasConnected: true,
         lastSaved: savedAt,
         lastFolderName: drivePackage.folderName || '',
         lastFolderLink: drivePackage.folderLink || '',
-        ...driveStatusState(`Saved to Drive at ${savedAt} — exported folder: ${drivePackage.folderName}`, 'success')
+        ...driveStatusState(`Readable Drive package saved at ${savedAt}.`, 'success')
       }));
     } catch (error) {
       if (isDriveSessionExpired(error)) setDriveToken('');
@@ -1596,7 +1649,7 @@ function App() {
       <div className="walkthroughActions" aria-label="Walkthrough save and backup actions">
         <button type="button" onClick={startNewWalkthrough}>Start New Blank Walkthrough</button>
         <div className="manualSaveGroup"><button type="button" onClick={saveWalkthrough}>Save Working Walkthrough</button><span className={`saveStatus ${saveStatus.state}`} role="status" aria-live="polite"><span className="saveStatusDot" aria-hidden="true"></span>{saveStatusText(saveStatus, hasUnsavedVisiblePhotos)}</span></div>
-        <button type="button" onClick={()=>syncDrive({includeDownload:true})}><Download size={16}/> Download Walkthrough Backup</button>
+        <button type="button" onClick={()=>syncDrive({includeDownload:true})}><Download size={16}/> Download Emergency Backup</button>
       </div>
       <label>Open Saved Walkthrough<select value={selectedWalkthroughId} onChange={e=>openSavedWalkthrough(e.target.value)}><option value="">Choose saved walkthrough</option>{savedSessionList.map(session=><option key={session.id} value={session.id}>{session.name || 'Untitled Walkthrough'}{session.updatedAt ? ` · ${new Date(session.updatedAt).toLocaleString()}` : ''}</option>)}</select></label>
       <button type="button" onClick={deleteSavedWalkthrough} disabled={!selectedWalkthroughId || !savedSessions[selectedWalkthroughId]}>Delete Selected Walkthrough</button>
@@ -1613,39 +1666,54 @@ function App() {
         <div>
           <h2>Google Drive connection</h2>
           <p>This app needs a <strong>Google OAuth Client ID for a Web application</strong>. A Google Drive folder URL will not work.</p>
-          <p className="driveActionHelp">Connect Google Drive authorizes this browser session. Save current walkthrough to Drive creates/updates the Drive folders and files.</p>
+          <p className="driveActionHelp">Connect authorizes this browser session. Save Readable Package to Drive uploads the report package.</p>
         </div>
-        <span className={driveToken ? 'drivePill connected' : 'drivePill'}>{driveToken ? 'Connected' : 'Not connected'}</span>
+        <span className={driveToken ? 'drivePill connected' : 'drivePill'}>{driveToken ? 'Connected' : (driveConfigured ? 'Configured' : 'Not configured')}</span>
       </div>
       <div className="driveSetupGrid">
-        <label>Google OAuth Client ID<span className="fieldHelp">Paste the Web application Client ID from Google Cloud — not a Client Secret and not a Drive folder link.</span><input value={driveClientId} onChange={e=>setDriveClientId(e.target.value)} placeholder="Paste OAuth Web Client ID for Drive upload"/></label>
-        <div className="originCard">
-          <span>Current app origin for Google Cloud</span>
-          <code>{appOrigin}</code>
-          <button type="button" onClick={()=>copyDriveText(appOrigin, 'Current app origin')}><ClipboardCheck size={16}/> Copy current app origin</button>
+        <label>Google OAuth Client ID<span className="fieldHelp">Paste the Web application Client ID from Google Cloud — not a Client Secret and not a Drive folder link. It is saved only in this browser.</span><input value={driveClientId} onChange={e=>updateDriveClientId(e.target.value)} placeholder="Paste OAuth Web Client ID for Drive upload"/></label>
+        <div className="driveBrowserStatus" role="status" aria-live="polite">
+          <strong>{driveStatusMessage}</strong>
+          <span>Reconnect is usually enough on this browser; full setup is only needed after reset, a new browser/device, or browser storage being cleared.</span>
         </div>
       </div>
       <div className="driveSetupActions">
-        <button onClick={connectDrive} disabled={driveBusy}><FolderOpen size={16}/> Connect Google Drive</button>
-        <button onClick={()=>syncDrive({retryQueue:true})} disabled={driveBusy}><Upload size={16}/> Save current walkthrough to Drive</button>
+        <button onClick={connectDrive} disabled={driveBusy || !driveConfigured}><FolderOpen size={16}/> Connect Google Drive</button>
+        <button onClick={()=>syncDrive({retryQueue:true})} disabled={driveBusy || !driveToken}><Upload size={16}/> Save Readable Package to Drive</button>
         <button onClick={syncPendingPhotosToDrive} disabled={driveBusy || !driveToken || !pendingPhotoCount}><Upload size={16}/> Sync pending photos to Drive</button>
-        <button type="button" onClick={()=>copyDriveText(setupChecklistText(appOrigin), 'Setup checklist')}><ClipboardCheck size={16}/> Copy setup checklist</button>
         {copyFeedback && <span className="copyFeedback" role="status">{copyFeedback}</span>}
       </div>
-      <div className="driveSetupChecklist">
-        <h3>Setup checklist</h3>
-        <ol>{GOOGLE_DRIVE_SETUP_STEPS.map(step => <li key={step}><CheckCircle2 size={15}/><span>{step}{step.includes('authorized JavaScript origin') && <>: <code>{appOrigin}</code></>}</span></li>)}</ol>
-      </div>
-      {!driveClientId.trim() && <div className="driveErrorBox" role="status"><AlertTriangle size={16}/><span>Missing Client ID — paste a Google OAuth Client ID before connecting Drive.</span></div>}
+      {!driveClientId.trim() && <div className="driveErrorBox" role="status"><AlertTriangle size={16}/><span>Paste OAuth Client ID to configure Drive on this browser.</span></div>}
       {driveMeta.lastStatus && <div className={`driveStatusBox ${driveMeta.lastStatusTone || 'info'}`} role="status" aria-live="polite"><CheckCircle2 size={16}/><strong>{driveMeta.lastStatus}</strong></div>}
-      {driveMeta.lastError && <div className="driveErrorBox" role="alert"><AlertTriangle size={16}/><div><strong>{driveMeta.lastError}</strong>{driveMeta.lastErrorDetails && <details><summary>Technical details</summary><pre>{driveMeta.lastErrorDetails}</pre></details>}</div></div>}
+      {driveMeta.lastError && <div className="driveErrorBox" role="alert"><AlertTriangle size={16}/><div><strong>{driveMeta.lastError}</strong>{driveMeta.lastErrorDetails && <details open><summary>Technical details</summary><pre>{driveMeta.lastErrorDetails}</pre></details>}</div></div>}
       <div className="driveMetaRow">
         <span>Last saved to Drive: {driveMeta.lastSaved || 'Never'}{driveMeta.lastFolderName ? ` · ${driveMeta.lastFolderName}` : ''}</span>
         {driveMeta.lastFolderLink && <a className="driveFolderLink" href={driveMeta.lastFolderLink} target="_blank" rel="noreferrer"><FolderOpen size={14}/> Open Drive Folder</a>}
         <span className={pendingCount ? 'pendingSync on' : 'pendingSync'}>{pendingCount ? `Pending Drive Sync: ${pendingCount}` : 'Pending sync count: 0'}</span>
         <span className={pendingPhotoCount ? 'pendingSync on' : 'pendingSync'}>{pendingPhotoCount ? `Pending photos: ${pendingPhotoCount}` : 'Pending photos: 0'}</span>
       </div>
-      <small className="driveSetupNote">Google Drive export is still in setup/testing. Use Download Walkthrough Backup if Drive setup is incomplete.</small>
+      <details className="driveTroubleshooting">
+        <summary>Drive Setup Help / Troubleshooting</summary>
+        <div className="driveSetupGrid">
+          <div className="originCard">
+            <span>Current app origin for Google Cloud</span>
+            <code>{appOrigin}</code>
+            <button type="button" onClick={()=>copyDriveText(appOrigin, 'Current app origin')}><ClipboardCheck size={16}/> Copy current app origin</button>
+          </div>
+          <div className="originCard">
+            <span>Preview URL guidance</span>
+            <p>Add the exact origin shown here to the OAuth Client ID authorized JavaScript origins. If the app URL changes, add the new origin too.</p>
+            <button type="button" onClick={()=>copyDriveText(setupChecklistText(appOrigin), 'Setup checklist')}><ClipboardCheck size={16}/> Copy setup checklist</button>
+          </div>
+        </div>
+        <div className="driveSetupChecklist">
+          <h3>Setup checklist</h3>
+          <ol>{GOOGLE_DRIVE_SETUP_STEPS.map(step => <li key={step}><CheckCircle2 size={15}/><span>{step}{step.includes('authorized JavaScript origin') && <>: <code>{appOrigin}</code></>}</span></li>)}</ol>
+          <p className="driveTechnicalNote"><strong>Technical setup notes:</strong> Store only the OAuth Web Client ID in this app. Do not paste or store a Client Secret. Enable the Google Drive API and use a Web application OAuth Client ID with this browser origin authorized.</p>
+          <button type="button" className="driveResetButton" onClick={resetDriveSetup}>Reset Drive setup on this browser</button>
+        </div>
+      </details>
+      <small className="driveSetupNote">{driveWarningText}</small>
     </section>
     {view === 'intake' && <IntakeView intake={intake} updateIntake={updateIntake} />}
     {view === 'form' && <main className="grid">
