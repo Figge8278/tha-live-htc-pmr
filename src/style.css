@@ -264,3 +264,10 @@
 .demoScenario ul{margin:8px 0 0;padding-left:18px;color:var(--ink);font-size:12px;font-weight:700;line-height:1.35}
 .demoScenario button{justify-content:center;background:var(--navy);color:#fff}
 @media(max-width:1100px){.demoScenarioGrid{grid-template-columns:1fr}}
+.releaseNote{max-width:420px;border:1px solid #eadbc2;background:#fff8ee;border-radius:16px;padding:8px 12px;color:var(--navy);line-height:1.25}
+.releaseNote strong{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--gold)}
+.releaseNote span{display:block;font-size:12px;font-weight:800;color:var(--muted)}
+.releaseNoteCard{background:#fffdf9;border-color:#eadbc2}
+.releaseNoteCard p{grid-column:1/-1;margin:0;color:var(--ink);font-weight:800;line-height:1.4}
+.releaseNoteCard ul{grid-column:1/-1;margin:0;padding-left:20px;color:var(--navy);font-weight:800;line-height:1.6}
+@media(max-width:1100px){.releaseNote{max-width:none;order:3;width:100%}.topbar{flex-wrap:wrap}}
