@@ -6,6 +6,18 @@ import './style.css';
 const ICONS = {
   Handyman: '🧰', Electrical: '🔌', Plumbing: '🚿', HVAC: '🌡️', Roof: '🏠', Drainage: '🌧️', Windows: '🪟', Paint: '🎨', Pest: '🐜', Safety: '🔥', Appliance: '⚙️', Chimney: '🧱', Exterior: '🏡'
 };
+const APP_RELEASE_NOTE = {
+  label: 'PMR + PASS milestone',
+  summary: 'Internal release: supports PMR findings, PASS Continued Care Outlook, editable/hideable PASS review, demo scenarios, and homeowner-safe export cleanup.',
+  items: [
+    'PMR findings',
+    'PASS Continued Care Outlook',
+    'Editable/hideable PASS review',
+    'Demo scenarios',
+    'Homeowner-safe export cleanup'
+  ]
+};
+
 const TRADE_ICON = {
   Handyman: Wrench, Electrical: Plug, Plumbing: Droplets, HVAC: Fan, Roof: Home, Drainage: Wind, Windows: DoorOpen, Paint: Paintbrush, Pest: Bug, Safety: ShieldCheck, Appliance: Settings, Chimney: Flame, Exterior: TreePine, Carpentry: Hammer, 'General Contractor': HardHat, Design: Palette, Flooring: Home, Landscape: Leaf
 };
@@ -2535,6 +2547,10 @@ function App() {
   return <div className="app">
     <header className="topbar">
       <div className="brand"><THALogo variant="full"/><div><span>Intake → HTC → PMR → PASS</span></div></div>
+      <div className="releaseNote noPrint" aria-label="Current internal release note">
+        <strong>{APP_RELEASE_NOTE.label}</strong>
+        <span>{APP_RELEASE_NOTE.summary}</span>
+      </div>
       <nav><button onClick={()=>setView('intake')} className={view==='intake'?'on':''}><Home size={18}/> Intake</button><button onClick={()=>setView('form')} className={view==='form'?'on':''}><ClipboardCheck size={18}/> HTC</button><button onClick={()=>setView('pmr')} className={view==='pmr'?'on':''}><FileText size={18}/> PMR</button><button onClick={()=>setView('metrics')} className={view==='metrics'?'on':''}><Clock3 size={18}/> Metrics</button></nav>
     </header>
     <section className={`walkthroughControlsPanel noPrint ${controlsCollapsed ? 'collapsed' : 'expanded'} ${controlsNeedsAttention ? 'needsAttention' : ''}`} aria-label="Walkthrough Control Panel">
@@ -2577,6 +2593,11 @@ function App() {
         <section className="controlGroup demoScenarioCard" aria-label="Demo Walkthrough Scenarios">
           <div className="controlGroupTitle"><h3>Demo Scenarios</h3><p>Test/demo support for PMR and PASS export behavior.</p></div>
           <div className="demoScenarioGrid">{DEMO_WALKTHROUGH_SCENARIOS.map(scenario => <article className="demoScenario" key={scenario.id}><div><h4>{scenario.name}</h4><p>{scenario.description}</p><ul>{scenario.checks.map(check => <li key={check}>{check}</li>)}</ul></div><button type="button" onClick={()=>loadDemoScenario(scenario)}>Load Demo</button></article>)}</div>
+        </section>
+        <section className="controlGroup releaseNoteCard" aria-label="Current Release Note">
+          <div className="controlGroupTitle"><h3>Release Note</h3><p>{APP_RELEASE_NOTE.label}</p></div>
+          <p>{APP_RELEASE_NOTE.summary}</p>
+          <ul>{APP_RELEASE_NOTE.items.map(item => <li key={item}>{item}</li>)}</ul>
         </section>
         <section className="controlGroup clientCard" aria-label="PMR Output">
           <div className="controlGroupTitle"><h3>PMR Output</h3></div>
