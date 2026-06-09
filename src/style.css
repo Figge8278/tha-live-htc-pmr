@@ -165,6 +165,9 @@
 .homeownerLane{border-color:#e7c981;background:#fffdf8}
 .quickIntakeGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:12px}
 .quickIntakeGrid .notes:first-child{grid-column:1/-1}
+.intakeQuestion small{color:var(--muted);font-weight:600;line-height:1.4}
+.intakeQuestion textarea{min-height:120px}
+.intakeQuestion:nth-child(n+3) textarea{min-height:180px}
 .intakeSubsection{border-top:1px solid #eadbc2;margin-top:16px;padding-top:14px}
 .intakeSubsection h3{margin:0 0 10px;color:var(--navy)}
 @media(max-width:1050px){.intakeStatusSummary{grid-template-columns:repeat(2,1fr)}.reviewFollowUpButton{grid-column:1/-1}.intakeLane summary{align-items:flex-start;flex-direction:column}.intakeLane summary small{text-align:left;max-width:none}}
