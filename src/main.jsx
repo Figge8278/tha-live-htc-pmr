@@ -158,18 +158,13 @@ const HOMEOWNER_QUICK_INTAKE_FIELDS = [
   'priorityAreas',
   'knownIssues',
   'recentRepairs',
-  'pace',
-  'servicePreference',
+  'helpfulRecords',
+  'accessNotes',
   'doNotOverlook'
 ];
 const THA_FIELD_PREP_FIELDS = [
   'electricalPanel','electricalUpdates','waterShutoff','plumbingHistory','waterHeater','sewerIrrigation','hvacFilter','hvacService','hvacAcService','comfort','roofAge','roofHistory','solar','drainagePooling','drainageHistory','gutters','windowsDoors','fogging','paintStain','productsColors','pests','fireExtinguishers','smokeCO','chimney','additionalConcerns'
 ];
-const SERVICE_PREFERENCES = ['No preference yet','Handy services when appropriate','Licensed trades when appropriate','THA to recommend best fit'];
-const INTAKE_PRIORITIES = ['Safety','Function','Efficiency','Aesthetics','Resale','Aging in place / ADA','Budget control','Peace of mind'];
-const INTAKE_PACE = ['Do now','Plan soon','Budget over time','Watchlist only'];
-const INTAKE_BUDGET = ['Minimal fixes','Balanced','Invest where it matters'];
-const INTAKE_DECISION = ['Direct / decisive','Wants options','Needs guidance'];
 const INTAKE_FOLLOW_UP_SOURCE = 'Intake Follow-Up';
 const INTAKE_REVIEW_STATUSES = [
   'Not Reviewed',
@@ -784,8 +779,13 @@ function buildDrivePayload({ walkthroughName = '', client, intake, rows, pmr, dy
 
 const INTAKE_EXPORT_SECTIONS = [
   { title: 'Homeowner Quick Intake', fields: [
-    ['Priorities', intake => (intake.priorities || []).join(', ')],
-    ['Preferred Pace', 'pace'], ['Budget Mindset', 'budgetStyle'], ['Handy Services vs Licensed Trades', 'servicePreference'], ['Top Goals or Concerns', 'notes'], ['Priority Areas / Rooms', 'priorityAreas'], ['Known Issues or Recurring Symptoms', 'knownIssues'], ['Recent Repairs / Service History', 'recentRepairs'], ['Do Not Overlook', 'doNotOverlook']
+    ['1. What are your top goals or concerns for this walkthrough?', 'notes'],
+    ['2. Are there specific rooms, areas, or exterior spaces you want us to prioritize?', 'priorityAreas'],
+    ['3. Are there any known recurring issues or symptoms we should know about?', 'knownIssues'],
+    ['4. For any of the following, do you know the approximate last service, cleaning, repair, or replacement date?', 'recentRepairs'],
+    ['5. Are there any helpful home records you can have available during the walkthrough, if they are easy to access?', 'helpfulRecords'],
+    ['6. Are there any access notes we should know before the walkthrough?', 'accessNotes'],
+    ['7. Is there anything you specifically do not want overlooked?', 'doNotOverlook']
   ] },
   { title: 'Electrical', fields: [['Electrical Panel Location', 'electricalPanel'], ['Known Electrical Issues or Updates', 'electricalUpdates']] },
   { title: 'Plumbing / Water', fields: [['Main Water Shut-off Location', 'waterShutoff'], ['Known Leaks, Slow Drains, or Plumbing History', 'plumbingHistory'], ['Water Heater Flush / Age', 'waterHeater'], ['Sewer / Irrigation History', 'sewerIrrigation']] },
@@ -1982,10 +1982,6 @@ function App() {
 
 
 function IntakeView({intake, updateIntake, intakeFollowUpCount = 0, onReviewIntakeFollowUp}) {
-  const togglePriority = (value) => {
-    const current = Array.isArray(intake.priorities) ? intake.priorities : [];
-    updateIntake({priorities: current.includes(value) ? current.filter(x => x !== value) : [...current, value]});
-  };
   const homeownerCompleted = completedIntakeFieldCount(intake, HOMEOWNER_QUICK_INTAKE_FIELDS);
   const fieldPrepCompleted = completedIntakeFieldCount(intake, THA_FIELD_PREP_FIELDS);
   const readyForHTC = homeownerCompleted >= 2 || fieldPrepCompleted >= 3 || intakeFollowUpCount > 0;
@@ -2001,18 +1997,40 @@ function IntakeView({intake, updateIntake, intakeFollowUpCount = 0, onReviewInta
     <details className="pmrBlock intakeLane homeownerLane" open>
       <summary><span><Home size={20}/> Homeowner Quick Intake</span><small>Light, friendly pre-walkthrough context. All answers are homeowner-reported until HTC verifies them.</small></summary>
       <p className="lede">Capture only what the homeowner wants to share. Empty fields are okay; this is context for THA, not a required checklist.</p>
-      <div className="chips">{INTAKE_PRIORITIES.map(p => <button key={p} type="button" className={(intake.priorities||[]).includes(p)?'active chip':'chip'} onClick={()=>togglePriority(p)}>{p}</button>)}</div>
-      <div className="inputs intakeInputs">
-        <label>Preferred pace<select value={intake.pace || ''} onChange={e=>updateIntake({pace:e.target.value})}>{INTAKE_PACE.map(x=><option key={x}>{x}</option>)}</select></label>
-        <label>Budget mindset<select value={intake.budgetStyle || ''} onChange={e=>updateIntake({budgetStyle:e.target.value})}>{INTAKE_BUDGET.map(x=><option key={x}>{x}</option>)}</select></label>
-        <label>Handy services vs licensed trades<select value={intake.servicePreference || ''} onChange={e=>updateIntake({servicePreference:e.target.value})}><option value="">Not recorded</option>{SERVICE_PREFERENCES.map(x=><option key={x}>{x}</option>)}</select></label>
-      </div>
       <div className="quickIntakeGrid">
-        <label className="notes">Top goals or concerns for the home<textarea value={intake.notes || ''} onChange={e=>updateIntake({notes:e.target.value})} placeholder="What matters most: safety, function, comfort, budget, resale, peace of mind…" /></label>
-        <label className="notes">Areas / rooms the homeowner wants prioritized<textarea value={intake.priorityAreas || ''} onChange={e=>updateIntake({priorityAreas:e.target.value})} placeholder="Kitchen, primary bath, exterior drainage, mechanical room…" /></label>
-        <label className="notes">Known issues or recurring symptoms<textarea value={intake.knownIssues || ''} onChange={e=>updateIntake({knownIssues:e.target.value})} placeholder="Recurring sounds, smells, leaks, sticking doors, comfort issues…" /></label>
-        <label className="notes">Recent repairs, upgrades, or service history<textarea value={intake.recentRepairs || ''} onChange={e=>updateIntake({recentRepairs:e.target.value})} placeholder="Recent service visits, warranties, product names, contractor history…" /></label>
-        <label className="notes">Anything they do not want overlooked<textarea value={intake.doNotOverlook || ''} onChange={e=>updateIntake({doNotOverlook:e.target.value})} placeholder="Small concerns, special access notes, owner priorities…" /></label>
+        <label className="notes intakeQuestion"><span>1. What are your top goals or concerns for this walkthrough?</span><textarea value={intake.notes || ''} onChange={e=>updateIntake({notes:e.target.value})} /></label>
+        <label className="notes intakeQuestion"><span>2. Are there specific rooms, areas, or exterior spaces you want us to prioritize?</span><textarea value={intake.priorityAreas || ''} onChange={e=>updateIntake({priorityAreas:e.target.value})} /></label>
+        <label className="notes intakeQuestion"><span>3. Are there any known recurring issues or symptoms we should know about?</span><small>Please note anything that has happened more than once, comes and goes, or may not be visible during the walkthrough.</small><textarea value={intake.knownIssues || ''} onChange={e=>updateIntake({knownIssues:e.target.value})} placeholder={`Leaks or moisture:
+Slow drains or plumbing concerns:
+Tripped breakers, flickering lights, or electrical concerns:
+Heating, cooling, airflow, or comfort issues:
+Sticky windows, doors, locks, or drafts:
+Pest activity:
+Drainage, pooling water, ice, or grading concerns:
+Odors, noises, or appliance concerns:
+Other recurring symptoms:`} /></label>
+        <label className="notes intakeQuestion"><span>4. For any of the following, do you know the approximate last service, cleaning, repair, or replacement date?</span><small>Please fill in anything you know. Unknown is completely fine.</small><textarea value={intake.recentRepairs || ''} onChange={e=>updateIntake({recentRepairs:e.target.value})} placeholder={`Furnace service:
+A/C or heat pump service:
+Air ducts cleaned:
+Chimney / fireplace cleaned or serviced:
+Water heater tank or tankless / on-demand water heater serviced:
+Roof repaired or replaced:
+Exterior paint or stain completed:
+Windows or doors repaired/replaced:
+Other maintenance or service history we should know:`} /></label>
+        <label className="notes intakeQuestion"><span>5. Are there any helpful home records you can have available during the walkthrough, if they are easy to access?</span><small>No need to search for everything. This is only for records that may help clarify known concerns, maintenance timing, or future planning.</small><textarea value={intake.helpfulRecords || ''} onChange={e=>updateIntake({helpfulRecords:e.target.value})} placeholder={`Recent inspection report:
+Roof replacement or roof repair paperwork:
+Sewer scope or plumbing records:
+Solar documents, if relevant:
+Paint cans or color records:
+Other helpful records tied to a concern or maintenance item:`} /></label>
+        <label className="notes intakeQuestion"><span>6. Are there any access notes we should know before the walkthrough?</span><textarea value={intake.accessNotes || ''} onChange={e=>updateIntake({accessNotes:e.target.value})} placeholder={`Pets:
+Gates, keys, or locked areas:
+Attic, crawlspace, basement, or mechanical room access:
+Detached garage, shed, or outbuildings:
+Areas blocked by storage:
+Anything fragile, sensitive, or off-limits:`} /></label>
+        <label className="notes intakeQuestion"><span>7. Is there anything you specifically do not want overlooked?</span><textarea value={intake.doNotOverlook || ''} onChange={e=>updateIntake({doNotOverlook:e.target.value})} /></label>
       </div>
     </details>
     <details className="pmrBlock intakeLane" open>
