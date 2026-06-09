@@ -908,9 +908,9 @@ async function uploadDriveBundle(accessToken, payload) {
   }
 
   const photoEntries = photoEntriesForPayload(payload, uploadedLookup);
-  await uploadDriveHtml(accessToken, packageId, '01 - PMR Report.html', buildPmrReportHtml(payload, photoEntries));
+  await uploadDriveHtml(accessToken, packageId, '01 - Intake Summary.html', buildIntakeSummaryHtml(payload));
   await uploadDriveHtml(accessToken, packageId, '02 - HTC Checklist.html', buildHtcChecklistHtml(payload, photoEntries));
-  await uploadDriveHtml(accessToken, packageId, '03 - Intake Summary.html', buildIntakeSummaryHtml(payload));
+  await uploadDriveHtml(accessToken, packageId, '03 - PMR Report.html', buildPmrReportHtml(payload, photoEntries));
   await uploadDriveHtml(accessToken, packageId, '04 - Photo Index.html', buildPhotoIndexHtml(payload, photoEntries));
   await uploadDriveJson(accessToken, backupId, 'intake.json', { client: payload.client, intake: payload.intake });
   await uploadDriveJson(accessToken, backupId, 'htc-walkthrough.json', { client: payload.client, roomCapture: payload.roomCapture || {}, rows: payload.rows });
