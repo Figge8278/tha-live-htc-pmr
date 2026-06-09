@@ -1565,6 +1565,153 @@ function cleanWalkthroughData() {
     passReview: {}
   };
 }
+
+const demoAnswer = ({ status = 'Good', trade = '', effort = '', notes = '', passCandidate = false, passCadence = '', passResource = '', passNote = '', reviewStatus = '', actionCertainty = 'Clear Path', pref = 'Plan soon' } = {}) => ({
+  status,
+  trade,
+  effort,
+  notes,
+  passCandidate,
+  passCadence,
+  passResource,
+  passNote,
+  reviewStatus,
+  actionCertainty,
+  pref,
+  photos: [],
+  photoRef: ''
+});
+const demoIntake = (overrides = {}) => normalizeIntakeData({ ...blankIntakeTemplate(), ...overrides });
+const DEMO_WALKTHROUGH_SCENARIOS = [
+  {
+    id: 'demo-clean-home-zero-pmr',
+    name: 'Demo 1 — Clean home / zero major findings',
+    description: 'Clean-home export check: zero PMR findings while PASS generated care planning remains visible.',
+    checks: ['PMR counts should all be 0.', 'PASS should still appear with generated continued-care items.', 'The hidden chimney PASS card should stay out of PMR and Drive export.'],
+    data: {
+      client: { name: 'Demo Client — Clean Home', address: '100 Clean Home Lane', date: 'Demo Walkthrough — Zero PMR' },
+      answers: {
+        3: demoAnswer({ trade: 'Appliance', effort: '30 min', passCandidate: true, passCadence: 'Annual spring refresh', passResource: 'Other', passNote: 'Range hood filter is clean today; keep an annual degrease/replacement reminder.' }),
+        11: demoAnswer({ trade: 'Handyman', effort: '15 min', passCandidate: true, passCadence: 'Every 1–3 months', passResource: 'HVAC', passNote: 'Filter is clean and correctly installed; continue normal replacement rhythm.' })
+      },
+      intake: demoIntake({
+        notes: 'Demo clean-home walkthrough. No major defects were observed; use this case to confirm PASS remains visible without PMR findings.',
+        hvacFilter: 'Filter changed last month; size documented at equipment.',
+        hvacService: 'Annual service completed this spring.',
+        roofAge: 'Roof reported newer with no active leak history.',
+        gutters: 'Gutters cleaned recently as routine care.'
+      }),
+      dynamicRooms: cloneData(DEFAULT_DYNAMIC_ROOMS),
+      sectionOrder: [],
+      itemOrder: {},
+      pinnedItems: {},
+      roomCapture: {
+        Kitchen: { status: 'Looking Good', note: 'Clean demo room: no PMR items; range hood kept as PASS routine care.', photos: [], items: [] },
+        Mechanical: { status: 'Routine Care / PASS', note: 'No equipment defect. Routine filter/service cadence remains in PASS.', photos: [], items: [] }
+      },
+      passReview: {
+        'generated-pass-chimney-fireplace-service': { included: false },
+        'generated-pass-furnace-filter-rhythm': {
+          reason: 'Demo-edited reason: maintain the clean filter habit documented during the walkthrough.',
+          suggestedWindow: 'Suggested window: Check again at the next 90-day filter reminder.',
+          resource: 'HVAC'
+        }
+      }
+    }
+  },
+  {
+    id: 'demo-older-home-unknown-history',
+    name: 'Demo 2 — Older home with unknown service history',
+    description: 'Older-home context check: unknown history creates PASS and reviewed intake context without automatically creating PMR defects.',
+    checks: ['Unknown service history should appear as PASS care-planning basis, not PMR by itself.', 'Reviewed intake follow-ups should remain separate unless explicitly marked as added PMR findings.', 'Edited PASS wording should carry into PMR and Drive export.'],
+    data: {
+      client: { name: 'Demo Client — Older Home', address: '42 Heritage Avenue', date: 'Demo Walkthrough — Unknown History' },
+      answers: {
+        12: demoAnswer({ trade: 'HVAC', effort: 'Trade scope', passCandidate: true, passCadence: 'Next normal HVAC visit', passResource: 'HVAC', passNote: 'Service sticker not found; no active symptom observed during demo.' }),
+        18: demoAnswer({ trade: 'Chimney', effort: 'Trade scope', passCandidate: true, passCadence: 'Before fireplace use', passResource: 'Roofing', passNote: 'Fireplace/chimney cleaning date is not documented; treat as care planning until inspected.' }),
+        'intake-follow-up-hvacService': demoAnswer({ status: 'Unknown', trade: 'HVAC', effort: 'Trade scope', reviewStatus: 'Reviewed — Context Only', notes: 'Unknown history noted; no confirmed defect for PMR in this demo.' }),
+        'intake-follow-up-roofAge': demoAnswer({ status: 'Unknown', trade: 'Roof', effort: 'Unknown', reviewStatus: 'Reviewed — Context Only', notes: 'Older roof context recorded for future planning, not a PMR finding.' }),
+        'intake-follow-up-chimney': demoAnswer({ status: 'Unknown', trade: 'Roof', effort: 'Trade scope', reviewStatus: 'Reviewed — Context Only', notes: 'Unknown chimney service date kept as PASS care item.' })
+      },
+      intake: demoIntake({
+        notes: 'Demo older-home walkthrough with limited records. The goal is to keep uncertainty as context/PASS unless the field review confirms a defect.',
+        hvacService: 'Not sure — no HVAC service records were available from the prior owner.',
+        hvacAcService: 'Not sure — cooling service date was not documented.',
+        roofAge: 'Approximate age not confirmed; seller records unavailable.',
+        chimney: 'Not sure — last chimney cleaning date is undocumented.',
+        waterHeater: 'Age/service label hard to read; verify at next plumbing visit.',
+        gutters: 'Seasonal cleaning history not documented.'
+      }),
+      dynamicRooms: cloneData(DEFAULT_DYNAMIC_ROOMS),
+      sectionOrder: [],
+      itemOrder: {},
+      pinnedItems: {},
+      roomCapture: {
+        Mechanical: { status: 'Routine Care / PASS', note: 'Unknown service history only; no confirmed PMR defect in this scenario.', photos: [], items: [] },
+        Exterior: { status: 'Watch Item / Worth Watching', note: 'Older exterior context retained for planning.', photos: [], items: [] }
+      },
+      passReview: {
+        'generated-pass-water-heater-service': {
+          reason: 'Demo-edited reason: age/service label was unclear, so plan a normal plumbing review rather than treating it as a defect.',
+          suggestedWindow: 'Suggested window: At the next routine plumbing visit or annual home-care review.',
+          resource: 'Plumbing'
+        },
+        'generated-pass-smoke-co-extinguisher-check': { included: false }
+      }
+    }
+  },
+  {
+    id: 'demo-pmr-plus-pass-care',
+    name: 'Demo 3 — PMR findings plus PASS care items',
+    description: 'Mixed export check: several true PMR findings are counted while PASS care items stay separate, including hidden and edited PASS review states.',
+    checks: ['Only true defect/status rows should increase PMR counts.', 'Manual PASS care items with Good status should not be counted as PMR.', 'Hidden PASS items should not appear in PMR/Drive export.', 'Edited PASS reason/window/resource should appear in PMR and Drive export.'],
+    data: {
+      client: { name: 'Demo Client — PMR + PASS', address: '77 Mixed Findings Court', date: 'Demo Walkthrough — PMR and PASS' },
+      answers: {
+        0: demoAnswer({ status: 'Immediate Concern', trade: 'Electrical', effort: '30 min', notes: 'Kitchen GFCI did not trip/reset during demo test; true PMR safety finding.', actionCertainty: 'Clear Path', pref: 'Do now' }),
+        1: demoAnswer({ status: 'Needs Attention', trade: 'Plumbing', effort: '45–60 min', notes: 'Under-sink trap shows active drip after running water; true PMR plumbing finding.', actionCertainty: 'Clear Path', pref: 'Do now' }),
+        4: demoAnswer({ status: 'Needs Attention', trade: 'Handyman', effort: '45–60 min', notes: 'Dryer exterior flap restricted with lint buildup and weak airflow; true PMR plus recurring PASS care.', passCandidate: true, passCadence: 'Annual / Fall', passResource: 'Handy Services', passNote: 'After the current cleaning/repair, keep dryer vent cleaning on an annual PASS rhythm.', actionCertainty: 'Likely Path' }),
+        9: demoAnswer({ status: 'Monitor', trade: 'Handyman', effort: '1–2 hrs', notes: 'Tub/shower caulk is starting to split at back corner; monitor/reseal before water intrusion.', actionCertainty: 'Clear Path', pref: 'Plan soon' }),
+        11: demoAnswer({ trade: 'Handyman', effort: '15 min', passCandidate: true, passCadence: 'Every 1–3 months', passResource: 'HVAC', passNote: 'Filter looked acceptable today; keep replacement rhythm separate from defect list.' }),
+        16: demoAnswer({ trade: 'Safety', effort: '30 min', passCandidate: true, passCadence: 'Annual safety review', passResource: 'Safety', passNote: 'Detector dates verified for demo; keep annual test/replacement review in PASS only.' }),
+        'default-living-room-1-3': demoAnswer({ trade: 'Chimney', effort: 'Trade scope', passCandidate: true, passCadence: 'Before fall fireplace use', passResource: 'Roofing', passNote: 'Fireplace looked normal; schedule routine cleaning window only.' })
+      },
+      intake: demoIntake({
+        notes: 'Demo mixed walkthrough. Verify PMR counts include only true findings and that PASS care remains a separate continued-care section.',
+        hvacFilter: 'Filter changed recently; continue recurring reminder.',
+        hvacService: 'Service completed last fall; next normal seasonal service can be planned.',
+        waterHeater: 'No defect observed; normal annual flush/review reminder requested.',
+        gutters: 'Gutters are due for seasonal cleaning even though no active overflow was observed.',
+        smokeCO: 'Annual detector review requested by homeowner.',
+        chimney: 'Routine fireplace cleaning to schedule before fall use.'
+      }),
+      dynamicRooms: cloneData(DEFAULT_DYNAMIC_ROOMS),
+      sectionOrder: ['Kitchen', 'Laundry', 'Bathroom', 'Mechanical', 'Safety', 'default-living-room-1'],
+      itemOrder: {},
+      pinnedItems: { Kitchen: ['0', '1'], Laundry: ['4'] },
+      roomCapture: {
+        Kitchen: { status: 'Trade Attention', note: 'Two true PMR findings: failed GFCI and active sink drip.', photos: [], items: [] },
+        Laundry: { status: 'Handy Services', note: 'Dryer vent is a current PMR finding; future vent cleaning remains PASS.', photos: [], items: [] },
+        Mechanical: { status: 'Routine Care / PASS', note: 'Filter rhythm is PASS only in this demo.', photos: [], items: [] },
+        Safety: { status: 'Routine Care / PASS', note: 'Safety device annual review is PASS only.', photos: [], items: [] }
+      },
+      passReview: {
+        'generated-pass-gutters-drainage-review': { included: false },
+        'manual-pass-11': { included: false },
+        'manual-pass-4': {
+          reason: 'Demo-edited reason: once the lint restriction is corrected, keep dryer vent cleaning as a recurring fire-safety care item.',
+          suggestedWindow: 'Suggested window: Recheck every fall after the current vent cleaning is complete.',
+          resource: 'Safety'
+        },
+        'generated-pass-water-heater-service': {
+          reason: 'Demo-edited reason: no water-heater defect was found, but annual flush/service review belongs in continued care.',
+          suggestedWindow: 'Suggested window: Add to the next annual plumbing maintenance visit.',
+          resource: 'Plumbing'
+        }
+      }
+    }
+  }
+];
 function legacyWalkthroughData() {
   const dynamicRooms = safeJsonParse(localStorage.getItem(DYNAMIC_ROOMS_KEY), null);
   return {
@@ -2086,6 +2233,17 @@ function App() {
     setSelectedWalkthroughId('');
     setControlsCollapsed(false);
   };
+  const loadDemoScenario = (scenario) => {
+    const nextId = `demo-${scenario.id}-${Date.now()}`;
+    applyWalkthroughData(cloneData(scenario.data));
+    setWalkthroughName(scenario.name);
+    setActiveWalkthroughId(nextId);
+    setSelectedWalkthroughId('');
+    setControlsCollapsed(false);
+    setView('pmr');
+    setCopyFeedback(`${scenario.name} loaded`);
+    window.setTimeout(() => setCopyFeedback(''), 2500);
+  };
   const saveWalkthrough = () => {
     setSaveStatus({ state: 'saving', time: '' });
     persistCurrentWalkthroughSession();
@@ -2353,6 +2511,10 @@ function App() {
           </div>
           <label>Open Saved Walkthrough<select value={selectedWalkthroughId} onChange={e=>openSavedWalkthrough(e.target.value)}><option value="">Choose saved walkthrough</option>{savedSessionList.map(session=><option key={session.id} value={session.id}>{session.name || 'Untitled Walkthrough'}{session.updatedAt ? ` · ${new Date(session.updatedAt).toLocaleString()}` : ''}</option>)}</select></label>
           <button type="button" onClick={deleteSavedWalkthrough} disabled={!selectedWalkthroughId || !savedSessions[selectedWalkthroughId]}>Delete Selected Walkthrough</button>
+        </section>
+        <section className="controlGroup demoScenarioCard" aria-label="Demo Walkthrough Scenarios">
+          <div className="controlGroupTitle"><h3>Demo Scenarios</h3><p>Test/demo support for PMR and PASS export behavior.</p></div>
+          <div className="demoScenarioGrid">{DEMO_WALKTHROUGH_SCENARIOS.map(scenario => <article className="demoScenario" key={scenario.id}><div><h4>{scenario.name}</h4><p>{scenario.description}</p><ul>{scenario.checks.map(check => <li key={check}>{check}</li>)}</ul></div><button type="button" onClick={()=>loadDemoScenario(scenario)}>Load Demo</button></article>)}</div>
         </section>
         <section className="controlGroup clientCard" aria-label="PMR Output">
           <div className="controlGroupTitle"><h3>PMR Output</h3></div>
