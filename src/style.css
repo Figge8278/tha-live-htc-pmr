@@ -230,10 +230,26 @@
 @media(max-width:1050px){.previewMetaGrid{grid-template-columns:repeat(2,1fr)}.mappedAnswer{grid-template-columns:1fr}.copyIntakeEmailButton{grid-column:1/-1}}
 @media(max-width:700px){.intakeImportHeader{flex-direction:column}.previewMetaGrid{grid-template-columns:1fr}.txtUpload{width:100%;justify-content:center}}
 
+
+.passReviewPanel{border:1px solid #d6e2e8;background:#f7fbfd;border-radius:20px;padding:16px;margin:14px 0 18px}
+.passReviewPanel h3{margin:0 0 4px;color:var(--navy)}
+.passReviewPanel>p{margin:0 0 12px;color:var(--muted);font-weight:700}
+.passReviewGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.passReviewCard{background:#fff;border:1px solid #dbe6eb;border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.passReviewCard.hidden{opacity:.72;background:#f5f6f7;border-style:dashed}
+.passReviewCard h4{margin:0;color:var(--navy)}
+.passReviewCard label{font-weight:900;color:var(--navy);display:flex;flex-direction:column;gap:5px}
+.passReviewCard textarea{min-height:78px;resize:vertical}
+.passReviewTop{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.includeToggle{flex-direction:row!important;align-items:flex-start!important;gap:9px!important;margin:0}
+.includeToggle input{width:auto;margin-top:3px}
+.includeToggle small{display:block;color:var(--muted);font-weight:700;margin-top:2px}
+.passHiddenNote{background:#fff7e6;border:1px solid #efd29c;border-radius:14px;padding:10px 12px;font-weight:800;color:#6f4c09}
+
 .passOutlookGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .passOutlookCard{border:1px solid #d6e2e8;border-radius:18px;background:#fbfdfe;padding:14px;box-shadow:0 8px 18px rgba(13,44,73,.05)}
 .passOutlookCard h3{margin:0;color:var(--navy)}
 .passOutlookCard .findTop{align-items:flex-start;margin-bottom:10px}
 .passOutlookCard .findGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .passOutlookCard .findGrid p{background:#fff;border-color:#dbe6eb}
-@media(max-width:900px){.passOutlookGrid{grid-template-columns:1fr}.passOutlookCard .findGrid{grid-template-columns:1fr}}
+@media(max-width:900px){.passReviewGrid,.passOutlookGrid{grid-template-columns:1fr}.passOutlookCard .findGrid{grid-template-columns:1fr}}
