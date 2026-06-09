@@ -741,12 +741,14 @@ function applyPassReview(passItems = [], passReview = {}, { includeHidden = fals
   return passItems
     .map(item => {
       const review = passReview?.[item.id] || {};
+      const reviewedTargetWindow = review.targetWindow ?? (review.suggestedWindow ? passSuggestedWindowText(review.suggestedWindow) : undefined);
+      const targetWindow = reviewedTargetWindow ?? item.targetWindow ?? passSuggestedWindowText(item.suggestedWindow);
       return {
         ...item,
         included: review.included !== false,
         reason: review.reason ?? item.reason,
-        targetWindow: review.targetWindow ?? item.targetWindow ?? passSuggestedWindowText(review.suggestedWindow ?? item.suggestedWindow),
-        suggestedWindow: review.suggestedWindow ?? (review.targetWindow ? `Suggested window: ${review.targetWindow}` : item.suggestedWindow),
+        targetWindow,
+        suggestedWindow: targetWindow ? `Suggested window: ${targetWindow}` : (review.suggestedWindow ?? item.suggestedWindow),
         cadence: review.cadence ?? item.cadence,
         resource: review.resource ?? item.resource,
         followUpStatus: passPlanningStatusText(review.followUpStatus ?? item.followUpStatus),
@@ -1262,9 +1264,36 @@ async function uploadDrivePhoto(accessToken, folderId, photo, fallbackName) {
     dataUrl: ''
   };
 }
+function removePassPrivateFields(item = {}) {
+  const { internalNote, row, rule, ...publicItem } = item;
+  return publicItem;
+}
+function sanitizedPassReviewForExport(passReview = {}, visiblePassIds = new Set()) {
+  return Object.fromEntries(Object.entries(passReview || {})
+    .filter(([id]) => visiblePassIds.has(id))
+    .map(([id, review]) => {
+      const { internalNote, included, ...publicReview } = review || {};
+      return [id, publicReview];
+    })
+  );
+}
+function sanitizeRowsForPassExport(rows = [], visiblePassIds = new Set()) {
+  return (rows || []).map(row => {
+    if (!row.answer?.passCandidate) return row;
+    const manualPassId = `manual-pass-${row.id}`;
+    const { passCandidate, passTargetWindow, passCadence, passResource, passFollowUpStatus, passNote, ...publicAnswer } = row.answer;
+    if (!visiblePassIds.has(manualPassId)) return { ...row, answer: { ...publicAnswer, passCandidate: false } };
+    return { ...row, answer: { ...publicAnswer, passCandidate, passTargetWindow, passCadence, passResource, passFollowUpStatus } };
+  });
+}
 function buildDrivePayload({ walkthroughName = '', client, intake, rows, pmr, passCareOutlook, passReview = {}, dynamicRooms = [], sections = [], sectionOrderState = [], itemOrderState = {}, pinnedItems = {}, roomCapture = {} }) {
-  const visiblePassOutlook = passCareOutlook || applyPassReview(buildPassCareOutlook({ intake, rows }), passReview);
-  return { walkthroughName, client, intake, dynamicRooms, roomCapture, sectionFlow: driveSectionFlow(sections), sectionOrder: sectionOrderState, itemOrder: itemOrderState, pinnedItems, rows, pmr, passReview, passCareOutlook: visiblePassOutlook, exportedAt: new Date().toISOString() };
+  const reviewedPassOutlook = passCareOutlook || applyPassReview(buildPassCareOutlook({ intake, rows }), passReview);
+  const passCareOutlookForExport = reviewedPassOutlook.map(removePassPrivateFields);
+  const visiblePassIds = new Set(passCareOutlookForExport.map(item => item.id));
+  const rowsForExport = sanitizeRowsForPassExport(rows, visiblePassIds);
+  const pmrForExport = sanitizeRowsForPassExport(pmr, visiblePassIds);
+  const passReviewForExport = sanitizedPassReviewForExport(passReview, visiblePassIds);
+  return { walkthroughName, client, intake, dynamicRooms, roomCapture, sectionFlow: driveSectionFlow(sections), sectionOrder: sectionOrderState, itemOrder: itemOrderState, pinnedItems, rows: rowsForExport, pmr: pmrForExport, passReview: passReviewForExport, passCareOutlook: passCareOutlookForExport, exportedAt: new Date().toISOString() };
 }
 
 const INTAKE_EXPORT_SECTIONS = [
@@ -2842,7 +2871,8 @@ function PMR({client, intake, pmr, counts, quickHits, passCareOutlook = [], pass
       const review = passReview[item.id] || {};
       const included = review.included !== false;
       const reason = review.reason ?? item.reason;
-      const targetWindow = review.targetWindow ?? item.targetWindow ?? passSuggestedWindowText(review.suggestedWindow ?? item.suggestedWindow);
+      const reviewedTargetWindow = review.targetWindow ?? (review.suggestedWindow ? passSuggestedWindowText(review.suggestedWindow) : undefined);
+      const targetWindow = reviewedTargetWindow ?? item.targetWindow ?? passSuggestedWindowText(item.suggestedWindow);
       const cadence = review.cadence ?? item.cadence ?? 'As Needed';
       const resource = review.resource ?? item.resource;
       const followUpStatus = passPlanningStatusText(review.followUpStatus ?? item.followUpStatus);
