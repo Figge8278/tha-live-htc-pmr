@@ -254,9 +254,17 @@
 .passOutlookCard .findGrid p{background:#fff;border-color:#dbe6eb}
 @media(max-width:900px){.passReviewGrid,.passOutlookGrid{grid-template-columns:1fr}.passOutlookCard .findGrid{grid-template-columns:1fr}}
 
-.demoScenarioCard{grid-template-columns:1fr;background:#fbf8ff;border-color:#d7c4ef}
-.demoScenarioCard .controlGroupTitle{align-items:flex-start}
-.demoScenarioCard .controlGroupTitle p{margin:4px 0 0;color:var(--muted);font-weight:700}
+.demoScenarioCard{grid-column:1/-1;background:#f7f8fa;border-color:#d7dde5;color:var(--ink)}
+.demoScenarioCard[open]{background:#fbf8ff;border-color:#d7c4ef}
+.demoScenarioSummary{display:flex;justify-content:space-between;align-items:center;gap:16px;cursor:pointer;list-style:none;color:var(--navy);font-weight:900}
+.demoScenarioSummary::-webkit-details-marker{display:none}
+.demoScenarioSummary span{font-size:18px}
+.demoScenarioSummary small{max-width:560px;color:var(--muted);font-size:12px;line-height:1.35;text-align:right}
+.demoScenarioSummary:after{content:'Open';border-radius:999px;background:#eef2f5;color:var(--navy);font-size:12px;padding:7px 10px;white-space:nowrap}
+.demoScenarioCard[open] .demoScenarioSummary:after{content:'Collapse'}
+.demoScenarioIntro{margin-top:14px;border-top:1px solid #d7c4ef;padding-top:14px}
+.demoScenarioIntro h3{margin:0;color:var(--navy);font-size:18px}
+.demoScenarioIntro p{margin:4px 0 12px;color:var(--muted);font-weight:700;line-height:1.35}
 .demoScenarioGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .demoScenario{display:flex;flex-direction:column;justify-content:space-between;gap:12px;background:#fff;border:1px solid #d7c4ef;border-radius:18px;padding:14px;box-shadow:0 8px 20px rgba(13,44,73,.05)}
 .demoScenario h4{margin:0;color:var(--navy);font-size:16px}
@@ -264,6 +272,7 @@
 .demoScenario ul{margin:8px 0 0;padding-left:18px;color:var(--ink);font-size:12px;font-weight:700;line-height:1.35}
 .demoScenario button{justify-content:center;background:var(--navy);color:#fff}
 @media(max-width:1100px){.demoScenarioGrid{grid-template-columns:1fr}}
+@media(max-width:700px){.demoScenarioSummary{align-items:flex-start;flex-direction:column}.demoScenarioSummary small{text-align:left;max-width:none}.demoScenarioSummary:after{align-self:flex-start}}
 .releaseNote{max-width:420px;border:1px solid #eadbc2;background:#fff8ee;border-radius:16px;padding:8px 12px;color:var(--navy);line-height:1.25}
 .releaseNote strong{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--gold)}
 .releaseNote span{display:block;font-size:12px;font-weight:800;color:var(--muted)}
