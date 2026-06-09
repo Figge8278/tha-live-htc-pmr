@@ -253,3 +253,14 @@
 .passOutlookCard .findGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .passOutlookCard .findGrid p{background:#fff;border-color:#dbe6eb}
 @media(max-width:900px){.passReviewGrid,.passOutlookGrid{grid-template-columns:1fr}.passOutlookCard .findGrid{grid-template-columns:1fr}}
+
+.demoScenarioCard{grid-template-columns:1fr;background:#fbf8ff;border-color:#d7c4ef}
+.demoScenarioCard .controlGroupTitle{align-items:flex-start}
+.demoScenarioCard .controlGroupTitle p{margin:4px 0 0;color:var(--muted);font-weight:700}
+.demoScenarioGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.demoScenario{display:flex;flex-direction:column;justify-content:space-between;gap:12px;background:#fff;border:1px solid #d7c4ef;border-radius:18px;padding:14px;box-shadow:0 8px 20px rgba(13,44,73,.05)}
+.demoScenario h4{margin:0;color:var(--navy);font-size:16px}
+.demoScenario p{margin:6px 0;color:var(--muted);font-weight:700;line-height:1.35}
+.demoScenario ul{margin:8px 0 0;padding-left:18px;color:var(--ink);font-size:12px;font-weight:700;line-height:1.35}
+.demoScenario button{justify-content:center;background:var(--navy);color:#fff}
+@media(max-width:1100px){.demoScenarioGrid{grid-template-columns:1fr}}
