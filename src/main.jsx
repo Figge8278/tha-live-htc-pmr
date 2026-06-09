@@ -1220,9 +1220,9 @@ async function findOrCreateDriveFolder(accessToken, name, parentId) {
   });
   return created.id;
 }
-async function uploadDriveBlob(accessToken, folderId, name, blob, mimeType) {
+async function uploadDriveBlob(accessToken, folderId, name, blob, mimeType, options = {}) {
   const boundary = `tha_${Date.now()}`;
-  const metadata = { name, parents: [folderId] };
+  const metadata = { name, parents: [folderId], ...(options.metadata || {}) };
   const body = new Blob([
     `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`,
     `--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`,
@@ -1240,6 +1240,11 @@ function uploadDriveJson(accessToken, folderId, name, data) {
 }
 function uploadDriveHtml(accessToken, folderId, name, html) {
   return uploadDriveBlob(accessToken, folderId, name, new Blob([html], { type: 'text/html' }), 'text/html');
+}
+function uploadDriveHtmlAsGoogleDoc(accessToken, folderId, name, html) {
+  return uploadDriveBlob(accessToken, folderId, name, new Blob([html], { type: 'text/html' }), 'text/html', {
+    metadata: { mimeType: 'application/vnd.google-apps.document' }
+  });
 }
 async function getDriveFileInfo(accessToken, fileId) {
   return driveFetch(accessToken, `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,webViewLink`);
@@ -1466,10 +1471,16 @@ async function uploadDriveBundle(accessToken, payload) {
   }
 
   const photoEntries = photoEntriesForPayload(payload, uploadedLookup);
-  await uploadDriveHtml(accessToken, packageId, '01 - Intake Summary.html', buildIntakeSummaryHtml(payload));
-  await uploadDriveHtml(accessToken, packageId, '02 - HTC Checklist.html', buildHtcChecklistHtml(payload, photoEntries));
-  await uploadDriveHtml(accessToken, packageId, '03 - PMR Report.html', buildPmrReportHtml(payload, photoEntries));
-  await uploadDriveHtml(accessToken, packageId, '04 - Photo Index.html', buildPhotoIndexHtml(payload, photoEntries));
+  const readableDocs = [
+    ['01 - Intake Summary', buildIntakeSummaryHtml(payload)],
+    ['02 - HTC Checklist', buildHtcChecklistHtml(payload, photoEntries)],
+    ['03 - PMR Report', buildPmrReportHtml(payload, photoEntries)],
+    ['04 - Photo Index', buildPhotoIndexHtml(payload, photoEntries)]
+  ];
+  for (const [name, html] of readableDocs) {
+    await uploadDriveHtmlAsGoogleDoc(accessToken, packageId, name, html);
+    await uploadDriveHtml(accessToken, backupId, `Emergency Backup — HTML - ${name}.html`, html);
+  }
   await uploadDriveJson(accessToken, backupId, 'intake.json', { client: payload.client, intake: payload.intake });
   await uploadDriveJson(accessToken, backupId, 'htc-walkthrough.json', { client: payload.client, roomCapture: payload.roomCapture || {}, rows: payload.rows });
   await uploadDriveJson(accessToken, backupId, 'pmr-data.json', { client: payload.client, intake: payload.intake, pmr: payload.pmr });
