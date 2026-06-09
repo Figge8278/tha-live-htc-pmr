@@ -29,21 +29,21 @@
 .healthDot.red{background:#e41d25}
 .healthDot.yellow{background:#ffb703}
 .healthDot.green{background:#52aa4b}
-.certaintyDot.clearPath{background:#1f8f96}
-.certaintyDot.likelyPath{background:#c9972a}
-.certaintyDot.needsDiscovery{background:#7b8794}
+.certaintyDot.clearPath{background:#38bdf8}
+.certaintyDot.likelyPath{background:#8fa7e8}
+.certaintyDot.needsDiscovery{background:#b8b3d6}
 .guideGrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
 .guideCard{background:white;border:1px solid var(--line);border-radius:24px;padding:18px;box-shadow:0 10px 24px rgba(11,54,88,.06)}
 .guideCard h2{margin:0 0 12px;color:var(--navy);display:flex;align-items:center;gap:8px}
 .guideCard p{margin:10px 0;line-height:1.35}
 .guideCard span{color:var(--muted);font-weight:600}
 .actionGuideItem{border:1px solid transparent;border-radius:16px;padding:12px}
-.actionGuideItem.clearPath{background:#e7f5f5;border-color:#a8d8d8;color:#165f66}
-.actionGuideItem.likelyPath{background:#fff7df;border-color:#ead18b;color:#765714}
-.actionGuideItem.needsDiscovery{background:#f1f4f6;border-color:#ccd4dc;color:#46515b}
-.actionGuideItem.clearPath span{color:#246f75}
-.actionGuideItem.likelyPath span{color:#7d641d}
-.actionGuideItem.needsDiscovery span{color:#57636f}
+.actionGuideItem.clearPath{background:#e8f8ff;border-color:#a9def4;color:#155e75}
+.actionGuideItem.likelyPath{background:#eef3ff;border-color:#c6d4f5;color:#405b92}
+.actionGuideItem.needsDiscovery{background:#f3f1f8;border-color:#d7d2e8;color:#5e5a76}
+.actionGuideItem.clearPath span{color:#236f86}
+.actionGuideItem.likelyPath span{color:#536da3}
+.actionGuideItem.needsDiscovery span{color:#6d6880}
 .tradeBadge{height:34px;width:34px;border-radius:50%;display:inline-grid;place-items:center;background:#fff7e9;color:#c77716;border:1px solid #e4c38d;vertical-align:middle;flex:0 0 auto}
 .tradeBadge.big{height:52px;width:52px;background:#fff3da;border:2px solid var(--gold)}
 .checkList{columns:1;list-style:none;padding:0;margin:12px 0 0}
