@@ -277,17 +277,16 @@ const PASS_CARE_RULES = [
 ];
 
 const INTAKE_DEFAULTS = {
-  priorities: ['Safety','Function'], pace: 'Plan soon', budgetStyle: 'Balanced', decisionStyle: 'Wants options',
-  notes: 'Homeowners want a clear plan, staged priorities, and no pressure to do everything at once.',
-  priorityAreas: '', knownIssues: '', recentRepairs: '', helpfulRecords: '', accessNotes: '', doNotOverlook: '',
-  electricalPanel: 'Garage wall - verify access and labeling during walkthrough.', electricalUpdates: 'Unknown / ask about recent panel or fixture work.',
-  waterShutoff: 'Mechanical room - verify and photo label.', plumbingHistory: 'Slow kitchen drain reported; no known active leak.', waterHeater: 'Last flush unknown.', sewerIrrigation: 'Unknown sewer scope; irrigation service likely seasonal.',
-  hvacFilter: 'Filter replacement date unknown.', hvacService: 'Furnace service likely overdue.', hvacAcService: 'A/C service history unknown.', comfort: 'No major comfort complaints noted yet.',
-  roofAge: 'Approx. age unknown.', roofHistory: 'No known active leak reported.', solar: 'N/A or verify if present.',
-  drainagePooling: 'Water noted near foundation after heavy rain/snowmelt.', drainageHistory: 'No known basement intrusion reported.', gutters: 'Downspout discharge to verify.',
-  windowsDoors: 'One bedroom window reported sticky.', fogging: 'Unknown.', paintStain: 'Exterior finish timing unknown.', productsColors: 'Ask for any leftover labels/photos.',
-  pests: 'No known active pest issue reported.', fireExtinguishers: 'One present, age unknown.', smokeCO: 'Detector age unknown; verify hardwired/battery and photo date stamps.',
-  chimney: 'Last service unknown.', additionalConcerns: 'Homeowner wants practical staging: quick wins, recurring care, and larger items only when justified.'
+  priorities: [], pace: '', budgetStyle: '', decisionStyle: '',
+  notes: '', priorityAreas: '', knownIssues: '', recentRepairs: '', helpfulRecords: '', accessNotes: '', doNotOverlook: '',
+  electricalPanel: '', electricalUpdates: '',
+  waterShutoff: '', plumbingHistory: '', waterHeater: '', sewerIrrigation: '',
+  hvacFilter: '', hvacService: '', hvacAcService: '', comfort: '',
+  roofAge: '', roofHistory: '', solar: '',
+  drainagePooling: '', drainageHistory: '', gutters: '',
+  windowsDoors: '', fogging: '', paintStain: '', productsColors: '',
+  pests: '', fireExtinguishers: '', smokeCO: '',
+  chimney: '', additionalConcerns: ''
 };
 
 
@@ -400,14 +399,14 @@ function intakeSummary(intake) {
   return { priorities, pace: intake.pace || 'Not selected', budget: intake.budgetStyle || 'Not selected', decision: intake.decisionStyle || 'Not selected', notes: intake.notes || 'No additional homeowner notes recorded yet.' };
 }
 function intakeInfluence(item, intake) {
-  const pace = intake?.pace || 'Plan soon';
-  const budget = intake?.budgetStyle || 'Balanced';
+  const pace = intake?.pace || '';
+  const budget = intake?.budgetStyle || '';
   if (pace === 'Do now') return 'Homeowner prefers timely action, so this item can be staged sooner if aligned with scope and budget.';
   if (pace === 'Budget over time') return 'Homeowner prefers staged planning, so this can be grouped into a future phase unless risk increases.';
   if (pace === 'Watchlist only') return 'Homeowner prefers monitoring, so this should remain on the watchlist unless symptoms worsen.';
   if (budget === 'Minimal fixes') return 'Keep the first step practical and limited unless further discovery changes the scope.';
   if (budget === 'Invest where it matters') return 'Recommend the solution that best protects long-term value, not only the cheapest short-term fix.';
-  return 'Balanced approach: address the practical first step and stage larger decisions as needed.';
+  return 'No homeowner pace or budget preference has been recorded yet; use field observations to define the practical first step.';
 }
 function intakeFieldLabel(key) {
   return key.replace(/([A-Z])/g, ' $1').replace(/^./, char => char.toUpperCase());
@@ -1786,42 +1785,18 @@ const DEMO_WALKTHROUGH_SCENARIOS = [
     }
   }
 ];
-function legacyWalkthroughData() {
-  const dynamicRooms = safeJsonParse(localStorage.getItem(DYNAMIC_ROOMS_KEY), null);
-  return {
-    client: safeJsonParse(localStorage.getItem(LEGACY_CLIENT_KEY), { name: 'Christine & Matt', address: 'Sample Home', date: '2026-04 Walkthrough' }),
-    answers: safeJsonParse(localStorage.getItem(LEGACY_ANSWERS_KEY), null) || sampleAnswers,
-    intake: normalizeIntakeData(safeJsonParse(localStorage.getItem(LEGACY_INTAKE_KEY), null) || INTAKE_DEFAULTS),
-    dynamicRooms: Array.isArray(dynamicRooms) ? dynamicRooms : DEFAULT_DYNAMIC_ROOMS,
-    sectionOrder: safeJsonParse(localStorage.getItem(SECTION_ORDER_KEY), []),
-    itemOrder: safeJsonParse(localStorage.getItem(ITEM_ORDER_KEY), {}),
-    pinnedItems: safeJsonParse(localStorage.getItem(PINNED_ITEMS_KEY), {}),
-    roomCapture: safeJsonParse(localStorage.getItem(ROOM_CAPTURE_KEY), {})
-  };
-}
 function readWalkthroughSessions() {
   const saved = safeJsonParse(localStorage.getItem(WALKTHROUGH_SESSIONS_KEY), {});
   return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
 }
 function initialWalkthroughState() {
   const sessions = readWalkthroughSessions();
-  const activeId = localStorage.getItem(CURRENT_WALKTHROUGH_ID_KEY) || '';
-  const activeSession = activeId ? sessions[activeId] : null;
-  if (activeSession?.data) {
-    return {
-      data: { ...cleanWalkthroughData(), ...activeSession.data, intake: normalizeIntakeData(activeSession.data.intake) },
-      sessions,
-      activeId,
-      selectedId: activeId,
-      name: activeSession.name || 'Untitled Walkthrough'
-    };
-  }
   return {
-    data: legacyWalkthroughData(),
+    data: cleanWalkthroughData(),
     sessions,
     activeId: '',
     selectedId: '',
-    name: 'Current Walkthrough'
+    name: 'New Blank Walkthrough'
   };
 }
 
@@ -2038,12 +2013,11 @@ function App() {
   const update = (id, patch) => setAnswers(prev => ({...prev, [id]: {...normalizeAnswer(prev[id], itemById[id]), ...patch}}));
   const updateIntake = (patch) => setIntake(prev => normalizeIntakeData({...prev, ...patch}));
   const updatePassReview = (id, patch) => setPassReview(prev => ({...prev, [id]: {...(prev[id] || {}), ...patch}}));
-  useEffect(() => {
-    if (!intake.intakeId) setIntake(prev => prev.intakeId ? prev : normalizeIntakeData({ ...prev, intakeId: generateIntakeId() }));
-  }, [intake.intakeId]);
   const copyPreWalkthroughIntakeEmail = async () => {
+    const intakeId = intake.intakeId || generateIntakeId();
     try {
-      await copyTextToClipboard(buildPreWalkthroughIntakeEmail({ client, intakeId: intake.intakeId }));
+      if (!intake.intakeId) setIntake(prev => prev.intakeId ? prev : normalizeIntakeData({ ...prev, intakeId }));
+      await copyTextToClipboard(buildPreWalkthroughIntakeEmail({ client, intakeId }));
       setCopyFeedback('Pre-walkthrough intake email copied');
       window.setTimeout(() => setCopyFeedback(''), 2500);
     } catch (error) {
@@ -2566,7 +2540,7 @@ function App() {
         <div className="summaryItem"><span>Client Name</span><strong title={client.name || 'Missing'}>{client.name || 'Missing'}</strong></div>
         <div className="summaryItem"><span>Project Address</span><strong title={client.address || 'Missing'}>{client.address || 'Missing'}</strong></div>
         <div className="summaryItem"><span>Walkthrough Date / Visit Label</span><strong title={client.date || 'Missing'}>{client.date || 'Missing'}</strong></div>
-        <div className="summaryItem"><span>Intake ID</span><strong title={intake.intakeId || 'Generating'}>{intake.intakeId || 'Generating…'}</strong></div>
+        <div className="summaryItem"><span>Intake ID</span><strong title={intake.intakeId || 'Not generated yet'}>{intake.intakeId || 'Not generated yet'}</strong></div>
         <span className={`saveStatus ${saveStatus.state}`} role="status" aria-live="polite"><span className="saveStatusDot" aria-hidden="true"></span>{saveStatusText(saveStatus, hasUnsavedVisiblePhotos)}</span>
         <span className={`driveSummaryPill ${driveMeta.lastError ? 'error' : (driveToken ? 'connected' : '')}`} title={driveSummaryText}>{driveSummaryText}</span>
         {controlsNeedsAttention && <span className="controlAttentionPill" role="status"><AlertTriangle size={14}/> {controlsAttentionText}</span>}
@@ -2590,10 +2564,11 @@ function App() {
           <label>Open Saved Walkthrough<select value={selectedWalkthroughId} onChange={e=>openSavedWalkthrough(e.target.value)}><option value="">Choose saved walkthrough</option>{savedSessionList.map(session=><option key={session.id} value={session.id}>{session.name || 'Untitled Walkthrough'}{session.updatedAt ? ` · ${new Date(session.updatedAt).toLocaleString()}` : ''}</option>)}</select></label>
           <button type="button" onClick={deleteSavedWalkthrough} disabled={!selectedWalkthroughId || !savedSessions[selectedWalkthroughId]}>Delete Selected Walkthrough</button>
         </section>
-        <section className="controlGroup demoScenarioCard" aria-label="Demo Walkthrough Scenarios">
-          <div className="controlGroupTitle"><h3>Demo Scenarios</h3><p>Test/demo support for PMR and PASS export behavior.</p></div>
+        <details className="controlGroup demoScenarioCard" aria-label="Developer / Demo Tools">
+          <summary className="demoScenarioSummary"><span>Developer / Demo Tools</span><small>Test Walkthrough Scenarios are available for QA only and stay outside the normal homeowner workflow.</small></summary>
+          <div className="demoScenarioIntro"><h3>Test Walkthrough Scenarios</h3><p>Load these only when testing PMR/PASS export behavior. Start real homeowner walkthroughs from the blank intake and HTC workflow above.</p></div>
           <div className="demoScenarioGrid">{DEMO_WALKTHROUGH_SCENARIOS.map(scenario => <article className="demoScenario" key={scenario.id}><div><h4>{scenario.name}</h4><p>{scenario.description}</p><ul>{scenario.checks.map(check => <li key={check}>{check}</li>)}</ul></div><button type="button" onClick={()=>loadDemoScenario(scenario)}>Load Demo</button></article>)}</div>
-        </section>
+        </details>
         <section className="controlGroup releaseNoteCard" aria-label="Current Release Note">
           <div className="controlGroupTitle"><h3>Release Note</h3><p>{APP_RELEASE_NOTE.label}</p></div>
           <p>{APP_RELEASE_NOTE.summary}</p>
@@ -2786,7 +2761,7 @@ function IntakeView({client = {}, intake, updateIntake, copyFeedback = '', onCop
       <div><span>Homeowner Quick Intake fields completed</span><strong>{homeownerCompleted}/{HOMEOWNER_QUICK_INTAKE_FIELDS.length}</strong></div>
       <div><span>THA Field Prep fields completed</span><strong>{fieldPrepCompleted}/{THA_FIELD_PREP_FIELDS.length}</strong></div>
       <div><span>Generated HTC Follow-Up count</span><strong>{intakeFollowUpCount}</strong></div>
-      <div><span>Intake ID</span><strong>{intake.intakeId || 'Generating…'}</strong></div>
+      <div><span>Intake ID</span><strong>{intake.intakeId || 'Not generated yet'}</strong></div>
       <div><span>Intake Status</span><strong>{intake.intakeStatus || 'Not imported'}</strong></div>
       <div className={readyForHTC ? 'ready' : 'notReady'}><span>Ready for HTC</span><strong>{readyForHTC ? 'Yes' : 'Add context'}</strong></div>
       <button type="button" className="copyIntakeEmailButton" onClick={onCopyPreWalkthroughEmail}><ClipboardCheck size={16}/> Copy Pre-Walkthrough Intake Email</button>
