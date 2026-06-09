@@ -1246,6 +1246,129 @@ function uploadDriveHtmlAsGoogleDoc(accessToken, folderId, name, html) {
     metadata: { mimeType: 'application/vnd.google-apps.document' }
   });
 }
+
+function uploadDrivePdf(accessToken, folderId, name, pdfBlob) {
+  return uploadDriveBlob(accessToken, folderId, name, pdfBlob, 'application/pdf');
+}
+function waitForFrameLoad(frame) {
+  return new Promise(resolve => {
+    const done = () => requestAnimationFrame(() => requestAnimationFrame(resolve));
+    frame.onload = done;
+    setTimeout(done, 250);
+  });
+}
+function imageLoad(src) {
+  return new Promise((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Unable to render PMR PDF page image.'));
+    image.src = src;
+  });
+}
+function dataUriToBinaryString(dataUri) {
+  return atob(String(dataUri).split(',')[1] || '');
+}
+function pdfEscape(value) {
+  return String(value ?? '').replace(/[\\()]/g, '\\$&').replace(/\r/g, '').replace(/\n/g, ' ');
+}
+function buildImagePdf(pages, { title = 'PMR Report', pageWidth = 612, pageHeight = 792 } = {}) {
+  const encoder = new TextEncoder();
+  const chunks = [];
+  const offsets = [0];
+  let byteLength = 0;
+  const addText = text => {
+    const bytes = encoder.encode(text);
+    chunks.push(bytes);
+    byteLength += bytes.length;
+  };
+  const addBinary = binary => {
+    const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+    chunks.push(bytes);
+    byteLength += bytes.length;
+  };
+  const pageCount = pages.length;
+  const catalogId = 1;
+  const pagesId = 2;
+  const firstPageId = 3;
+  const imageObjectId = index => firstPageId + pageCount + (index * 2);
+  const contentObjectId = index => imageObjectId(index) + 1;
+  const writeObjectStart = id => {
+    offsets[id] = byteLength;
+    addText(`${id} 0 obj\n`);
+  };
+  addText('%PDF-1.4\n%THA\n');
+  writeObjectStart(catalogId);
+  addText(`<< /Type /Catalog /Pages ${pagesId} 0 R >>\nendobj\n`);
+  writeObjectStart(pagesId);
+  addText(`<< /Type /Pages /Kids ${pages.map((_, index) => `${firstPageId + index} 0 R`).join(' ')} /Count ${pageCount} >>\nendobj\n`);
+  pages.forEach((page, index) => {
+    const pageId = firstPageId + index;
+    writeObjectStart(pageId);
+    addText(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /XObject << /Im${index + 1} ${imageObjectId(index)} 0 R >> >> /Contents ${contentObjectId(index)} 0 R >>\nendobj\n`);
+  });
+  pages.forEach((page, index) => {
+    const binary = dataUriToBinaryString(page.dataUrl);
+    writeObjectStart(imageObjectId(index));
+    addText(`<< /Type /XObject /Subtype /Image /Width ${page.pixelWidth} /Height ${page.pixelHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${binary.length} >>\nstream\n`);
+    addBinary(binary);
+    addText('\nendstream\nendobj\n');
+    const content = `q\n${pageWidth} 0 0 ${pageHeight} 0 0 cm\n/Im${index + 1} Do\nQ\n`;
+    writeObjectStart(contentObjectId(index));
+    addText(`<< /Length ${content.length} >>\nstream\n${content}endstream\nendobj\n`);
+  });
+  const infoId = firstPageId + pageCount + (pageCount * 2);
+  writeObjectStart(infoId);
+  addText(`<< /Title (${pdfEscape(title)}) /Creator (THA PMR Export) /Producer (THA PMR Export) >>\nendobj\n`);
+  const xrefStart = byteLength;
+  addText(`xref\n0 ${infoId + 1}\n0000000000 65535 f \n`);
+  for (let id = 1; id <= infoId; id += 1) addText(`${String(offsets[id] || 0).padStart(10, '0')} 00000 n \n`);
+  addText(`trailer\n<< /Size ${infoId + 1} /Root ${catalogId} 0 R /Info ${infoId} 0 R >>\nstartxref\n${xrefStart}\n%%EOF`);
+  const pdfBytes = new Uint8Array(byteLength);
+  let cursor = 0;
+  chunks.forEach(chunk => { pdfBytes.set(chunk, cursor); cursor += chunk.length; });
+  return new Blob([pdfBytes], { type: 'application/pdf' });
+}
+async function buildStyledPdfBlob(html, { title = 'PMR Report' } = {}) {
+  if (typeof document === 'undefined' || !window?.Image) throw new Error('PDF export requires a browser rendering environment.');
+  const frame = document.createElement('iframe');
+  frame.setAttribute('aria-hidden', 'true');
+  frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:960px;height:1242px;border:0;visibility:hidden;';
+  document.body.appendChild(frame);
+  try {
+    frame.srcdoc = html;
+    await waitForFrameLoad(frame);
+    const doc = frame.contentDocument;
+    if (!doc?.body) throw new Error('Unable to prepare PMR PDF document.');
+    const serializer = new XMLSerializer();
+    const styleText = Array.from(doc.querySelectorAll('style')).map(style => style.textContent || '').join('\n').replace(/]]>/g, ']]]]><![CDATA[>');
+    const bodyMarkup = Array.from(doc.body.childNodes).map(node => serializer.serializeToString(node)).join('');
+    const htmlWidth = 960;
+    const pageHeightPx = Math.round(htmlWidth * (792 / 612));
+    const totalHeight = Math.max(pageHeightPx, doc.documentElement.scrollHeight, doc.body.scrollHeight);
+    const scale = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+    const pages = [];
+    for (let y = 0; y < totalHeight; y += pageHeightPx) {
+      const visibleHeight = Math.min(pageHeightPx, totalHeight - y);
+      const xhtml = `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${htmlWidth}px;min-height:${totalHeight}px;background:#fff;"><style><![CDATA[${styleText}]]></style><div style="transform:translateY(-${y}px);transform-origin:top left;width:${htmlWidth}px;">${bodyMarkup}</div></div>`;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${htmlWidth}" height="${pageHeightPx}" viewBox="0 0 ${htmlWidth} ${pageHeightPx}"><rect width="100%" height="100%" fill="#ffffff"/><foreignObject x="0" y="0" width="${htmlWidth}" height="${Math.max(totalHeight, visibleHeight)}">${xhtml}</foreignObject></svg>`;
+      const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+      const image = await imageLoad(url);
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(htmlWidth * scale);
+      canvas.height = Math.round(pageHeightPx * scale);
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Canvas PDF rendering is unavailable in this browser.');
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      pages.push({ dataUrl: canvas.toDataURL('image/jpeg', 0.92), pixelWidth: canvas.width, pixelHeight: canvas.height });
+    }
+    return buildImagePdf(pages, { title });
+  } finally {
+    frame.remove();
+  }
+}
 async function getDriveFileInfo(accessToken, fileId) {
   return driveFetch(accessToken, `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,webViewLink`);
 }
@@ -1409,7 +1532,7 @@ function buildPmrReportHtml(payload, photoEntries = []) {
     <section class="card section-card"><p class="section-kicker">Section 3</p><h2>Trade Items</h2><p class="lede">Items below may require a licensed trade or specialist resource before pricing, scheduling, or repair scope is finalized.</p>${tradeItems.map(findingCard).join('') || '<p><span class="not-recorded">No trade items recorded.</span></p>'}</section>
     <section class="card section-card pass-card"><p class="section-kicker">Section 4 · Separate from PMR counts</p><h2>PASS Continued Care Outlook</h2><p class="lede">PASS is ongoing home-care planning. These items are not PMR defects, priority counts, or urgent repair directives.</p><div class="table-wrap"><table class="care-table"><thead><tr><th>Care item</th><th>Why it is included</th><th>Continued-care plan</th><th>Target window</th><th>Cadence</th><th>Resource</th></tr></thead><tbody>${tableRows(passCareOutlook, [{ value: r => htmlEscape(r.careItem) }, { value: r => htmlEscape(r.reason) }, { value: r => htmlEscape(passHomeownerFollowUpLanguage(r)) }, { value: r => htmlEscape(passSuggestedWindowText(r.targetWindow || r.suggestedWindow)) }, { value: r => htmlEscape(r.cadence || 'As Needed') }, { value: r => htmlEscape(r.resource) }])}</tbody></table></div></section>
     <section class="card section-card"><p class="section-kicker">Section 5</p><h2>Intake Follow-Up Notes</h2><p class="lede">Reviewed intake items are included only as context from homeowner follow-up. Intake alone does not create a PMR finding.</p><ul class="next-step-list">${intakeList}</ul></section>`;
-  return reportShell('01 - PMR Report', payload.client, body, payload.walkthroughName);
+  return reportShell('03 - PMR Report', payload.client, body, payload.walkthroughName);
 }
 function buildHtcChecklistHtml(payload, photoEntries = []) {
   const rows = (payload.rows || []).map(row => ({ ...row, categoryLabel: categoryInfo(categoryForChecklistItem(row)).label, photoEntries: photoEntries.filter(entry => entry.item === row.item && entry.room === (row.roomName || row.room)) }));
@@ -1430,7 +1553,7 @@ function buildIntakeSummaryHtml(payload) {
     return `<section class="card"><h2>${htmlEscape(section.title)}</h2><table><thead><tr><th>Topic</th><th>Homeowner Context</th></tr></thead><tbody>${tableRows(rows, [{value:r=>reportValue(r.label)}, {value:r=>reportValue(r.value)}])}</tbody></table></section>`;
   }).join('');
   const body = `<section class="card"><h2>Intake — Homeowner Context & Field Prep</h2><p class="lede">Intake captures homeowner-reported context before the walkthrough. HTC verifies conditions in the field. PMR findings are only created after review. Imported raw responses are included only as homeowner-provided context, not verified findings. Empty fields are shown as “Not recorded” for context without turning missing information into a finding.</p></section>${sections}`;
-  return reportShell('03 - Intake Summary', payload.client, body, payload.walkthroughName);
+  return reportShell('01 - Intake Summary', payload.client, body, payload.walkthroughName);
 }
 function buildPhotoIndexHtml(payload, photoEntries = []) {
   const grouped = photoEntries.reduce((acc, entry) => { const room = entry.room || 'Room'; acc[room] = [...(acc[room] || []), entry]; return acc; }, {});
@@ -1471,16 +1594,21 @@ async function uploadDriveBundle(accessToken, payload) {
   }
 
   const photoEntries = photoEntriesForPayload(payload, uploadedLookup);
+  const pmrReportHtml = buildPmrReportHtml(payload, photoEntries);
+  const pmrReportPdf = await buildStyledPdfBlob(pmrReportHtml, { title: '03 - PMR Report' });
+  await uploadDrivePdf(accessToken, packageId, '03 - PMR Report.pdf', pmrReportPdf);
+  await uploadDriveHtmlAsGoogleDoc(accessToken, packageId, '03 - PMR Report — Editable Copy', pmrReportHtml);
+
   const readableDocs = [
     ['01 - Intake Summary', buildIntakeSummaryHtml(payload)],
     ['02 - HTC Checklist', buildHtcChecklistHtml(payload, photoEntries)],
-    ['03 - PMR Report', buildPmrReportHtml(payload, photoEntries)],
     ['04 - Photo Index', buildPhotoIndexHtml(payload, photoEntries)]
   ];
   for (const [name, html] of readableDocs) {
     await uploadDriveHtmlAsGoogleDoc(accessToken, packageId, name, html);
     await uploadDriveHtml(accessToken, backupId, `Emergency Backup — HTML - ${name}.html`, html);
   }
+  await uploadDriveHtml(accessToken, backupId, 'Emergency Backup — HTML - 03 - PMR Report.html', pmrReportHtml);
   await uploadDriveJson(accessToken, backupId, 'intake.json', { client: payload.client, intake: payload.intake });
   await uploadDriveJson(accessToken, backupId, 'htc-walkthrough.json', { client: payload.client, roomCapture: payload.roomCapture || {}, rows: payload.rows });
   await uploadDriveJson(accessToken, backupId, 'pmr-data.json', { client: payload.client, intake: payload.intake, pmr: payload.pmr });
@@ -2518,7 +2646,7 @@ function App() {
         lastSaved: savedAt,
         lastFolderName: drivePackage.folderName || '',
         lastFolderLink: drivePackage.folderLink || '',
-        ...driveStatusState(`Readable Drive package saved at ${savedAt}.`, 'success')
+        ...driveStatusState(`PDF Drive package saved at ${savedAt}.`, 'success')
       }));
     } catch (error) {
       if (isDriveSessionExpired(error)) setDriveToken('');
@@ -2602,7 +2730,7 @@ function App() {
             <div className="driveBrowserStatus" role="status" aria-live="polite">
               <strong>{driveStatusMessage}</strong>
               <span>{hasAppDriveClientId && !usingManualDriveOverride ? 'Drive configured for this app.' : `Client ID source: ${driveClientIdSourceLabel}.`}</span>
-              <span>Connect Google Drive authorizes this browser session. Save Readable Package to Drive uploads the report package.</span>
+              <span>Connect Google Drive authorizes this browser session. Save Readable Package to Drive uploads 03 - PMR Report.pdf as the primary homeowner deliverable, plus supporting docs and backups.</span>
             </div>
             <div className="originCard">
               <span>Drive field workflow</span>
@@ -2612,7 +2740,7 @@ function App() {
           </div>
           <div className="driveSetupActions">
             <button onClick={connectDrive} disabled={driveBusy || !driveConfigured}><FolderOpen size={16}/> Connect Google Drive</button>
-            <button onClick={()=>syncDrive({retryQueue:true})} disabled={driveBusy || !driveToken}><Upload size={16}/> Save Readable Package to Drive</button>
+            <button onClick={()=>syncDrive({retryQueue:true})} disabled={driveBusy || !driveToken}><Upload size={16}/> Save PDF Package to Drive</button>
             {driveMeta.lastFolderLink ? <a className="driveFolderLink driveActionLink" href={driveMeta.lastFolderLink} target="_blank" rel="noreferrer"><FolderOpen size={14}/> Open Last Drive Folder</a> : <button type="button" disabled><FolderOpen size={16}/> Open Last Drive Folder</button>}
             <button onClick={syncPendingPhotosToDrive} disabled={driveBusy || !driveToken || !pendingPhotoCount}><Upload size={16}/> Sync Pending Photos</button>
             {copyFeedback && <span className="copyFeedback" role="status">{copyFeedback}</span>}
