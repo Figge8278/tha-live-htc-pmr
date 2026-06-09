@@ -148,3 +148,24 @@
 .sectionSelect.hasRoomAttention:not(.active){background:#fffaf1;box-shadow:inset 3px 0 0 var(--gold)}
 .sectionSelect.active .roomSummaryBadge{border-color:rgba(255,255,255,.55)}
 @media(max-width:900px){.roomNav .sectionNavRow{align-items:stretch}.roomSummaryBadge{font-size:11px;padding:4px 7px}}
+
+.intakeStatusSummary{display:grid;grid-template-columns:repeat(4,1fr) auto;gap:12px;align-items:stretch;margin:16px 0}
+.intakeStatusSummary>div{background:#fff;border:1px solid var(--line);border-radius:20px;padding:14px;box-shadow:0 8px 20px rgba(13,44,73,.05)}
+.intakeStatusSummary span{display:block;color:var(--muted);font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}
+.intakeStatusSummary strong{display:block;margin-top:6px;color:var(--navy);font-size:24px}
+.intakeStatusSummary .ready{border-color:#b9d9ad;background:#f3faef}
+.intakeStatusSummary .notReady{background:#fffaf1}
+.reviewFollowUpButton{height:100%;justify-content:center;background:var(--navy);color:#fff;box-shadow:0 10px 24px rgba(11,54,88,.18)}
+.intakeLane summary{display:flex;justify-content:space-between;gap:16px;align-items:center;cursor:pointer;color:var(--navy);font-weight:900;list-style:none}
+.intakeLane summary::-webkit-details-marker{display:none}
+.intakeLane summary:after{content:'Collapse';border-radius:999px;background:#eef2f5;color:var(--navy);font-size:12px;padding:7px 10px}
+.intakeLane:not([open]) summary:after{content:'Open'}
+.intakeLane summary span{display:flex;align-items:center;gap:8px;font-size:22px}
+.intakeLane summary small{max-width:520px;color:var(--muted);font-size:13px;line-height:1.35;text-align:right}
+.homeownerLane{border-color:#e7c981;background:#fffdf8}
+.quickIntakeGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:12px}
+.quickIntakeGrid .notes:first-child{grid-column:1/-1}
+.intakeSubsection{border-top:1px solid #eadbc2;margin-top:16px;padding-top:14px}
+.intakeSubsection h3{margin:0 0 10px;color:var(--navy)}
+@media(max-width:1050px){.intakeStatusSummary{grid-template-columns:repeat(2,1fr)}.reviewFollowUpButton{grid-column:1/-1}.intakeLane summary{align-items:flex-start;flex-direction:column}.intakeLane summary small{text-align:left;max-width:none}}
+@media(max-width:900px){.quickIntakeGrid,.intakeStatusSummary{grid-template-columns:1fr}}
