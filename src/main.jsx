@@ -160,6 +160,109 @@ const PMR_TIME_INVESTMENT_GUIDE = [
   { key: 'future', icon: '📅', label: 'Larger / Future Project', display: 'Larger / Future Project — plan, estimate, or schedule' }
 ];
 
+
+const PASS_CARE_RULES = [
+  {
+    id: 'furnace-filter-rhythm',
+    careItem: 'Furnace service / filter rhythm',
+    resource: 'HVAC',
+    trade: 'HVAC',
+    cadence: 'Seasonal / filter every 1–3 months',
+    suggestedWindow: 'Recommended next normal window: fall, before heating season; filter check every 1–3 months during regular use',
+    intakeKeys: ['furnaceService', 'hvacService', 'hvacFilter'],
+    rowKeywords: ['furnace', 'filter', 'hvac service'],
+    reason: 'Care planning for normal heating-system service and airflow upkeep before peak heating demand.'
+  },
+  {
+    id: 'ac-heat-pump-service',
+    careItem: 'A/C or heat pump service',
+    resource: 'HVAC',
+    trade: 'HVAC',
+    cadence: 'Annual',
+    suggestedWindow: 'Recommended next normal window: spring, before cooling season',
+    intakeKeys: ['acHeatPumpService', 'hvacAcService', 'comfort'],
+    rowKeywords: ['a/c', 'ac service', 'heat pump', 'cooling'],
+    reason: 'Care planning for normal cooling-system service before seasonal use.'
+  },
+  {
+    id: 'gutters-drainage-review',
+    careItem: 'Gutter/downspout/drainage review',
+    resource: 'Gutters/Drainage',
+    trade: 'Handyman',
+    cadence: 'Seasonal',
+    suggestedWindow: 'Recommended next normal window: fall after leaf drop, plus spring or snowmelt check where relevant',
+    intakeKeys: ['gutters', 'drainagePooling', 'drainageHistory', 'drainageGrading'],
+    rowKeywords: ['gutter', 'downspout', 'drainage', 'grading', 'pooling'],
+    reason: 'Care planning for routine water-management review around the home.'
+  },
+  {
+    id: 'water-heater-service',
+    careItem: 'Water heater service / flush review',
+    resource: 'Plumbing',
+    trade: 'Plumbing',
+    cadence: 'Annual or next plumbing visit',
+    suggestedWindow: 'Recommended next normal window: annual care pass or next plumbing visit',
+    intakeKeys: ['waterHeaterService', 'waterHeater', 'plumbingHistory'],
+    rowKeywords: ['water heater', 'tankless', 'flush'],
+    reason: 'Care planning for normal water-heater maintenance history and service review.'
+  },
+  {
+    id: 'chimney-fireplace-service',
+    careItem: 'Chimney/fireplace cleaning or inspection',
+    resource: 'Roofing',
+    trade: 'Chimney',
+    cadence: 'Annual / Fall',
+    suggestedWindow: 'Recommended next normal window: fall, before heating season or fireplace use',
+    intakeKeys: ['chimneyFireplaceService', 'chimney'],
+    rowKeywords: ['chimney', 'fireplace', 'hearth', 'damper'],
+    reason: 'Care planning for normal fireplace and chimney service timing before seasonal use.'
+  },
+  {
+    id: 'smoke-co-extinguisher-check',
+    careItem: 'Smoke/CO detector + extinguisher check',
+    resource: 'Safety',
+    trade: 'Safety',
+    cadence: 'Annual',
+    suggestedWindow: 'Recommended next normal window: annual safety pass',
+    intakeKeys: ['smokeCO', 'fireExtinguishers'],
+    rowKeywords: ['smoke', 'co detector', 'carbon monoxide', 'extinguisher'],
+    reason: 'Care planning for routine annual safety-device date, battery, gauge, and placement review.'
+  },
+  {
+    id: 'exterior-paint-caulk-review',
+    careItem: 'Exterior paint/stain/caulk review',
+    resource: 'Handy Services',
+    trade: 'Paint',
+    cadence: 'Annual review',
+    suggestedWindow: 'Recommended next normal window: dry/warm exterior season',
+    intakeKeys: ['exteriorPaintStain', 'paintStain', 'productsColors'],
+    rowKeywords: ['paint', 'stain', 'caulk', 'exterior finish'],
+    reason: 'Care planning for normal exterior finish review during practical weather.'
+  },
+  {
+    id: 'pest-prevention-watch',
+    careItem: 'Pest prevention/watch',
+    resource: 'Pest',
+    trade: 'Pest',
+    cadence: 'Seasonal / As Needed',
+    suggestedWindow: 'Recommended next normal window: spring/fall or as needed',
+    intakeKeys: ['pestActivity', 'pests'],
+    rowKeywords: ['pest', 'insect', 'rodent', 'bug'],
+    reason: 'Care planning for routine pest prevention and seasonal watch items.'
+  },
+  {
+    id: 'windows-doors-weatherstripping',
+    careItem: 'Windows/doors/weatherstripping',
+    resource: 'Handy Services',
+    trade: 'Windows',
+    cadence: 'Seasonal',
+    suggestedWindow: 'Recommended next normal window: before heating or cooling season',
+    intakeKeys: ['windowsDoorsRepairedReplaced', 'windowsDoors', 'fogging', 'stickyOpeningsDrafts'],
+    rowKeywords: ['window', 'door', 'weatherstripping', 'draft', 'seal'],
+    reason: 'Care planning for normal comfort, operation, and weatherstripping review before peak seasons.'
+  }
+];
+
 const INTAKE_DEFAULTS = {
   priorities: ['Safety','Function'], pace: 'Plan soon', budgetStyle: 'Balanced', decisionStyle: 'Wants options',
   notes: 'Homeowners want a clear plan, staged priorities, and no pressure to do everything at once.',
@@ -543,6 +646,74 @@ function passResourceFor(item = {}) {
   if (category === 'Safety' || trade === 'Safety') return 'Safety';
   if (trade === 'Handyman') return 'Handy Services';
   return 'Other';
+}
+
+function passTextMatchesRule(text = '', rule = {}) {
+  const normalized = String(text || '').toLowerCase();
+  return (rule.rowKeywords || []).some(keyword => normalized.includes(keyword));
+}
+function passIntakeValueByKey(intake = {}, key = '') {
+  const direct = meaningfulIntakeValue(intake[key]);
+  if (direct) return direct;
+  for (const group of STRUCTURED_HOMEOWNER_QUICK_INTAKE_GROUPS) {
+    if (!group.fields.some(field => field.key === key)) continue;
+    const structured = meaningfulIntakeValue(structuredIntakeAnswerValue(intake, group.key, key));
+    if (structured) return structured;
+  }
+  return '';
+}
+function passIntakeValueForRule(intake = {}, rule = {}) {
+  const values = (rule.intakeKeys || []).map(key => ({ key, value: passIntakeValueByKey(intake, key) })).filter(item => item.value);
+  return values[0] || null;
+}
+function passIntakeBasis(intake = {}, rule = {}) {
+  const item = passIntakeValueForRule(intake, rule);
+  if (!item) return 'Unknown service history';
+  const value = item.value;
+  const unknownish = /unknown|not sure|unsure|last .*unknown|history unknown|date unknown|age unknown|verify|ask/i.test(value);
+  if (unknownish) return `Unknown service history: ${intakeFieldLabel(item.key)} — ${value}`;
+  return `Homeowner-reported service history: ${intakeFieldLabel(item.key)} — ${value}`;
+}
+function passRoutineObservationBasis(rows = [], rule = {}) {
+  const matches = rows.filter(row => {
+    const text = `${row.roomName || row.room || ''} ${row.zone || ''} ${row.item || ''} ${row.prompt || ''} ${row.answer?.notes || ''}`;
+    return passTextMatchesRule(text, rule) && (row.pass || row.answer?.passCandidate || row.answer?.status === 'Good' || row.answer?.status === 'Unknown');
+  }).slice(0, 2);
+  if (!matches.length) return '';
+  return `HTC routine-care observation: ${matches.map(row => row.item).join('; ')}`;
+}
+function passManualBasis(row = {}) {
+  return ['Manually marked PASS candidate', row.answer?.passNote ? `Care planning note: ${row.answer.passNote}` : ''].filter(Boolean).join(' · ');
+}
+function passManualCareRow(row = {}) {
+  return {
+    id: `manual-pass-${row.id}`,
+    source: 'manual',
+    careItem: row.item || 'Manual PASS candidate',
+    reason: row.answer?.passNote || 'Care planning item manually marked during HTC for recurring care follow-up.',
+    suggestedWindow: row.answer?.passCadence ? `Suggested window: ${row.answer.passCadence}` : 'Suggested window: Recommended next normal window',
+    resource: row.answer?.passResource || passResourceFor(row),
+    basis: passManualBasis(row),
+    row
+  };
+}
+function buildPassCareOutlook({ intake = {}, rows = [] } = {}) {
+  const normalizedRows = Array.isArray(rows) ? rows : [];
+  const manualRows = normalizedRows.filter(row => row.answer?.passCandidate).map(passManualCareRow);
+  const generatedRows = PASS_CARE_RULES.map(rule => {
+    const basis = [passIntakeBasis(intake, rule), passRoutineObservationBasis(normalizedRows, rule), `Common maintenance cadence: ${rule.cadence}`].filter(Boolean).join(' · ');
+    return {
+      id: `generated-pass-${rule.id}`,
+      source: 'generated',
+      careItem: rule.careItem,
+      reason: rule.reason,
+      suggestedWindow: `Suggested window: ${rule.suggestedWindow}`,
+      resource: rule.resource,
+      basis,
+      rule
+    };
+  });
+  return [...manualRows, ...generatedRows];
 }
 
 const library = [
@@ -1049,8 +1220,8 @@ async function uploadDrivePhoto(accessToken, folderId, photo, fallbackName) {
     dataUrl: ''
   };
 }
-function buildDrivePayload({ walkthroughName = '', client, intake, rows, pmr, dynamicRooms = [], sections = [], sectionOrderState = [], itemOrderState = {}, pinnedItems = {}, roomCapture = {} }) {
-  return { walkthroughName, client, intake, dynamicRooms, roomCapture, sectionFlow: driveSectionFlow(sections), sectionOrder: sectionOrderState, itemOrder: itemOrderState, pinnedItems, rows, pmr, exportedAt: new Date().toISOString() };
+function buildDrivePayload({ walkthroughName = '', client, intake, rows, pmr, passCareOutlook, dynamicRooms = [], sections = [], sectionOrderState = [], itemOrderState = {}, pinnedItems = {}, roomCapture = {} }) {
+  return { walkthroughName, client, intake, dynamicRooms, roomCapture, sectionFlow: driveSectionFlow(sections), sectionOrder: sectionOrderState, itemOrder: itemOrderState, pinnedItems, rows, pmr, passCareOutlook: passCareOutlook || buildPassCareOutlook({ intake, rows }), exportedAt: new Date().toISOString() };
 }
 
 const INTAKE_EXPORT_SECTIONS = [
@@ -1130,7 +1301,7 @@ function buildPmrReportHtml(payload, photoEntries = []) {
   const counts = { high: pmr.filter(r=>priority(r.answer.status)==='High').length, med: pmr.filter(r=>priority(r.answer.status)==='Medium').length, low: pmr.filter(r=>priority(r.answer.status)==='Low').length };
   const quickHits = pmr.filter(r => ['Handyman','Safety'].includes(r.answer.trade) && ['15 min','30 min','45–60 min','1–2 hrs'].includes(r.answer.effort));
   const tradeItems = pmr.filter(r => !['Handyman','Safety'].includes(r.answer.trade));
-  const pass = rows.filter(r => r.answer?.passCandidate);
+  const passCareOutlook = payload.passCareOutlook || buildPassCareOutlook({ intake: payload.intake, rows });
   const reviewedIntakeNotes = rows.filter(r => isIntakeFollowUp(r) && r.answer.reviewStatus && r.answer.reviewStatus !== 'Not Reviewed' && r.answer.reviewStatus !== INTAKE_PMR_REVIEW_STATUS);
   const photoCountFor = row => photoEntries.filter(entry => entry.item === row.item && entry.room === (row.roomName || row.room)).length;
   const findingCard = r => { const certainty = actionCertaintyCopy(r); return `<article class="note-card"><h3>${htmlEscape(r.roomName || r.room)} — ${htmlEscape(r.item)}</h3><div class="badge-line"><span class="pill ${priority(r.answer.status).toLowerCase()}">${htmlEscape(priority(r.answer.status) || 'PMR')}</span><span class="pill">${htmlEscape(r.answer.status)}</span><span class="pill">${htmlEscape(displayTradeLabel(r.answer.trade))}</span><span class="pill">${htmlEscape(certainty.label)}</span></div><div class="detail-grid"><div class="detail"><span class="field-label">What we saw</span>${reportValue(r.answer.notes, 'No additional notes recorded yet.')}</div><div class="detail"><span class="field-label">Why it matters</span>${reportValue(r.why)}</div><div class="detail"><span class="field-label">${htmlEscape(certainty.title)}</span>${reportValue(certainty.body)}</div><div class="detail"><span class="field-label">Next step language</span>${reportValue(certainty.next)}</div><div class="detail"><span class="field-label">Timing / pace</span>${htmlEscape(timingFor(r, r.answer.status))} · ${reportValue(r.answer.pref)}</div><div class="detail"><span class="field-label">Approx. time / photos</span>${reportValue(r.answer.effort)} · ${photoCountFor(r)} linked in Photo Index</div></div></article>`; };
@@ -1142,7 +1313,7 @@ function buildPmrReportHtml(payload, photoEntries = []) {
     <section class="card"><h2>Handy Next Steps</h2><p class="lede">Quick, practical items that may fit a grouped Handy Services visit, subject to confirmation and scheduling.</p><ul>${quickHits.map(r=>`<li><strong>${htmlEscape(r.roomName || r.room)} — ${htmlEscape(r.item)}</strong>: ${htmlEscape(displayTradeLabel(r.answer.trade))} · ${htmlEscape(r.answer.effort)} · ${htmlEscape(actionCertaintyFor(r.answer))}</li>`).join('') || '<li><span class="not-recorded">No quick-hit Handy Next Steps recorded.</span></li>'}</ul></section>
     <section class="card"><h2>Priority Action Plan</h2>${pmr.map(findingCard).join('') || '<p><span class="not-recorded">No PMR findings recorded.</span></p>'}</section>
     <section class="card"><h2>Trade / Licensed Professional Items</h2><p class="lede">Items below may require a licensed trade or specialist resource before pricing, scheduling, or repair scope is finalized.</p>${tradeItems.map(findingCard).join('') || '<p><span class="not-recorded">No trade or licensed professional PMR items recorded.</span></p>'}</section>
-    <section class="card"><h2>PASS — Continued Home Care</h2><p class="lede">PASS items are recurring care reminders for annual or seasonal ownership support. They are not urgent findings unless the same item is separately included in the PMR action plan.</p><ul>${pass.map(r=>`<li><strong>${htmlEscape(r.roomName || r.room)} — ${htmlEscape(r.item)}</strong>: ${htmlEscape(r.answer.passCadence || r.frequency || 'As Needed')} · ${htmlEscape(r.answer.passResource || displayTradeLabel(r.answer.trade))}${r.answer.passNote ? ` · ${htmlEscape(r.answer.passNote)}` : ''}</li>`).join('') || '<li><span class="not-recorded">No PASS candidates recorded.</span></li>'}</ul></section>
+    <section class="card"><h2>PASS — Continued Care Outlook</h2><p class="lede">PASS care outlook items are neutral care-planning reminders generated separately from PMR findings. They are not Immediate, Near-Term, Monitor, or PMR defects unless the same item is separately included in the PMR action plan.</p><div class="table-wrap"><table><thead><tr><th>Care item</th><th>Reason</th><th>Suggested window</th><th>Resource</th><th>Basis</th></tr></thead><tbody>${tableRows(passCareOutlook, [{ value: r => htmlEscape(r.careItem) }, { value: r => htmlEscape(r.reason) }, { value: r => htmlEscape(r.suggestedWindow) }, { value: r => htmlEscape(r.resource) }, { value: r => htmlEscape(r.basis) }])}</tbody></table></div></section>
     <section class="card"><h2>Intake Follow-Up Notes / Appendix</h2><p class="lede">Appendix notes show homeowner Intake items that were reviewed during HTC without making Intake alone a finding.</p><ul>${reviewedIntakeNotes.map(r=>`<li><strong>${htmlEscape(r.roomName || r.room)} — ${htmlEscape(r.item)}</strong>: ${htmlEscape(r.answer.reviewStatus)} · ${htmlEscape(r.intakeFieldLabel)}: ${reportValue(r.intakeValue)}</li>`).join('') || '<li><span class="not-recorded">No reviewed intake follow-up appendix notes recorded.</span></li>'}</ul></section>`;
   return reportShell('01 - PMR Report', payload.client, body, payload.walkthroughName);
 }
@@ -1522,6 +1693,7 @@ function App() {
   const counts = { high: pmr.filter(r=>priority(r.answer.status)==='High').length, med: pmr.filter(r=>priority(r.answer.status)==='Medium').length, low: pmr.filter(r=>priority(r.answer.status)==='Low').length };
   const quickHits = pmr.filter(r => ['Handyman','Safety'].includes(r.answer.trade) && ['15 min','30 min','45–60 min','1–2 hrs'].includes(r.answer.effort));
   const pass = rows.filter(r => r.answer.passCandidate);
+  const passCareOutlook = buildPassCareOutlook({ intake, rows });
   const pendingPhotoCount = pendingPhotoUploadCount(answers, roomCapture);
   const hasAppDriveClientId = Boolean(APP_GOOGLE_OAUTH_CLIENT_ID);
   const manualDriveClientId = driveClientId.trim();
@@ -1941,7 +2113,7 @@ function App() {
     });
   };
   const downloadJSON = () => {
-    const blob = new Blob([JSON.stringify(buildDrivePayload({walkthroughName, client, intake, rows, pmr, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture}), null, 2)], {type:'application/json'});
+    const blob = new Blob([JSON.stringify(buildDrivePayload({walkthroughName, client, intake, rows, pmr, passCareOutlook, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture}), null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `THA-HTC-PMR-${client.name || 'client'}.json`; a.click(); URL.revokeObjectURL(url);
   };
   const copyDriveText = async (text, label) => {
@@ -2076,7 +2248,7 @@ function App() {
   };
   const syncDrive = async ({includeDownload=false, retryQueue=false} = {}) => {
     if (includeDownload) downloadJSON();
-    const payload = buildDrivePayload({walkthroughName, client, intake, rows, pmr, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture});
+    const payload = buildDrivePayload({walkthroughName, client, intake, rows, pmr, passCareOutlook, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture});
     if (!driveToken) {
       setDriveMeta(meta => ({...meta, lastStatus: '', lastStatusTone: '', lastError: driveConfigured ? 'Drive session expired — reconnect to export.' : 'Drive is not configured. Add the OAuth Client ID in Drive Setup Help or use Download Emergency Backup.', lastErrorDetails: ''}));
       return;
@@ -2275,7 +2447,7 @@ function App() {
         </div>})}
       </section>
     </main>}
-    {view === 'pmr' && <PMR client={client} intake={intake} pmr={pmr} counts={counts} quickHits={quickHits} pass={pass} unreviewedIntakeRows={unreviewedIntakeRows} reviewedIntakeNotes={reviewedIntakeNotes} />}
+    {view === 'pmr' && <PMR client={client} intake={intake} pmr={pmr} counts={counts} quickHits={quickHits} passCareOutlook={passCareOutlook} unreviewedIntakeRows={unreviewedIntakeRows} reviewedIntakeNotes={reviewedIntakeNotes} />}
     {view === 'metrics' && <Metrics rows={rows} pmr={pmr} quickHits={quickHits} pass={pass}/>} 
   </div>
 }
@@ -2428,7 +2600,7 @@ function IntakeView({client = {}, intake, updateIntake, copyFeedback = '', onCop
   </main>
 }
 
-function PMR({client, intake, pmr, counts, quickHits, pass, unreviewedIntakeRows = [], reviewedIntakeNotes = []}) {
+function PMR({client, intake, pmr, counts, quickHits, passCareOutlook = [], unreviewedIntakeRows = [], reviewedIntakeNotes = []}) {
   const summary = intakeSummary(intake);
   return <main className="pmr">
     <div className="pmrHeader"><div><THALogo variant="full"/><p className="eyebrow">PMR — Findings & Next Steps</p><h1>{client.address}</h1><p>{client.name} · {client.date} · Intake → HTC → PMR → PASS</p></div><div className="compassCard"><Mountain size={48}/><span>You Navigate, We Drive</span></div></div>
@@ -2444,7 +2616,7 @@ function PMR({client, intake, pmr, counts, quickHits, pass, unreviewedIntakeRows
       </article>
     })}</section>
     {reviewedIntakeNotes.length > 0 && <section className="pmrBlock"><h2>Intake Follow-Up Review Notes / Appendix</h2><ul className="checkList">{reviewedIntakeNotes.map(r=><li key={`note-${r.id}`}><span className="sourceBadge">Intake Follow-Up</span><span><strong>{r.roomName || r.room} — {r.item}</strong><br/><small>{r.answer.reviewStatus} · {r.intakeFieldLabel}: {r.intakeValue}</small></span></li>)}</ul></section>}
-    <section className="pmrBlock"><h2><CalendarDays/> PASS — Continued Home Care</h2><p className="lede">PASS is the final continued-care layer after PMR findings. PASS Candidates are recurring care reminders only — not urgency items and not PMR findings unless separately listed above.</p><ul className="checkList">{pass.map(r=><li key={r.id}><TradeIcon trade={r.answer.trade}/> <span><strong>{r.item}</strong><br/><small>{r.answer.passCadence || r.frequency || 'As Needed'} · {r.answer.passResource || displayTradeLabel(r.answer.trade)}{r.answer.passNote ? ` · ${r.answer.passNote}` : ''}</small></span></li>)}</ul></section>
+    <section className="pmrBlock passOutlook"><h2><CalendarDays/> PASS — Continued Care Outlook</h2><p className="lede">PASS care outlook items are neutral care-planning reminders generated separately from PMR findings. They are not Immediate, Near-Term, Monitor, or PMR defects unless the same item is separately included in the PMR action plan.</p><div className="passOutlookGrid">{passCareOutlook.map(item=><article className="passOutlookCard" key={item.id}><div className="findTop"><TradeIcon trade={item.rule?.trade || item.row?.answer?.trade || item.resource}/><div><h3>{item.careItem}</h3><p>{item.resource} · Care planning</p></div></div><div className="findGrid"><p><strong>Reason:</strong><br/>{item.reason}</p><p><strong>Suggested window:</strong><br/>{item.suggestedWindow.replace(/^Suggested window: /, '')}</p><p><strong>Resource:</strong><br/>{item.resource}</p><p><strong>Basis:</strong><br/>{item.basis}</p></div></article>)}</div></section>
     <footer className="promise"><ShieldCheck/> You don’t hire trades — you hire The Homeowner Advocate. One point of contact. Every step. Every task.</footer>
   </main>
 }
