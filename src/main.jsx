@@ -152,6 +152,20 @@ const INTAKE_DEFAULTS = {
   pests: 'No known active pest issue reported.', fireExtinguishers: 'One present, age unknown.', smokeCO: 'Detector age unknown; verify hardwired/battery and photo date stamps.',
   chimney: 'Last service unknown.', additionalConcerns: 'Homeowner wants practical staging: quick wins, recurring care, and larger items only when justified.'
 };
+
+const HOMEOWNER_QUICK_INTAKE_FIELDS = [
+  'notes',
+  'priorityAreas',
+  'knownIssues',
+  'recentRepairs',
+  'pace',
+  'servicePreference',
+  'doNotOverlook'
+];
+const THA_FIELD_PREP_FIELDS = [
+  'electricalPanel','electricalUpdates','waterShutoff','plumbingHistory','waterHeater','sewerIrrigation','hvacFilter','hvacService','hvacAcService','comfort','roofAge','roofHistory','solar','drainagePooling','drainageHistory','gutters','windowsDoors','fogging','paintStain','productsColors','pests','fireExtinguishers','smokeCO','chimney','additionalConcerns'
+];
+const SERVICE_PREFERENCES = ['No preference yet','Handy services when appropriate','Licensed trades when appropriate','THA to recommend best fit'];
 const INTAKE_PRIORITIES = ['Safety','Function','Efficiency','Aesthetics','Resale','Aging in place / ADA','Budget control','Peace of mind'];
 const INTAKE_PACE = ['Do now','Plan soon','Budget over time','Watchlist only'];
 const INTAKE_BUDGET = ['Minimal fixes','Balanced','Invest where it matters'];
@@ -204,6 +218,9 @@ function meaningfulIntakeValue(value) {
   if (/^(n\/?a|none|no|unknown)$/i.test(text)) return '';
   return text;
 }
+function completedIntakeFieldCount(intake = {}, fields = []) {
+  return fields.filter(key => meaningfulIntakeValue(intake[key])).length;
+}
 function buildIntakeFollowUpRows(intake = {}) {
   return INTAKE_FOLLOW_UP_MAPPINGS.flatMap(mapping => mapping.keys.map(key => ({ mapping, key, value: meaningfulIntakeValue(intake[key]) })))
     .filter(({ value }) => value)
@@ -222,7 +239,7 @@ function buildIntakeFollowUpRows(intake = {}) {
       item: mapping.title,
       trade: mapping.trade,
       effort: 'Unknown',
-      prompt: mapping.prompt,
+      prompt: `Homeowner-reported context — verify during HTC: ${mapping.prompt}`,
       why: mapping.why,
       action: mapping.action,
       intakeOnly: true,
@@ -766,9 +783,9 @@ function buildDrivePayload({ walkthroughName = '', client, intake, rows, pmr, dy
 }
 
 const INTAKE_EXPORT_SECTIONS = [
-  { title: 'Goals / Preferences', fields: [
+  { title: 'Homeowner Quick Intake', fields: [
     ['Priorities', intake => (intake.priorities || []).join(', ')],
-    ['Preferred Pace', 'pace'], ['Budget Mindset', 'budgetStyle'], ['Decision Style', 'decisionStyle'], ['Homeowner Goals / Priorities', 'notes']
+    ['Preferred Pace', 'pace'], ['Budget Mindset', 'budgetStyle'], ['Handy Services vs Licensed Trades', 'servicePreference'], ['Top Goals or Concerns', 'notes'], ['Priority Areas / Rooms', 'priorityAreas'], ['Known Issues or Recurring Symptoms', 'knownIssues'], ['Recent Repairs / Service History', 'recentRepairs'], ['Do Not Overlook', 'doNotOverlook']
   ] },
   { title: 'Electrical', fields: [['Electrical Panel Location', 'electricalPanel'], ['Known Electrical Issues or Updates', 'electricalUpdates']] },
   { title: 'Plumbing / Water', fields: [['Main Water Shut-off Location', 'waterShutoff'], ['Known Leaks, Slow Drains, or Plumbing History', 'plumbingHistory'], ['Water Heater Flush / Age', 'waterHeater'], ['Sewer / Irrigation History', 'sewerIrrigation']] },
@@ -866,7 +883,7 @@ function buildIntakeSummaryHtml(payload) {
     const rows = section.fields.map(([label, key]) => ({ label, value: fieldValue(intake, key) }));
     return `<section class="card"><h2>${htmlEscape(section.title)}</h2><table><thead><tr><th>Topic</th><th>Homeowner Context</th></tr></thead><tbody>${tableRows(rows, [{value:r=>reportValue(r.label)}, {value:r=>reportValue(r.value)}])}</tbody></table></section>`;
   }).join('');
-  const body = `<section class="card"><h2>Homeowner Context From Intake</h2><p class="lede">Intake captures what the homeowner knows, prefers, and wants watched before HTC verifies conditions in the field. Empty fields are shown as “Not recorded” for context without turning missing information into a finding.</p></section>${sections}`;
+  const body = `<section class="card"><h2>Intake — Homeowner Context & Field Prep</h2><p class="lede">Intake captures homeowner-reported context before the walkthrough. HTC verifies conditions in the field. PMR findings are only created after review. Empty fields are shown as “Not recorded” for context without turning missing information into a finding.</p></section>${sections}`;
   return reportShell('03 - Intake Summary', payload.client, body, payload.walkthroughName);
 }
 function buildPhotoIndexHtml(payload, photoEntries = []) {
@@ -1915,7 +1932,7 @@ function App() {
       </div>}
     </section>
     {(storageWarning || photoFeedback.message) && <section className="appWarning noPrint" role="alert" aria-live="assertive"><AlertTriangle size={18}/><div>{storageWarning && <strong>{storageWarning}</strong>}{photoFeedback.message && <span className={`photoFeedback ${photoFeedback.state}`}>{photoFeedback.message}</span>}</div></section>}
-    {view === 'intake' && <IntakeView intake={intake} updateIntake={updateIntake} />}
+    {view === 'intake' && <IntakeView intake={intake} updateIntake={updateIntake} intakeFollowUpCount={intakeFollowUpRows.length} onReviewIntakeFollowUp={()=>{ setView('form'); setActiveRoom(INTAKE_FOLLOW_UP_SECTION_KEY); }} />}
     {view === 'form' && <main className="grid">
       <aside className="roomNav noPrint"><h3>Walkthrough Sections</h3><div className="addRoomTools">{Object.values(DYNAMIC_ROOM_TYPES).map(type => <button key={type.roomType} onClick={()=>addDynamicRoom(type.roomType)}>{type.addLabel} {type.roomType}</button>)}</div>{rooms.map(r => <div key={r.key} className="sectionNavRow" draggable onDragStart={()=>setDragSectionKey(r.key)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); moveSection(dragSectionKey, r.key); setDragSectionKey('');}} onDragEnd={()=>setDragSectionKey('')}><span className="sectionDragHandle" title="Drag to reorder walkthrough flow">⋮⋮</span><button className={`sectionSelect ${activeRoom===r.key?'active':''} ${roomSummaryFor(r).hasAttention ? 'hasRoomAttention' : 'roomGood'}`} onClick={()=>setActiveRoom(r.key)}><span className="sectionName">{r.label}</span><span className="roomSummaryBadges" aria-label={`${r.label} room summary`}>{roomSummaryFor(r).badges.map(badge => <span key={badge.key} className={`roomSummaryBadge ${badge.tone}`}>{badge.label}</span>)}</span></button></div>)}<div className="hint"><Camera size={18}/> Prompt: Capture context, close-up, and detail photos. Store by room/item folder path.</div></aside>
       <section className="formPanel">
@@ -1937,7 +1954,7 @@ function App() {
           {isExpanded && <div className="checklistDetailPanel" id={`item-detail-${r.id}`}>
             <div className="itemHead expandedItemHead"><span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span><div><div className="itemTitleLine"><h2>{r.item}</h2><CategoryBadge category={category}/>{isIntakeFollowUp(r) && <span className="sourceBadge">Intake Follow-Up</span>}</div><p>{r.zone} · Suggested: {displayTradeLabel(r.trade)}</p></div>{!r.catchAll && !isIntakeFollowUp(r) && <div className="itemOrderTools"><button onClick={()=>moveItem(r.sectionKey, r.id, -1)} title="Move item up">↑</button><button onClick={()=>moveItem(r.sectionKey, r.id, 1)} title="Move item down">↓</button><button onClick={()=>togglePinItem(r.sectionKey, r.id)} title="Pin to top">{(pinnedItems[r.sectionKey] || []).includes(r.id) ? 'Pinned' : 'Pin'}</button></div>}<span className={`pill ${itemPriority.toLowerCase()}`}>{itemPriority || 'No PMR'}</span></div>
             <div className="prompt"><Search size={16}/><strong>Prompt:</strong> {r.prompt}</div>
-            {isIntakeFollowUp(r) && <div className="intakeReviewNotes"><strong>{r.intakeFieldLabel}:</strong> {r.intakeValue}<br/><span>Target: {r.roomName || r.room} · Source: {r.source}</span></div>}
+            {isIntakeFollowUp(r) && <div className="intakeReviewNotes"><strong>Homeowner-reported:</strong> {r.intakeFieldLabel}: {r.intakeValue}<br/><span>Verify during HTC before PMR inclusion · Target: {r.roomName || r.room} · Source: {r.source}</span></div>}
             <div className="inputs">
               <label>Status<select value={r.answer.status} onChange={e=>update(r.id,{status:e.target.value})}>{STATUS.map(x=><option key={x}>{x}</option>)}</select></label>
               <label>Action Certainty<select value={actionCertaintyFor(r.answer)} onChange={e=>update(r.id,{actionCertainty:e.target.value})}>{ACTION_CERTAINTY.map(x=><option key={x}>{x}</option>)}</select></label>
@@ -1964,52 +1981,83 @@ function App() {
 }
 
 
-function IntakeView({intake, updateIntake}) {
+function IntakeView({intake, updateIntake, intakeFollowUpCount = 0, onReviewIntakeFollowUp}) {
   const togglePriority = (value) => {
     const current = Array.isArray(intake.priorities) ? intake.priorities : [];
     updateIntake({priorities: current.includes(value) ? current.filter(x => x !== value) : [...current, value]});
   };
+  const homeownerCompleted = completedIntakeFieldCount(intake, HOMEOWNER_QUICK_INTAKE_FIELDS);
+  const fieldPrepCompleted = completedIntakeFieldCount(intake, THA_FIELD_PREP_FIELDS);
+  const readyForHTC = homeownerCompleted >= 2 || fieldPrepCompleted >= 3 || intakeFollowUpCount > 0;
   return <main className="intakePage">
-    <div className="pmrHeader"><div><p className="eyebrow">Intake → HTC → PMR → PASS</p><h1>Homeowner Context & Preferences</h1><p>Intake captures homeowner context before HTC verifies and triages it during the walkthrough.</p></div><div className="compass">◈</div></div>
-    <section className="pmrBlock"><h2><Home size={20}/> Priorities & Decision Style</h2><p className="lede">Use this section to make the PMR feel personal instead of generic. It adjusts the tone, timing, and staging of recommendations.</p>
-      <div className="chips">{INTAKE_PRIORITIES.map(p => <button key={p} className={(intake.priorities||[]).includes(p)?'active chip':'chip'} onClick={()=>togglePriority(p)}>{p}</button>)}</div>
-      <div className="inputs intakeInputs">
-        <label>Preferred Pace<select value={intake.pace || ''} onChange={e=>updateIntake({pace:e.target.value})}>{INTAKE_PACE.map(x=><option key={x}>{x}</option>)}</select></label>
-        <label>Budget Mindset<select value={intake.budgetStyle || ''} onChange={e=>updateIntake({budgetStyle:e.target.value})}>{INTAKE_BUDGET.map(x=><option key={x}>{x}</option>)}</select></label>
-        <label>Decision Style<select value={intake.decisionStyle || ''} onChange={e=>updateIntake({decisionStyle:e.target.value})}>{INTAKE_DECISION.map(x=><option key={x}>{x}</option>)}</select></label>
-      </div>
-      <label className="notes">Homeowner goals / anything they want us to prioritize<textarea value={intake.notes || ''} onChange={e=>updateIntake({notes:e.target.value})} placeholder="What matters most to the homeowner? Safety, function, budget, aesthetics, peace of mind, aging in place, resale, etc." /></label>
+    <div className="pmrHeader"><div><p className="eyebrow">Homeowner Quick Intake → THA Field Prep → HTC Follow-Up → PMR</p><h1>Intake — Homeowner Context & Field Prep</h1><p>Intake captures homeowner-reported context before the walkthrough. HTC verifies conditions in the field. PMR findings are only created after review.</p></div><div className="compass">◈</div></div>
+    <section className="intakeStatusSummary" aria-label="Intake status summary">
+      <div><span>Homeowner Quick Intake fields completed</span><strong>{homeownerCompleted}/{HOMEOWNER_QUICK_INTAKE_FIELDS.length}</strong></div>
+      <div><span>THA Field Prep fields completed</span><strong>{fieldPrepCompleted}/{THA_FIELD_PREP_FIELDS.length}</strong></div>
+      <div><span>Generated HTC Follow-Up count</span><strong>{intakeFollowUpCount}</strong></div>
+      <div className={readyForHTC ? 'ready' : 'notReady'}><span>Ready for HTC</span><strong>{readyForHTC ? 'Yes' : 'Add context'}</strong></div>
+      {intakeFollowUpCount > 0 && <button type="button" className="reviewFollowUpButton" onClick={onReviewIntakeFollowUp}>Review Intake Follow-Up in HTC</button>}
     </section>
-    <section className="pmrBlock"><h2>🔌 Electrical / 🚿 Plumbing / 🌡️ HVAC</h2><div className="intakeGrid">
-      <CategoryLabel category="Electrical">Electrical panel location<input value={intake.electricalPanel || ''} onChange={e=>updateIntake({electricalPanel:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="Electrical">Known electrical issues or updates<input value={intake.electricalUpdates || ''} onChange={e=>updateIntake({electricalUpdates:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="Plumbing">Main water shut-off location<input value={intake.waterShutoff || ''} onChange={e=>updateIntake({waterShutoff:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="Plumbing">Known leaks, slow drains, or past plumbing issues<input value={intake.plumbingHistory || ''} onChange={e=>updateIntake({plumbingHistory:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="Plumbing">Water heater flush / age<input value={intake.waterHeater || ''} onChange={e=>updateIntake({waterHeater:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="Drainage">Sewer / irrigation history<input value={intake.sewerIrrigation || ''} onChange={e=>updateIntake({sewerIrrigation:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="HVAC">Furnace filter replacement<input value={intake.hvacFilter || ''} onChange={e=>updateIntake({hvacFilter:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="HVAC">Furnace service history / age<input value={intake.hvacService || ''} onChange={e=>updateIntake({hvacService:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="HVAC">A/C service history / age<input value={intake.hvacAcService || ''} onChange={e=>updateIntake({hvacAcService:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="HVAC">Comfort issues<input value={intake.comfort || ''} onChange={e=>updateIntake({comfort:e.target.value})}/></CategoryLabel>
-    </div></section>
-    <section className="pmrBlock"><h2>🏠 Roof / 🌧️ Drainage / 🪟 Openings / 🎨 Exterior</h2><div className="intakeGrid">
-      <CategoryLabel category="Roofing">Roof age / last replacement<input value={intake.roofAge || ''} onChange={e=>updateIntake({roofAge:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="Roofing">Known roof leaks / repairs<input value={intake.roofHistory || ''} onChange={e=>updateIntake({roofHistory:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="Electrical">Solar panel status, if present<input value={intake.solar || ''} onChange={e=>updateIntake({solar:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="Drainage">Water pooling areas<input value={intake.drainagePooling || ''} onChange={e=>updateIntake({drainagePooling:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="Drainage">Drainage / water intrusion history<input value={intake.drainageHistory || ''} onChange={e=>updateIntake({drainageHistory:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="Drainage">Gutter / downspout concerns<input value={intake.gutters || ''} onChange={e=>updateIntake({gutters:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="Openings">Drafty or hard-to-operate windows / doors<input value={intake.windowsDoors || ''} onChange={e=>updateIntake({windowsDoors:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="Openings">Fogging / failed seals<input value={intake.fogging || ''} onChange={e=>updateIntake({fogging:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="Exterior">Last exterior paint / stain<input value={intake.paintStain || ''} onChange={e=>updateIntake({paintStain:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="Surfaces">Product / color labels to consolidate<input value={intake.productsColors || ''} onChange={e=>updateIntake({productsColors:e.target.value})}/></CategoryLabel>
-    </div></section>
-    <section className="pmrBlock"><h2>🐜 Pest / 🔥 Safety / 🧰 Misc.</h2><div className="intakeGrid">
-      <CategoryLabel category="Pest">Pest activity or history<input value={intake.pests || ''} onChange={e=>updateIntake({pests:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="Safety">Fire extinguishers: quantity, age, location<input value={intake.fireExtinguishers || ''} onChange={e=>updateIntake({fireExtinguishers:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="Safety">Smoke / CO detector age or replacement<input value={intake.smokeCO || ''} onChange={e=>updateIntake({smokeCO:e.target.value})}/></CategoryLabel>
-      <CategoryLabel category="Roofing">Chimney inspection / cleaning<input value={intake.chimney || ''} onChange={e=>updateIntake({chimney:e.target.value})}/></CategoryLabel>
-    </div><label className="notes">Other known concerns / items to pay attention to<textarea value={intake.additionalConcerns || ''} onChange={e=>updateIntake({additionalConcerns:e.target.value})}/></label></section>
+    <details className="pmrBlock intakeLane homeownerLane" open>
+      <summary><span><Home size={20}/> Homeowner Quick Intake</span><small>Light, friendly pre-walkthrough context. All answers are homeowner-reported until HTC verifies them.</small></summary>
+      <p className="lede">Capture only what the homeowner wants to share. Empty fields are okay; this is context for THA, not a required checklist.</p>
+      <div className="chips">{INTAKE_PRIORITIES.map(p => <button key={p} type="button" className={(intake.priorities||[]).includes(p)?'active chip':'chip'} onClick={()=>togglePriority(p)}>{p}</button>)}</div>
+      <div className="inputs intakeInputs">
+        <label>Preferred pace<select value={intake.pace || ''} onChange={e=>updateIntake({pace:e.target.value})}>{INTAKE_PACE.map(x=><option key={x}>{x}</option>)}</select></label>
+        <label>Budget mindset<select value={intake.budgetStyle || ''} onChange={e=>updateIntake({budgetStyle:e.target.value})}>{INTAKE_BUDGET.map(x=><option key={x}>{x}</option>)}</select></label>
+        <label>Handy services vs licensed trades<select value={intake.servicePreference || ''} onChange={e=>updateIntake({servicePreference:e.target.value})}><option value="">Not recorded</option>{SERVICE_PREFERENCES.map(x=><option key={x}>{x}</option>)}</select></label>
+      </div>
+      <div className="quickIntakeGrid">
+        <label className="notes">Top goals or concerns for the home<textarea value={intake.notes || ''} onChange={e=>updateIntake({notes:e.target.value})} placeholder="What matters most: safety, function, comfort, budget, resale, peace of mind…" /></label>
+        <label className="notes">Areas / rooms the homeowner wants prioritized<textarea value={intake.priorityAreas || ''} onChange={e=>updateIntake({priorityAreas:e.target.value})} placeholder="Kitchen, primary bath, exterior drainage, mechanical room…" /></label>
+        <label className="notes">Known issues or recurring symptoms<textarea value={intake.knownIssues || ''} onChange={e=>updateIntake({knownIssues:e.target.value})} placeholder="Recurring sounds, smells, leaks, sticking doors, comfort issues…" /></label>
+        <label className="notes">Recent repairs, upgrades, or service history<textarea value={intake.recentRepairs || ''} onChange={e=>updateIntake({recentRepairs:e.target.value})} placeholder="Recent service visits, warranties, product names, contractor history…" /></label>
+        <label className="notes">Anything they do not want overlooked<textarea value={intake.doNotOverlook || ''} onChange={e=>updateIntake({doNotOverlook:e.target.value})} placeholder="Small concerns, special access notes, owner priorities…" /></label>
+      </div>
+    </details>
+    <details className="pmrBlock intakeLane" open>
+      <summary><span>THA Internal Intake / Field Prep</span><small>Detailed system context to guide HTC. Homeowner-reported answers become follow-up prompts only after field verification.</small></summary>
+      <p className="lede">Use these fields to prepare the walkthrough without turning intake notes into findings. Verify during HTC before PMR inclusion.</p>
+      <section className="intakeSubsection"><h3>Electrical</h3><div className="intakeGrid">
+        <CategoryLabel category="Electrical">Electrical panel location<input value={intake.electricalPanel || ''} onChange={e=>updateIntake({electricalPanel:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="Electrical">Known electrical issues or updates<input value={intake.electricalUpdates || ''} onChange={e=>updateIntake({electricalUpdates:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="Electrical">Solar panel status, if present<input value={intake.solar || ''} onChange={e=>updateIntake({solar:e.target.value})}/></CategoryLabel>
+      </div></section>
+      <section className="intakeSubsection"><h3>Plumbing / Water</h3><div className="intakeGrid">
+        <CategoryLabel category="Plumbing">Main water shut-off location<input value={intake.waterShutoff || ''} onChange={e=>updateIntake({waterShutoff:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="Plumbing">Known leaks, slow drains, or past plumbing issues<input value={intake.plumbingHistory || ''} onChange={e=>updateIntake({plumbingHistory:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="Plumbing">Water heater flush / age<input value={intake.waterHeater || ''} onChange={e=>updateIntake({waterHeater:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="Drainage">Sewer / irrigation history<input value={intake.sewerIrrigation || ''} onChange={e=>updateIntake({sewerIrrigation:e.target.value})}/></CategoryLabel>
+      </div></section>
+      <section className="intakeSubsection"><h3>HVAC / Comfort</h3><div className="intakeGrid">
+        <CategoryLabel category="HVAC">Furnace filter replacement<input value={intake.hvacFilter || ''} onChange={e=>updateIntake({hvacFilter:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="HVAC">Furnace service history / age<input value={intake.hvacService || ''} onChange={e=>updateIntake({hvacService:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="HVAC">A/C service history / age<input value={intake.hvacAcService || ''} onChange={e=>updateIntake({hvacAcService:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="HVAC">Comfort issues<input value={intake.comfort || ''} onChange={e=>updateIntake({comfort:e.target.value})}/></CategoryLabel>
+      </div></section>
+      <section className="intakeSubsection"><h3>Roof / Exterior / Drainage</h3><div className="intakeGrid">
+        <CategoryLabel category="Roofing">Roof age / last replacement<input value={intake.roofAge || ''} onChange={e=>updateIntake({roofAge:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="Roofing">Known roof leaks / repairs<input value={intake.roofHistory || ''} onChange={e=>updateIntake({roofHistory:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="Drainage">Water pooling areas<input value={intake.drainagePooling || ''} onChange={e=>updateIntake({drainagePooling:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="Drainage">Drainage / water intrusion history<input value={intake.drainageHistory || ''} onChange={e=>updateIntake({drainageHistory:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="Drainage">Gutter / downspout concerns<input value={intake.gutters || ''} onChange={e=>updateIntake({gutters:e.target.value})}/></CategoryLabel>
+      </div></section>
+      <section className="intakeSubsection"><h3>Windows / Doors / Paint</h3><div className="intakeGrid">
+        <CategoryLabel category="Openings">Drafty or hard-to-operate windows / doors<input value={intake.windowsDoors || ''} onChange={e=>updateIntake({windowsDoors:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="Openings">Fogging / failed seals<input value={intake.fogging || ''} onChange={e=>updateIntake({fogging:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="Exterior">Last exterior paint / stain<input value={intake.paintStain || ''} onChange={e=>updateIntake({paintStain:e.target.value})}/></CategoryLabel>
+      </div></section>
+      <section className="intakeSubsection"><h3>Safety / Pests / Fireplaces</h3><div className="intakeGrid">
+        <CategoryLabel category="Pest">Pest activity or history<input value={intake.pests || ''} onChange={e=>updateIntake({pests:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="Safety">Fire extinguishers: quantity, age, location<input value={intake.fireExtinguishers || ''} onChange={e=>updateIntake({fireExtinguishers:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="Safety">Smoke / CO detector age or replacement<input value={intake.smokeCO || ''} onChange={e=>updateIntake({smokeCO:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="Roofing">Chimney inspection / cleaning<input value={intake.chimney || ''} onChange={e=>updateIntake({chimney:e.target.value})}/></CategoryLabel>
+      </div></section>
+      <section className="intakeSubsection"><h3>Product info / documents / unknowns</h3><div className="intakeGrid">
+        <CategoryLabel category="Surfaces">Product / color labels to consolidate<input value={intake.productsColors || ''} onChange={e=>updateIntake({productsColors:e.target.value})}/></CategoryLabel>
+      </div></section>
+      <section className="intakeSubsection"><h3>Additional THA notes</h3><label className="notes">Other known concerns / items to pay attention to<textarea value={intake.additionalConcerns || ''} onChange={e=>updateIntake({additionalConcerns:e.target.value})}/></label></section>
+    </details>
   </main>
 }
 
