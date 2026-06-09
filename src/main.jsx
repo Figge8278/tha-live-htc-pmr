@@ -143,6 +143,7 @@ const TRADE_OPTIONS = [...Object.keys(ICONS), 'Carpentry', 'General Contractor',
 const INTAKE_DEFAULTS = {
   priorities: ['Safety','Function'], pace: 'Plan soon', budgetStyle: 'Balanced', decisionStyle: 'Wants options',
   notes: 'Homeowners want a clear plan, staged priorities, and no pressure to do everything at once.',
+  priorityAreas: '', knownIssues: '', recentRepairs: '', helpfulRecords: '', accessNotes: '', doNotOverlook: '',
   electricalPanel: 'Garage wall - verify access and labeling during walkthrough.', electricalUpdates: 'Unknown / ask about recent panel or fixture work.',
   waterShutoff: 'Mechanical room - verify and photo label.', plumbingHistory: 'Slow kitchen drain reported; no known active leak.', waterHeater: 'Last flush unknown.', sewerIrrigation: 'Unknown sewer scope; irrigation service likely seasonal.',
   hvacFilter: 'Filter replacement date unknown.', hvacService: 'Furnace service likely overdue.', hvacAcService: 'A/C service history unknown.', comfort: 'No major comfort complaints noted yet.',
@@ -152,6 +153,68 @@ const INTAKE_DEFAULTS = {
   pests: 'No known active pest issue reported.', fireExtinguishers: 'One present, age unknown.', smokeCO: 'Detector age unknown; verify hardwired/battery and photo date stamps.',
   chimney: 'Last service unknown.', additionalConcerns: 'Homeowner wants practical staging: quick wins, recurring care, and larger items only when justified.'
 };
+
+
+const STRUCTURED_HOMEOWNER_QUICK_INTAKE_GROUPS = [
+  {
+    key: 'knownIssues',
+    question: '3. Are there any known recurring issues or symptoms we should know about?',
+    help: 'Please note anything that has happened more than once, comes and goes, or may not be visible during the walkthrough.',
+    fields: [
+      { key: 'leaksMoisture', label: 'Leaks or moisture' },
+      { key: 'slowDrainsPlumbing', label: 'Slow drains or plumbing concerns' },
+      { key: 'electricalConcerns', label: 'Tripped breakers, flickering lights, or electrical concerns' },
+      { key: 'comfortIssues', label: 'Heating, cooling, airflow, or comfort issues' },
+      { key: 'stickyOpeningsDrafts', label: 'Sticky windows, doors, locks, or drafts' },
+      { key: 'pestActivity', label: 'Pest activity' },
+      { key: 'drainageGrading', label: 'Drainage, pooling water, ice, or grading concerns' },
+      { key: 'odorsNoisesAppliances', label: 'Odors, noises, or appliance concerns' },
+      { key: 'otherRecurringSymptoms', label: 'Other recurring symptoms' }
+    ]
+  },
+  {
+    key: 'recentRepairs',
+    question: '4. For any of the following, do you know the approximate last service, cleaning, repair, or replacement date?',
+    help: 'Please fill in anything you know. Unknown is completely fine.',
+    fields: [
+      { key: 'furnaceService', label: 'Furnace service' },
+      { key: 'acHeatPumpService', label: 'A/C or heat pump service' },
+      { key: 'airDuctsCleaned', label: 'Air ducts cleaned' },
+      { key: 'chimneyFireplaceService', label: 'Chimney / fireplace cleaned or serviced' },
+      { key: 'waterHeaterService', label: 'Water heater tank or tankless / on-demand water heater serviced' },
+      { key: 'roofRepairedReplaced', label: 'Roof repaired or replaced' },
+      { key: 'exteriorPaintStain', label: 'Exterior paint or stain completed' },
+      { key: 'windowsDoorsRepairedReplaced', label: 'Windows or doors repaired/replaced' },
+      { key: 'otherMaintenanceHistory', label: 'Other maintenance or service history we should know' }
+    ]
+  },
+  {
+    key: 'helpfulRecords',
+    question: '5. Are there any helpful home records you can have available during the walkthrough, if they are easy to access?',
+    help: 'No need to search for everything. This is only for records that may help clarify known concerns, maintenance timing, or future planning.',
+    fields: [
+      { key: 'recentInspectionReport', label: 'Recent inspection report' },
+      { key: 'roofPaperwork', label: 'Roof replacement or roof repair paperwork' },
+      { key: 'sewerPlumbingRecords', label: 'Sewer scope or plumbing records' },
+      { key: 'solarDocuments', label: 'Solar documents, if relevant' },
+      { key: 'paintColorRecords', label: 'Paint cans or color records' },
+      { key: 'otherHelpfulRecords', label: 'Other helpful records tied to a concern or maintenance item' }
+    ]
+  },
+  {
+    key: 'accessNotes',
+    question: '6. Are there any access notes we should know before the walkthrough?',
+    fields: [
+      { key: 'pets', label: 'Pets' },
+      { key: 'gatesKeysLockedAreas', label: 'Gates, keys, or locked areas' },
+      { key: 'atticCrawlBasementMechanical', label: 'Attic, crawlspace, basement, or mechanical room access' },
+      { key: 'detachedGarageShedOutbuildings', label: 'Detached garage, shed, or outbuildings' },
+      { key: 'areasBlockedByStorage', label: 'Areas blocked by storage' },
+      { key: 'fragileSensitiveOffLimits', label: 'Anything fragile, sensitive, or off-limits' }
+    ]
+  }
+];
+const STRUCTURED_HOMEOWNER_QUICK_INTAKE_LOOKUP = Object.fromEntries(STRUCTURED_HOMEOWNER_QUICK_INTAKE_GROUPS.map(group => [group.key, group]));
 
 const HOMEOWNER_QUICK_INTAKE_FIELDS = [
   'notes',
@@ -206,8 +269,50 @@ function intakeInfluence(item, intake) {
 function intakeFieldLabel(key) {
   return key.replace(/([A-Z])/g, ' $1').replace(/^./, char => char.toUpperCase());
 }
+
+function normalizeStructuredIntakeGroupValue(value, group) {
+  const empty = Object.fromEntries((group?.fields || []).map(field => [field.key, '']));
+  if (!group) return {};
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return { ...empty, ...Object.fromEntries(Object.entries(value).map(([key, item]) => [key, String(item || '')])) };
+  }
+  const text = String(value || '').trim();
+  if (!text) return empty;
+  const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
+  const next = { ...empty };
+  const unmatched = [];
+  lines.forEach(line => {
+    const match = line.match(/^([^:]+):\s*(.*)$/);
+    if (!match) {
+      unmatched.push(line);
+      return;
+    }
+    const label = match[1].trim().toLowerCase();
+    const field = group.fields.find(option => option.label.toLowerCase() === label);
+    if (field) next[field.key] = match[2].trim();
+    else unmatched.push(line);
+  });
+  if (!lines.length) unmatched.push(text);
+  const fallback = group.fields[group.fields.length - 1]?.key;
+  if (fallback && unmatched.length) next[fallback] = [next[fallback], unmatched.join('\n')].filter(Boolean).join('\n');
+  return next;
+}
+function structuredIntakeGroupValue(intake = {}, groupKey) {
+  return normalizeStructuredIntakeGroupValue(intake?.[groupKey], STRUCTURED_HOMEOWNER_QUICK_INTAKE_LOOKUP[groupKey]);
+}
+function structuredIntakeAnswerValue(intake = {}, groupKey, fieldKey) {
+  return structuredIntakeGroupValue(intake, groupKey)[fieldKey] || '';
+}
+function normalizeIntakeData(intake = {}) {
+  const base = { ...blankIntakeTemplate(), ...(intake || {}) };
+  STRUCTURED_HOMEOWNER_QUICK_INTAKE_GROUPS.forEach(group => {
+    base[group.key] = normalizeStructuredIntakeGroupValue(base[group.key], group);
+  });
+  return base;
+}
 function meaningfulIntakeValue(value) {
   if (Array.isArray(value)) return value.length ? value.join(', ') : '';
+  if (value && typeof value === 'object') return meaningfulIntakeValue(Object.values(value).filter(item => String(item || '').trim()).join('\n'));
   const text = String(value || '').trim();
   if (!text) return '';
   if (/^(n\/?a|none|no|unknown)$/i.test(text)) return '';
@@ -781,10 +886,10 @@ const INTAKE_EXPORT_SECTIONS = [
   { title: 'Homeowner Quick Intake', fields: [
     ['1. What are your top goals or concerns for this walkthrough?', 'notes'],
     ['2. Are there specific rooms, areas, or exterior spaces you want us to prioritize?', 'priorityAreas'],
-    ['3. Are there any known recurring issues or symptoms we should know about?', 'knownIssues'],
-    ['4. For any of the following, do you know the approximate last service, cleaning, repair, or replacement date?', 'recentRepairs'],
-    ['5. Are there any helpful home records you can have available during the walkthrough, if they are easy to access?', 'helpfulRecords'],
-    ['6. Are there any access notes we should know before the walkthrough?', 'accessNotes'],
+    ...STRUCTURED_HOMEOWNER_QUICK_INTAKE_GROUPS.flatMap(group => group.fields.map(field => [
+      `${group.question} — ${field.label}`,
+      intake => structuredIntakeAnswerValue(intake, group.key, field.key)
+    ])),
     ['7. Is there anything you specifically do not want overlooked?', 'doNotOverlook']
   ] },
   { title: 'Electrical', fields: [['Electrical Panel Location', 'electricalPanel'], ['Known Electrical Issues or Updates', 'electricalUpdates']] },
@@ -797,7 +902,8 @@ const INTAKE_EXPORT_SECTIONS = [
 ];
 
 function reportValue(value, fallback = 'Not recorded') {
-  const text = String(value ?? '').trim();
+  const printable = value && typeof value === 'object' && !Array.isArray(value) ? Object.values(value).filter(item => String(item || '').trim()).join('\n') : value;
+  const text = String(printable ?? '').trim();
   return text ? htmlEscape(text).replace(/\n/g, '<br/>') : `<span class="not-recorded">${htmlEscape(fallback)}</span>`;
 }
 function fieldValue(intake, key) {
@@ -1093,7 +1199,7 @@ function legacyWalkthroughData() {
   return {
     client: safeJsonParse(localStorage.getItem(LEGACY_CLIENT_KEY), { name: 'Christine & Matt', address: 'Sample Home', date: '2026-04 Walkthrough' }),
     answers: safeJsonParse(localStorage.getItem(LEGACY_ANSWERS_KEY), null) || sampleAnswers,
-    intake: safeJsonParse(localStorage.getItem(LEGACY_INTAKE_KEY), null) || INTAKE_DEFAULTS,
+    intake: normalizeIntakeData(safeJsonParse(localStorage.getItem(LEGACY_INTAKE_KEY), null) || INTAKE_DEFAULTS),
     dynamicRooms: Array.isArray(dynamicRooms) ? dynamicRooms : DEFAULT_DYNAMIC_ROOMS,
     sectionOrder: safeJsonParse(localStorage.getItem(SECTION_ORDER_KEY), []),
     itemOrder: safeJsonParse(localStorage.getItem(ITEM_ORDER_KEY), {}),
@@ -1111,7 +1217,7 @@ function initialWalkthroughState() {
   const activeSession = activeId ? sessions[activeId] : null;
   if (activeSession?.data) {
     return {
-      data: { ...cleanWalkthroughData(), ...activeSession.data },
+      data: { ...cleanWalkthroughData(), ...activeSession.data, intake: normalizeIntakeData(activeSession.data.intake) },
       sessions,
       activeId,
       selectedId: activeId,
@@ -1135,7 +1241,7 @@ function App() {
   const [walkthroughName, setWalkthroughName] = useState(initialState.name);
   const [client, setClient] = useState(initialState.data.client);
   const [answers, setAnswers] = useState(initialState.data.answers);
-  const [intake, setIntake] = useState(initialState.data.intake);
+  const [intake, setIntake] = useState(() => normalizeIntakeData(initialState.data.intake));
   const [dynamicRooms, setDynamicRooms] = useState(initialState.data.dynamicRooms);
   const [activeRoom, setActiveRoom] = useState(sectionOrder[0] || 'Kitchen');
   const [view, setView] = useState('intake');
@@ -1527,7 +1633,7 @@ function App() {
   const currentWalkthroughData = () => ({
     client,
     answers,
-    intake,
+    intake: normalizeIntakeData(intake),
     dynamicRooms,
     sectionOrder: sectionOrderState,
     itemOrder: itemOrderState,
@@ -1571,7 +1677,7 @@ function App() {
     const clean = cleanWalkthroughData();
     setClient(data?.client || clean.client);
     setAnswers(data?.answers || clean.answers);
-    setIntake(data?.intake || clean.intake);
+    setIntake(normalizeIntakeData(data?.intake || clean.intake));
     setDynamicRooms(Array.isArray(data?.dynamicRooms) ? data.dynamicRooms : clean.dynamicRooms);
     setSectionOrderState(Array.isArray(data?.sectionOrder) ? data.sectionOrder : clean.sectionOrder);
     setItemOrderState(data?.itemOrder || clean.itemOrder);
@@ -1981,6 +2087,22 @@ function App() {
 }
 
 
+
+function StructuredIntakeQuestion({ group, intake, updateIntake }) {
+  const values = structuredIntakeGroupValue(intake, group.key);
+  const updateField = (fieldKey, value) => updateIntake({ [group.key]: { ...values, [fieldKey]: value } });
+  return <div className="notes intakeQuestion structuredIntakeQuestion">
+    <span>{group.question}</span>
+    {group.help && <small>{group.help}</small>}
+    <div className="structuredPromptGrid">
+      {group.fields.map(field => <label key={field.key} className="structuredPromptField">
+        <span>{field.label}</span>
+        <textarea value={values[field.key] || ''} onChange={e=>updateField(field.key, e.target.value)} />
+      </label>)}
+    </div>
+  </div>;
+}
+
 function IntakeView({intake, updateIntake, intakeFollowUpCount = 0, onReviewIntakeFollowUp}) {
   const homeownerCompleted = completedIntakeFieldCount(intake, HOMEOWNER_QUICK_INTAKE_FIELDS);
   const fieldPrepCompleted = completedIntakeFieldCount(intake, THA_FIELD_PREP_FIELDS);
@@ -2000,36 +2122,7 @@ function IntakeView({intake, updateIntake, intakeFollowUpCount = 0, onReviewInta
       <div className="quickIntakeGrid">
         <label className="notes intakeQuestion"><span>1. What are your top goals or concerns for this walkthrough?</span><textarea value={intake.notes || ''} onChange={e=>updateIntake({notes:e.target.value})} /></label>
         <label className="notes intakeQuestion"><span>2. Are there specific rooms, areas, or exterior spaces you want us to prioritize?</span><textarea value={intake.priorityAreas || ''} onChange={e=>updateIntake({priorityAreas:e.target.value})} /></label>
-        <label className="notes intakeQuestion"><span>3. Are there any known recurring issues or symptoms we should know about?</span><small>Please note anything that has happened more than once, comes and goes, or may not be visible during the walkthrough.</small><textarea value={intake.knownIssues || ''} onChange={e=>updateIntake({knownIssues:e.target.value})} placeholder={`Leaks or moisture:
-Slow drains or plumbing concerns:
-Tripped breakers, flickering lights, or electrical concerns:
-Heating, cooling, airflow, or comfort issues:
-Sticky windows, doors, locks, or drafts:
-Pest activity:
-Drainage, pooling water, ice, or grading concerns:
-Odors, noises, or appliance concerns:
-Other recurring symptoms:`} /></label>
-        <label className="notes intakeQuestion"><span>4. For any of the following, do you know the approximate last service, cleaning, repair, or replacement date?</span><small>Please fill in anything you know. Unknown is completely fine.</small><textarea value={intake.recentRepairs || ''} onChange={e=>updateIntake({recentRepairs:e.target.value})} placeholder={`Furnace service:
-A/C or heat pump service:
-Air ducts cleaned:
-Chimney / fireplace cleaned or serviced:
-Water heater tank or tankless / on-demand water heater serviced:
-Roof repaired or replaced:
-Exterior paint or stain completed:
-Windows or doors repaired/replaced:
-Other maintenance or service history we should know:`} /></label>
-        <label className="notes intakeQuestion"><span>5. Are there any helpful home records you can have available during the walkthrough, if they are easy to access?</span><small>No need to search for everything. This is only for records that may help clarify known concerns, maintenance timing, or future planning.</small><textarea value={intake.helpfulRecords || ''} onChange={e=>updateIntake({helpfulRecords:e.target.value})} placeholder={`Recent inspection report:
-Roof replacement or roof repair paperwork:
-Sewer scope or plumbing records:
-Solar documents, if relevant:
-Paint cans or color records:
-Other helpful records tied to a concern or maintenance item:`} /></label>
-        <label className="notes intakeQuestion"><span>6. Are there any access notes we should know before the walkthrough?</span><textarea value={intake.accessNotes || ''} onChange={e=>updateIntake({accessNotes:e.target.value})} placeholder={`Pets:
-Gates, keys, or locked areas:
-Attic, crawlspace, basement, or mechanical room access:
-Detached garage, shed, or outbuildings:
-Areas blocked by storage:
-Anything fragile, sensitive, or off-limits:`} /></label>
+        {STRUCTURED_HOMEOWNER_QUICK_INTAKE_GROUPS.map(group => <StructuredIntakeQuestion key={group.key} group={group} intake={intake} updateIntake={updateIntake} />)}
         <label className="notes intakeQuestion"><span>7. Is there anything you specifically do not want overlooked?</span><textarea value={intake.doNotOverlook || ''} onChange={e=>updateIntake({doNotOverlook:e.target.value})} /></label>
       </div>
     </details>
