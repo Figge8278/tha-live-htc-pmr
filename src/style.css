@@ -104,7 +104,7 @@
 .intakeReviewNotes{margin:10px 0;padding:10px 12px;border-radius:14px;background:#fbf7ef;border:1px solid #eee0ca;color:var(--ink);font-weight:700;line-height:1.35}.intakeReviewNotes span{color:var(--muted);font-size:12px;font-weight:800}
 .finalPrintButton{background:var(--navy);color:white}
 @media(min-width:901px){.clientCard{grid-template-columns:1fr 1.3fr 1fr auto}}
-.passCandidateToggle{display:flex;flex-direction:row;align-items:flex-start;gap:9px;margin:10px 0;background:#fff8ee;border:1px solid var(--line);border-radius:14px;padding:10px;color:var(--ink)}.passCandidateToggle input{margin-top:3px}.passCandidateToggle small{display:block;color:var(--muted);font-weight:800;margin-top:2px}.passMetaGrid{display:grid;grid-template-columns:1fr 1fr 2fr;gap:10px;margin:10px 0 12px;background:#fbf7ef;border:1px solid #eee0ca;border-radius:14px;padding:10px}
+.passCandidateToggle{display:flex;flex-direction:row;align-items:flex-start;gap:9px;margin:10px 0;background:#fff8ee;border:1px solid var(--line);border-radius:14px;padding:10px;color:var(--ink)}.passCandidateToggle input{margin-top:3px}.passCandidateToggle small{display:block;color:var(--muted);font-weight:800;margin-top:2px}.passMetaGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0 12px;background:#fbf7ef;border:1px solid #eee0ca;border-radius:14px;padding:10px}
 @media(max-width:900px){.passMetaGrid{grid-template-columns:1fr}}
 
 .saveStatus{display:inline-flex;align-items:center;gap:6px;min-height:28px;border:1px solid transparent;border-radius:999px;padding:4px 9px;background:#f7f9fa;color:var(--muted);font-size:12px;font-weight:900;line-height:1;white-space:nowrap;pointer-events:none}.saveStatusDot{width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.7}.saveStatus.saving,.saveStatus.unsaved{background:#fff9e8;color:#805f00;border-color:#f5e1a6}.saveStatus.saved{background:#f3f8f1;color:#3d7c44;border-color:#d8e8d1}.saveStatus.failed{background:#fbebe8;color:#842218;border-color:#efc3bc}.appWarning{display:flex;align-items:flex-start;gap:10px;padding:10px 20px;background:#fff1c6;border-bottom:1px solid #f1d37a;color:#62440f;font-weight:900;line-height:1.35}.appWarning svg{flex:0 0 auto;color:#9b5b00}.appWarning div{display:flex;flex-direction:column;gap:3px}.photoFeedback.success{color:#285c30}.photoFeedback.warning{color:#805f00}.photoFeedback.error{color:#842218}.photoFeedback.processing{color:var(--navy)}
@@ -239,7 +239,7 @@
 .passReviewCard.hidden{opacity:.72;background:#f5f6f7;border-style:dashed}
 .passReviewCard h4{margin:0;color:var(--navy)}
 .passReviewCard label{font-weight:900;color:var(--navy);display:flex;flex-direction:column;gap:5px}
-.passReviewCard textarea{min-height:78px;resize:vertical}
+.passReviewCard textarea{min-height:78px;resize:vertical}.passReviewCard .passInternalNote textarea{min-height:58px}.passInternalNote{grid-column:1/-1}
 .passReviewTop{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .includeToggle{flex-direction:row!important;align-items:flex-start!important;gap:9px!important;margin:0}
 .includeToggle input{width:auto;margin-top:3px}
