@@ -245,6 +245,13 @@ const HOMEOWNER_QUICK_INTAKE_FIELDS = [
   'accessNotes',
   'doNotOverlook'
 ];
+const HOMEOWNER_QUICK_INTAKE_TEXT_FIELDS = [
+  { key: 'notes', label: '1. What are your top goals or concerns for this walkthrough?' },
+  { key: 'priorityAreas', label: '2. Are there specific rooms, areas, or exterior spaces you want us to prioritize?' },
+  { key: 'doNotOverlook', label: '7. Is there anything you specifically do not want overlooked?' }
+];
+const INTAKE_UNKNOWN_ANSWER_PATTERN = /^(unknown|not sure|unsure|n\/?a|na|none|no answer|blank|skip|not applicable)$/i;
+const IMPORTED_INTAKE_STATUS = 'Imported / Entered';
 const THA_FIELD_PREP_FIELDS = [
   'electricalPanel','electricalUpdates','waterShutoff','plumbingHistory','waterHeater','sewerIrrigation','hvacFilter','hvacService','hvacAcService','comfort','roofAge','roofHistory','solar','drainagePooling','drainageHistory','gutters','windowsDoors','fogging','paintStain','productsColors','pests','fireExtinguishers','smokeCO','chimney','additionalConcerns'
 ];
@@ -328,6 +335,10 @@ function normalizeIntakeData(intake = {}) {
   STRUCTURED_HOMEOWNER_QUICK_INTAKE_GROUPS.forEach(group => {
     base[group.key] = normalizeStructuredIntakeGroupValue(base[group.key], group);
   });
+  base.intakeId = String(base.intakeId || '').trim();
+  base.intakeStatus = String(base.intakeStatus || '').trim();
+  base.importedRawResponse = String(base.importedRawResponse || '');
+  base.importedUnmappedNotes = String(base.importedUnmappedNotes || '');
   return base;
 }
 function meaningfulIntakeValue(value) {
@@ -340,6 +351,146 @@ function meaningfulIntakeValue(value) {
 }
 function completedIntakeFieldCount(intake = {}, fields = []) {
   return fields.filter(key => meaningfulIntakeValue(intake[key])).length;
+}
+function generateIntakeId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return `THA-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+  return `THA-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+}
+function isUnknownIntakeAnswer(value) {
+  const text = String(value || '').trim();
+  return !text || INTAKE_UNKNOWN_ANSWER_PATTERN.test(text);
+}
+function normalizeImportLabel(value = '') {
+  return String(value).toLowerCase().replace(/[—–-]/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function normalizeLoose(value = '') {
+  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function extractLabeledValue(text, labels = []) {
+  const lines = String(text || '').split(/\r?\n/);
+  const normalizedLabels = labels.map(normalizeImportLabel);
+  for (const line of lines) {
+    const match = line.match(/^\s*([^:]+):\s*(.*)\s*$/);
+    if (!match) continue;
+    if (normalizedLabels.includes(normalizeImportLabel(match[1]))) return match[2].trim();
+  }
+  return '';
+}
+function parseIntakeResponseText(rawText = '') {
+  const text = String(rawText || '');
+  const detected = {
+    intakeId: extractLabeledValue(text, ['Intake ID']) || (text.match(/\bTHA-[A-Z0-9-]{4,}\b/i)?.[0] || '').toUpperCase(),
+    clientName: extractLabeledValue(text, ['Client Name']),
+    projectAddress: extractLabeledValue(text, ['Project Address', 'Address']),
+    walkthroughDate: extractLabeledValue(text, ['Walkthrough Date / Visit Label', 'Walkthrough Date', 'Visit Label'])
+  };
+  const labelMap = new Map();
+  HOMEOWNER_QUICK_INTAKE_TEXT_FIELDS.forEach(field => labelMap.set(normalizeImportLabel(field.label), { type: 'plain', key: field.key, label: field.label }));
+  STRUCTURED_HOMEOWNER_QUICK_INTAKE_GROUPS.forEach(group => {
+    labelMap.set(normalizeImportLabel(group.question), { type: 'group', key: group.key, label: group.question });
+    group.fields.forEach(field => labelMap.set(normalizeImportLabel(field.label), { type: 'structured', groupKey: group.key, fieldKey: field.key, label: field.label }));
+  });
+  const mapped = {};
+  const consumed = new Set();
+  const lines = text.split(/\r?\n/);
+  const metadataLabels = ['intake id', 'client name', 'project address', 'address', 'walkthrough date visit label', 'walkthrough date', 'visit label'];
+  const targetForLine = (line) => {
+    const match = line.match(/^\s*(?:[-*]\s*)?([^:]+):\s*(.*)\s*$/);
+    if (!match) return null;
+    const normalized = normalizeImportLabel(match[1]);
+    const exact = labelMap.get(normalized);
+    if (exact?.type === 'plain' || exact?.type === 'structured') return { target: exact, value: match[2] };
+    const looseMatch = [...labelMap.entries()].find(([label, target]) => (target.type === 'plain' || target.type === 'structured') && (label.includes(normalized) || normalized.includes(label)) && Math.min(label.length, normalized.length) > 12);
+    return looseMatch ? { target: looseMatch[1], value: match[2] } : null;
+  };
+  const continuationValue = (startIndex) => {
+    const values = [];
+    for (let i = startIndex + 1; i < lines.length; i += 1) {
+      const trimmed = lines[i].trim();
+      if (!trimmed) {
+        if (values.length) break;
+        continue;
+      }
+      const label = trimmed.match(/^\s*([^:]+):/)?.[1] || '';
+      if (targetForLine(lines[i]) || metadataLabels.includes(normalizeImportLabel(label)) || labelMap.has(normalizeImportLabel(trimmed))) break;
+      values.push(trimmed);
+      consumed.add(i);
+    }
+    return values.join('\n');
+  };
+  const setMappedValue = (target, value) => {
+    const clean = String(value || '').trim();
+    if (isUnknownIntakeAnswer(clean)) return;
+    if (target.type === 'plain') mapped[target.key] = clean;
+    if (target.type === 'structured') mapped[target.groupKey] = { ...(mapped[target.groupKey] || {}), [target.fieldKey]: clean };
+  };
+  lines.forEach((line, index) => {
+    const parsedLine = targetForLine(line);
+    if (!parsedLine) return;
+    setMappedValue(parsedLine.target, parsedLine.value || continuationValue(index));
+    consumed.add(index);
+  });
+  const unmapped = lines.filter((line, index) => {
+    const trimmed = line.trim();
+    if (!trimmed) return false;
+    if (consumed.has(index)) return false;
+    const label = trimmed.match(/^\s*([^:]+):/)?.[1] || '';
+    if (metadataLabels.includes(normalizeImportLabel(label))) return false;
+    if (/^(subject|hello|hi|thank you|thanks|homeowner quick intake|please reply)/i.test(trimmed)) return false;
+    return true;
+  }).join('\n').trim();
+  return { detected, mapped, unmapped, rawText: text };
+}
+function buildPreWalkthroughIntakeEmail({ client = {}, intakeId = '' }) {
+  const lines = [
+    `Subject: Homeowner Quick Intake for ${client.address || 'your walkthrough'}`,
+    '',
+    'Hello,',
+    '',
+    'Before the walkthrough, please reply to this email with any context you want THA to know. Unknown answers are completely okay — please leave anything blank or write “Unknown” if you are not sure.',
+    '',
+    'Your answers are homeowner-provided context. HTC verifies conditions during the walkthrough, and PMR findings are created only after THA review.',
+    '',
+    `Client Name: ${client.name || ''}`,
+    `Project Address: ${client.address || ''}`,
+    `Walkthrough Date / Visit Label: ${client.date || ''}`,
+    `Intake ID: ${intakeId || ''}`,
+    '',
+    'Homeowner Quick Intake',
+    '',
+    `${HOMEOWNER_QUICK_INTAKE_TEXT_FIELDS[0].label}:`,
+    '',
+    `${HOMEOWNER_QUICK_INTAKE_TEXT_FIELDS[1].label}:`,
+    ''
+  ];
+  STRUCTURED_HOMEOWNER_QUICK_INTAKE_GROUPS.forEach(group => {
+    lines.push(group.question);
+    if (group.help) lines.push(`Note: ${group.help}`);
+    group.fields.forEach(field => lines.push(`${field.label}:`));
+    lines.push('');
+  });
+  lines.push(`${HOMEOWNER_QUICK_INTAKE_TEXT_FIELDS[2].label}:`, '', 'Thank you,', 'The Homeowner Advocate');
+  return lines.join('\n');
+}
+function flattenedImportUpdates(mapped = {}) {
+  const rows = [];
+  HOMEOWNER_QUICK_INTAKE_TEXT_FIELDS.forEach(field => {
+    if (!isUnknownIntakeAnswer(mapped[field.key])) rows.push({ key: field.key, label: field.label, value: mapped[field.key] });
+  });
+  STRUCTURED_HOMEOWNER_QUICK_INTAKE_GROUPS.forEach(group => {
+    const groupValues = mapped[group.key] || {};
+    group.fields.forEach(field => {
+      const value = groupValues[field.key];
+      if (!isUnknownIntakeAnswer(value)) rows.push({ key: group.key, fieldKey: field.key, label: `${group.question} — ${field.label}`, value });
+    });
+  });
+  return rows;
+}
+function addressAppearsToMatch(detectedAddress = '', currentAddress = '') {
+  if (!detectedAddress.trim() || !currentAddress.trim()) return true;
+  const detected = normalizeLoose(detectedAddress);
+  const current = normalizeLoose(currentAddress);
+  return detected.includes(current) || current.includes(detected);
 }
 function buildIntakeFollowUpRows(intake = {}) {
   return INTAKE_FOLLOW_UP_MAPPINGS.flatMap(mapping => mapping.keys.map(key => ({ mapping, key, value: meaningfulIntakeValue(intake[key]) })))
@@ -918,7 +1069,8 @@ const INTAKE_EXPORT_SECTIONS = [
   { title: 'Roof / Exterior / Drainage', fields: [['Roof Age', 'roofAge'], ['Roof History', 'roofHistory'], ['Solar Context', 'solar'], ['Drainage / Pooling', 'drainagePooling'], ['Drainage History', 'drainageHistory'], ['Gutters / Downspouts', 'gutters']] },
   { title: 'Windows / Doors / Paint', fields: [['Windows / Doors', 'windowsDoors'], ['Fogging / Failed Seals', 'fogging'], ['Paint / Stain Timing', 'paintStain'], ['Products / Colors', 'productsColors']] },
   { title: 'Safety / Pests / Fireplaces', fields: [['Pests', 'pests'], ['Fire Extinguishers', 'fireExtinguishers'], ['Smoke / CO Detectors', 'smokeCO'], ['Chimney / Fireplace', 'chimney']] },
-  { title: 'Additional Concerns', fields: [['Additional Concerns', 'additionalConcerns']] }
+  { title: 'Additional Concerns', fields: [['Additional Concerns', 'additionalConcerns']] },
+  { title: 'Imported Homeowner Response Context', fields: [['Intake Status', 'intakeStatus'], ['Imported Notes / Raw Homeowner Response', 'importedRawResponse'], ['Unmapped Imported Notes', 'importedUnmappedNotes']] }
 ];
 
 function reportValue(value, fallback = 'Not recorded') {
@@ -1012,7 +1164,7 @@ function buildIntakeSummaryHtml(payload) {
     const rows = section.fields.map(([label, key]) => ({ label, value: fieldValue(intake, key) }));
     return `<section class="card"><h2>${htmlEscape(section.title)}</h2><table><thead><tr><th>Topic</th><th>Homeowner Context</th></tr></thead><tbody>${tableRows(rows, [{value:r=>reportValue(r.label)}, {value:r=>reportValue(r.value)}])}</tbody></table></section>`;
   }).join('');
-  const body = `<section class="card"><h2>Intake — Homeowner Context & Field Prep</h2><p class="lede">Intake captures homeowner-reported context before the walkthrough. HTC verifies conditions in the field. PMR findings are only created after review. Empty fields are shown as “Not recorded” for context without turning missing information into a finding.</p></section>${sections}`;
+  const body = `<section class="card"><h2>Intake — Homeowner Context & Field Prep</h2><p class="lede">Intake captures homeowner-reported context before the walkthrough. HTC verifies conditions in the field. PMR findings are only created after review. Imported raw responses are included only as homeowner-provided context, not verified findings. Empty fields are shown as “Not recorded” for context without turning missing information into a finding.</p></section>${sections}`;
   return reportShell('03 - Intake Summary', payload.client, body, payload.walkthroughName);
 }
 function buildPhotoIndexHtml(payload, photoEntries = []) {
@@ -1203,7 +1355,13 @@ function cloneData(value) {
   return JSON.parse(JSON.stringify(value));
 }
 function blankIntakeTemplate() {
-  return Object.fromEntries(Object.entries(INTAKE_DEFAULTS).map(([key, value]) => [key, Array.isArray(value) ? [] : '']));
+  return {
+    ...Object.fromEntries(Object.entries(INTAKE_DEFAULTS).map(([key, value]) => [key, Array.isArray(value) ? [] : ''])),
+    intakeId: '',
+    intakeStatus: '',
+    importedRawResponse: '',
+    importedUnmappedNotes: ''
+  };
 }
 function cleanWalkthroughData() {
   return {
@@ -1464,7 +1622,19 @@ function App() {
     updateRoomCapture(sectionKey, { items: current.items.filter(item => item.id !== itemId) });
   };
   const update = (id, patch) => setAnswers(prev => ({...prev, [id]: {...normalizeAnswer(prev[id], itemById[id]), ...patch}}));
-  const updateIntake = (patch) => setIntake(prev => ({...prev, ...patch}));
+  const updateIntake = (patch) => setIntake(prev => normalizeIntakeData({...prev, ...patch}));
+  useEffect(() => {
+    if (!intake.intakeId) setIntake(prev => prev.intakeId ? prev : normalizeIntakeData({ ...prev, intakeId: generateIntakeId() }));
+  }, [intake.intakeId]);
+  const copyPreWalkthroughIntakeEmail = async () => {
+    try {
+      await copyTextToClipboard(buildPreWalkthroughIntakeEmail({ client, intakeId: intake.intakeId }));
+      setCopyFeedback('Pre-walkthrough intake email copied');
+      window.setTimeout(() => setCopyFeedback(''), 2500);
+    } catch (error) {
+      setCopyFeedback('Could not copy intake email');
+    }
+  };
   const addPhotos = async (id, files) => {
     const fileList = Array.from(files || []);
     if (!fileList.length) return;
@@ -1964,6 +2134,7 @@ function App() {
         <div className="summaryItem"><span>Client Name</span><strong title={client.name || 'Missing'}>{client.name || 'Missing'}</strong></div>
         <div className="summaryItem"><span>Project Address</span><strong title={client.address || 'Missing'}>{client.address || 'Missing'}</strong></div>
         <div className="summaryItem"><span>Walkthrough Date / Visit Label</span><strong title={client.date || 'Missing'}>{client.date || 'Missing'}</strong></div>
+        <div className="summaryItem"><span>Intake ID</span><strong title={intake.intakeId || 'Generating'}>{intake.intakeId || 'Generating…'}</strong></div>
         <span className={`saveStatus ${saveStatus.state}`} role="status" aria-live="polite"><span className="saveStatusDot" aria-hidden="true"></span>{saveStatusText(saveStatus, hasUnsavedVisiblePhotos)}</span>
         <span className={`driveSummaryPill ${driveMeta.lastError ? 'error' : (driveToken ? 'connected' : '')}`} title={driveSummaryText}>{driveSummaryText}</span>
         {controlsNeedsAttention && <span className="controlAttentionPill" role="status"><AlertTriangle size={14}/> {controlsAttentionText}</span>}
@@ -2061,7 +2232,7 @@ function App() {
       </div>}
     </section>
     {(storageWarning || photoFeedback.message) && <section className="appWarning noPrint" role="alert" aria-live="assertive"><AlertTriangle size={18}/><div>{storageWarning && <strong>{storageWarning}</strong>}{photoFeedback.message && <span className={`photoFeedback ${photoFeedback.state}`}>{photoFeedback.message}</span>}</div></section>}
-    {view === 'intake' && <IntakeView intake={intake} updateIntake={updateIntake} intakeFollowUpCount={intakeFollowUpRows.length} onReviewIntakeFollowUp={()=>{ setView('form'); setActiveRoom(INTAKE_FOLLOW_UP_SECTION_KEY); }} />}
+    {view === 'intake' && <IntakeView client={client} intake={intake} updateIntake={updateIntake} copyFeedback={copyFeedback} onCopyPreWalkthroughEmail={copyPreWalkthroughIntakeEmail} intakeFollowUpCount={intakeFollowUpRows.length} onReviewIntakeFollowUp={()=>{ setView('form'); setActiveRoom(INTAKE_FOLLOW_UP_SECTION_KEY); }} />}
     {view === 'form' && <main className="grid">
       <aside className="roomNav noPrint"><h3>Walkthrough Sections</h3><div className="addRoomTools">{Object.values(DYNAMIC_ROOM_TYPES).map(type => <button key={type.roomType} onClick={()=>addDynamicRoom(type.roomType)}>{type.addLabel} {type.roomType}</button>)}</div>{rooms.map(r => <div key={r.key} className="sectionNavRow" draggable onDragStart={()=>setDragSectionKey(r.key)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); moveSection(dragSectionKey, r.key); setDragSectionKey('');}} onDragEnd={()=>setDragSectionKey('')}><span className="sectionDragHandle" title="Drag to reorder walkthrough flow">⋮⋮</span><button className={`sectionSelect ${activeRoom===r.key?'active':''} ${roomSummaryFor(r).hasAttention ? 'hasRoomAttention' : 'roomGood'}`} onClick={()=>setActiveRoom(r.key)}><span className="sectionName">{r.label}</span><span className="roomSummaryBadges" aria-label={`${r.label} room summary`}>{roomSummaryFor(r).badges.map(badge => <span key={badge.key} className={`roomSummaryBadge ${badge.tone}`}>{badge.label}</span>)}</span></button></div>)}<div className="hint"><Camera size={18}/> Prompt: Capture context, close-up, and detail photos. Store by room/item folder path.</div></aside>
       <section className="formPanel">
@@ -2126,17 +2297,59 @@ function StructuredIntakeQuestion({ group, intake, updateIntake }) {
   </div>;
 }
 
-function IntakeView({intake, updateIntake, intakeFollowUpCount = 0, onReviewIntakeFollowUp}) {
+function IntakeView({client = {}, intake, updateIntake, copyFeedback = '', onCopyPreWalkthroughEmail, intakeFollowUpCount = 0, onReviewIntakeFollowUp}) {
+  const [importText, setImportText] = useState('');
+  const [importPreview, setImportPreview] = useState(null);
+  const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const homeownerCompleted = completedIntakeFieldCount(intake, HOMEOWNER_QUICK_INTAKE_FIELDS);
   const fieldPrepCompleted = completedIntakeFieldCount(intake, THA_FIELD_PREP_FIELDS);
   const readyForHTC = homeownerCompleted >= 2 || fieldPrepCompleted >= 3 || intakeFollowUpCount > 0;
+  const parsedUpdates = importPreview ? flattenedImportUpdates(importPreview.mapped) : [];
+  const previewRows = parsedUpdates.map(row => {
+    const currentValue = row.fieldKey ? structuredIntakeAnswerValue(intake, row.key, row.fieldKey) : intake[row.key];
+    const hasExisting = !isUnknownIntakeAnswer(currentValue);
+    return { ...row, currentValue, hasExisting, willApply: !hasExisting || confirmOverwrite };
+  });
+  const conflictingRows = previewRows.filter(row => row.hasExisting);
+  const intakeIdMismatch = Boolean(importPreview?.detected.intakeId && intake.intakeId && importPreview.detected.intakeId !== intake.intakeId);
+  const addressMismatch = Boolean(importPreview?.detected.projectAddress && client.address && !addressAppearsToMatch(importPreview.detected.projectAddress, client.address));
+  const previewImport = () => {
+    const parsed = parseIntakeResponseText(importText);
+    setImportPreview(parsed);
+    setConfirmOverwrite(false);
+  };
+  const applyImport = () => {
+    if (!importPreview) return;
+    if (conflictingRows.length && !confirmOverwrite && !window.confirm('Some mapped intake fields already have values. Apply only to blank fields and keep existing values?')) return;
+    const patch = {
+      importedRawResponse: importPreview.rawText,
+      importedUnmappedNotes: importPreview.unmapped,
+      intakeStatus: IMPORTED_INTAKE_STATUS
+    };
+    if (importPreview.detected.intakeId && !intake.intakeId) patch.intakeId = importPreview.detected.intakeId;
+    previewRows.filter(row => row.willApply).forEach(row => {
+      if (row.fieldKey) patch[row.key] = { ...structuredIntakeGroupValue({ ...intake, ...patch }, row.key), [row.fieldKey]: row.value };
+      else patch[row.key] = row.value;
+    });
+    updateIntake(patch);
+  };
+  const loadTxtFile = async (file) => {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.txt') && file.type && file.type !== 'text/plain') return;
+    setImportText(await file.text());
+    setImportPreview(null);
+  };
   return <main className="intakePage">
     <div className="pmrHeader"><div><p className="eyebrow">Homeowner Quick Intake → THA Field Prep → HTC Follow-Up → PMR</p><h1>Intake — Homeowner Context & Field Prep</h1><p>Intake captures homeowner-reported context before the walkthrough. HTC verifies conditions in the field. PMR findings are only created after review.</p></div><div className="compass">◈</div></div>
     <section className="intakeStatusSummary" aria-label="Intake status summary">
       <div><span>Homeowner Quick Intake fields completed</span><strong>{homeownerCompleted}/{HOMEOWNER_QUICK_INTAKE_FIELDS.length}</strong></div>
       <div><span>THA Field Prep fields completed</span><strong>{fieldPrepCompleted}/{THA_FIELD_PREP_FIELDS.length}</strong></div>
       <div><span>Generated HTC Follow-Up count</span><strong>{intakeFollowUpCount}</strong></div>
+      <div><span>Intake ID</span><strong>{intake.intakeId || 'Generating…'}</strong></div>
+      <div><span>Intake Status</span><strong>{intake.intakeStatus || 'Not imported'}</strong></div>
       <div className={readyForHTC ? 'ready' : 'notReady'}><span>Ready for HTC</span><strong>{readyForHTC ? 'Yes' : 'Add context'}</strong></div>
+      <button type="button" className="copyIntakeEmailButton" onClick={onCopyPreWalkthroughEmail}><ClipboardCheck size={16}/> Copy Pre-Walkthrough Intake Email</button>
+      {copyFeedback && <span className="copyFeedback" role="status">{copyFeedback}</span>}
       {intakeFollowUpCount > 0 && <button type="button" className="reviewFollowUpButton" onClick={onReviewIntakeFollowUp}>Review Intake Follow-Up in HTC</button>}
     </section>
     <details className="pmrBlock intakeLane homeownerLane" open>
@@ -2149,6 +2362,26 @@ function IntakeView({intake, updateIntake, intakeFollowUpCount = 0, onReviewInta
         <label className="notes intakeQuestion"><span>7. Is there anything you specifically do not want overlooked?</span><textarea value={intake.doNotOverlook || ''} onChange={e=>updateIntake({doNotOverlook:e.target.value})} /></label>
       </div>
     </details>
+    <section className="pmrBlock intakeImportPanel">
+      <div className="intakeImportHeader"><div><h2>Import Intake Response</h2><p className="lede">Paste the homeowner reply, preview mapped answers, then apply them to blank Homeowner Quick Intake fields. THA Internal Intake / Field Prep fields are preserved.</p></div><label className="uploadInline txtUpload"><Upload size={16}/> Upload .txt<input type="file" accept=".txt,text/plain" onChange={e=>{loadTxtFile(e.target.files?.[0]); e.target.value='';}}/></label></div>
+      <label className="notes intakeQuestion"><span>Paste homeowner response</span><textarea value={importText} onChange={e=>{setImportText(e.target.value); setImportPreview(null);}} placeholder="Paste the homeowner's completed structured intake reply here." /></label>
+      <div className="importActions"><button type="button" onClick={previewImport} disabled={!importText.trim()}>Preview Intake Import</button><button type="button" onClick={applyImport} disabled={!importPreview || !previewRows.some(row=>row.willApply)}>Apply to Current Walkthrough</button>{conflictingRows.length > 0 && <label className="overwriteToggle"><input type="checkbox" checked={confirmOverwrite} onChange={e=>setConfirmOverwrite(e.target.checked)}/><span>Confirm overwrite of {conflictingRows.length} existing populated field{conflictingRows.length === 1 ? '' : 's'}</span></label>}</div>
+      {importPreview && <div className="importPreview">
+        <h3>Import Preview</h3>
+        {(intakeIdMismatch || addressMismatch) && <div className="driveErrorBox" role="alert"><AlertTriangle size={16}/><span>{intakeIdMismatch ? 'Imported Intake ID does not match this walkthrough. ' : ''}{addressMismatch ? 'Imported Project Address does not appear to match this walkthrough.' : ''}</span></div>}
+        <div className="previewMetaGrid">
+          <div><span>Detected Intake ID</span><strong>{importPreview.detected.intakeId || 'Not detected'}</strong></div>
+          <div><span>Detected Client Name</span><strong>{importPreview.detected.clientName || 'Not detected'}</strong></div>
+          <div><span>Detected Project Address</span><strong>{importPreview.detected.projectAddress || 'Not detected'}</strong></div>
+          <div><span>Detected Walkthrough Date</span><strong>{importPreview.detected.walkthroughDate || 'Not detected'}</strong></div>
+        </div>
+        <h4>Mapped Answers</h4>
+        {previewRows.length ? <div className="mappedAnswerList">{previewRows.map(row => <div key={`${row.key}-${row.fieldKey || 'value'}`} className={row.hasExisting ? 'mappedAnswer conflict' : 'mappedAnswer'}><span>{row.label}</span><strong>{row.value}</strong>{row.hasExisting && <small>Existing value kept unless overwrite is confirmed: {row.currentValue}</small>}<em>{row.willApply ? 'Will apply' : 'Will skip'}</em></div>)}</div> : <p className="notRecordedText">No mapped non-blank answers found.</p>}
+        <h4>Unmapped Notes / Raw Homeowner Context</h4>
+        <pre className="rawImportPreview">{importPreview.unmapped || 'No extra unmapped notes detected.'}</pre>
+      </div>}
+      {intake.importedRawResponse && <details className="rawImportedResponse"><summary>Imported Notes / Raw Homeowner Response</summary><pre>{intake.importedRawResponse}</pre></details>}
+    </section>
     <details className="pmrBlock intakeLane" open>
       <summary><span>THA Internal Intake / Field Prep</span><small>Detailed system context to guide HTC. Homeowner-reported answers become follow-up prompts only after field verification.</small></summary>
       <p className="lede">Use these fields to prepare the walkthrough without turning intake notes into findings. Verify during HTC before PMR inclusion.</p>
