@@ -1627,7 +1627,7 @@ async function uploadDriveBundle(accessToken, payload) {
   const readableDocs = [
     ['01 - Intake Summary', buildIntakeSummaryHtml(payload)],
     ['02 - HTC Checklist', buildHtcChecklistHtml(payload, photoEntries)],
-    ['03 - PMR Report', pmrReportHtml],
+    ['03 - PMR Editable Copy', pmrReportHtml],
     ['04 - Photo Index', buildPhotoIndexHtml(payload, photoEntries)]
   ];
 
@@ -1646,23 +1646,30 @@ async function uploadDriveBundle(accessToken, payload) {
   backupUploads.push(await uploadEmergencyBackupJson(accessToken, backupId, '03 - PMR Data', { client: payload.client, intake: payload.intake, pmr: payload.pmr || [] }));
   backupUploads.push(await uploadEmergencyBackupJson(accessToken, backupId, 'Full Walkthrough Export', payload));
 
-  if (!uploadedCoreFiles.includes('03 - PMR Report')) {
-    throw Object.assign(new Error('Drive export incomplete — 03 - PMR Report did not upload, so the package cannot be marked successful.'), { code: 'core_upload_failed' });
+  if (!uploadedCoreFiles.includes('03 - PMR Editable Copy')) {
+    throw Object.assign(new Error('Drive export incomplete — 03 - PMR Editable Copy did not upload, so the package cannot be marked successful.'), { code: 'core_upload_failed' });
   }
   if (backupUploads.length < 4) {
     throw Object.assign(new Error('Drive export incomplete — emergency backup files did not upload, so the package cannot be marked successful.'), { code: 'backup_upload_failed' });
   }
 
-  const pdfResult = await tryBuildPmrPdf(pmrReportHtml, { title: '03 - PMR Report' });
+  try {
+    const styledHtml = await uploadDriveHtml(accessToken, packageId, '03 - PMR Styled Preview.html', pmrReportHtml);
+    uploadedCoreFiles.push(styledHtml.name || '03 - PMR Styled Preview.html');
+  } catch (error) {
+    uploadWarnings.push(`Styled PMR HTML upload failed; editable Google Doc and emergency HTML backup were saved. ${driveErrorMessage(error, 'Styled HTML upload failed')}`);
+  }
+
+  const pdfResult = await tryBuildPmrPdf(pmrReportHtml, { title: '03 - PMR Styled Report' });
   if (pdfResult.pdfBlob) {
     try {
-      const uploadedPdf = await uploadDrivePdf(accessToken, packageId, '03 - PMR Report.pdf', pdfResult.pdfBlob);
-      uploadedCoreFiles.push(uploadedPdf.name || '03 - PMR Report.pdf');
+      const uploadedPdf = await uploadDrivePdf(accessToken, packageId, '03 - PMR Styled Report.pdf', pdfResult.pdfBlob);
+      uploadedCoreFiles.push(uploadedPdf.name || '03 - PMR Styled Report.pdf');
     } catch (error) {
-      uploadWarnings.push(`PDF upload failed; readable Google Doc and HTML backups were saved. ${driveErrorMessage(error, 'PDF upload failed')}`);
+      uploadWarnings.push(`Styled PDF upload failed; editable Google Doc and HTML backups were saved. ${driveErrorMessage(error, 'PDF upload failed')}`);
     }
   } else {
-    uploadWarnings.push(`PDF generation failed; readable Google Doc and HTML backups were saved. ${pdfResult.error?.message || 'Browser PDF renderer did not return a usable PDF.'}`);
+    uploadWarnings.push(`Styled PDF generation failed; editable Google Doc and HTML backups were saved. ${pdfResult.error?.message || 'Browser PDF renderer did not return a usable PDF.'}`);
   }
 
   const folderInfo = await getDriveFileInfo(accessToken, packageId).catch(() => ({ id: packageId, name: packageFolderName, webViewLink: driveFolderUrl(packageId) }));
@@ -2122,7 +2129,7 @@ function App() {
   const driveStatusMessage = driveSessionExpired
     ? 'Drive session expired — reconnect to export.'
     : driveMeta.lastSaved
-      ? `Readable Drive package saved at ${driveMeta.lastSaved}.`
+      ? `Drive editable package saved at ${driveMeta.lastSaved}.`
       : driveToken
         ? 'Drive connected — ready to export.'
         : driveConfigured
@@ -2540,9 +2547,35 @@ function App() {
       };
     });
   };
+  const buildCurrentDrivePayload = () => buildDrivePayload({walkthroughName, client, intake, rows, pmr, passCareOutlook, passReview, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture});
+  const buildCurrentStyledPmrHtml = () => {
+    const payload = buildCurrentDrivePayload();
+    return buildPmrReportHtml(payload, photoEntriesForPayload(payload));
+  };
+  const styledPmrFileName = () => `THA-Styled-PMR-${cleanDriveName(client.name || 'client')}.html`;
   const downloadJSON = () => {
-    const blob = new Blob([JSON.stringify(buildDrivePayload({walkthroughName, client, intake, rows, pmr, passCareOutlook, passReview, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture}), null, 2)], {type:'application/json'});
+    const blob = new Blob([JSON.stringify(buildCurrentDrivePayload(), null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `THA-HTC-PMR-${client.name || 'client'}.json`; a.click(); URL.revokeObjectURL(url);
+  };
+  const downloadStyledPMR = () => {
+    const html = buildCurrentStyledPmrHtml();
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = styledPmrFileName();
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const openStyledPMRPreview = () => {
+    const preview = window.open('', '_blank');
+    if (!preview) {
+      downloadStyledPMR();
+      return;
+    }
+    preview.document.open();
+    preview.document.write(buildCurrentStyledPmrHtml());
+    preview.document.close();
   };
   const copyDriveText = async (text, label) => {
     try {
@@ -2676,7 +2709,7 @@ function App() {
   };
   const syncDrive = async ({includeDownload=false, retryQueue=false} = {}) => {
     if (includeDownload) downloadJSON();
-    const payload = buildDrivePayload({walkthroughName, client, intake, rows, pmr, passCareOutlook, passReview, dynamicRooms, sections, sectionOrderState, itemOrderState, pinnedItems, roomCapture});
+    const payload = buildCurrentDrivePayload();
     if (!driveToken) {
       setDriveMeta(meta => ({...meta, lastStatus: '', lastStatusTone: '', lastError: driveConfigured ? 'Drive session expired — reconnect to export.' : 'Drive is not configured. Add the OAuth Client ID in Drive Setup Help or use Download Emergency Backup.', lastErrorDetails: ''}));
       return;
@@ -2706,7 +2739,7 @@ function App() {
         lastSaved: savedAt,
         lastFolderName: drivePackage.folderName || '',
         lastFolderLink: drivePackage.folderLink || '',
-        ...driveStatusState(`Drive package saved at ${savedAt}. 03 - PMR Report and emergency backups uploaded.${warningText}`, 'success')
+        ...driveStatusState(`Drive package saved at ${savedAt}. PMR editable copy and emergency backups uploaded.${warningText}`, 'success')
       }));
     } catch (error) {
       if (isDriveSessionExpired(error)) setDriveToken('');
@@ -2775,7 +2808,8 @@ function App() {
         </section>
         <section className="controlGroup clientCard" aria-label="PMR Output">
           <div className="controlGroupTitle"><h3>PMR Output</h3></div>
-          <div className="pmrPrintActions" aria-label="PMR print actions"><button onClick={()=>window.print()}><Printer size={16}/> Print / Save Draft PMR</button><button className="finalPrintButton" onClick={printFinalPMR}><Printer size={16}/> Print Final PMR</button></div>
+          <p className="driveActionHelp">Polished homeowner deliverables use the styled PMR HTML/CSS layout from the app. Drive keeps a separate Google Doc as an editable/plain copy.</p>
+          <div className="pmrPrintActions" aria-label="PMR homeowner deliverable actions"><button type="button" onClick={openStyledPMRPreview}><FileText size={16}/> Open Styled PMR Preview</button><button type="button" className="finalPrintButton" onClick={downloadStyledPMR}><Download size={16}/> Download Styled PMR</button><button type="button" onClick={()=>window.print()}><Printer size={16}/> Print / Save Draft PMR</button><button type="button" onClick={printFinalPMR}><Printer size={16}/> Print Final PMR</button></div>
         </section>
         <section className="controlGroup driveStatus driveSetupPanel" aria-label="Drive Export">
           <div className="driveSetupHeader">
@@ -2790,7 +2824,7 @@ function App() {
             <div className="driveBrowserStatus" role="status" aria-live="polite">
               <strong>{driveStatusMessage}</strong>
               <span>{hasAppDriveClientId && !usingManualDriveOverride ? 'Drive configured for this app.' : `Client ID source: ${driveClientIdSourceLabel}.`}</span>
-              <span>Connect Google Drive authorizes this browser session. Save Readable Package to Drive uploads 03 - PMR Report.pdf as the primary homeowner deliverable, plus supporting docs and backups.</span>
+              <span>Connect Google Drive authorizes this browser session. Save Drive Package uploads a reliable Google Doc editable/plain copy, supporting docs, and backups. Styled PMR HTML/PDF is separate and does not depend on Google Docs conversion.</span>
             </div>
             <div className="originCard">
               <span>Drive field workflow</span>
@@ -2800,7 +2834,7 @@ function App() {
           </div>
           <div className="driveSetupActions">
             <button onClick={connectDrive} disabled={driveBusy || !driveConfigured}><FolderOpen size={16}/> Connect Google Drive</button>
-            <button onClick={()=>syncDrive({retryQueue:true})} disabled={driveBusy || !driveToken}><Upload size={16}/> Save PDF Package to Drive</button>
+            <button onClick={()=>syncDrive({retryQueue:true})} disabled={driveBusy || !driveToken}><Upload size={16}/> Save Drive Package</button>
             {driveMeta.lastFolderLink ? <a className="driveFolderLink driveActionLink" href={driveMeta.lastFolderLink} target="_blank" rel="noreferrer"><FolderOpen size={14}/> Open Last Drive Folder</a> : <button type="button" disabled><FolderOpen size={16}/> Open Last Drive Folder</button>}
             <button onClick={syncPendingPhotosToDrive} disabled={driveBusy || !driveToken || !pendingPhotoCount}><Upload size={16}/> Sync Pending Photos</button>
             {copyFeedback && <span className="copyFeedback" role="status">{copyFeedback}</span>}
