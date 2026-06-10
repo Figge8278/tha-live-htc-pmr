@@ -1500,8 +1500,8 @@ function reportShell(title, client = {}, body, walkthroughName = '') {
     .time-guide,.action-guide{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.time-guide-item,.action-guide-item{display:flex;align-items:flex-start;gap:10px;border:1px solid #d6e2e8;border-radius:14px;background:#f6f9fb;color:var(--navy);padding:12px}.action-guide-item{flex-direction:column;gap:4px}.action-guide-item span{color:#40505f}.time-guide-item span{font-size:22px}.time-guide-item.future{background:#f5f2fb;border-color:#ddd3ee;color:#4c3a72}.action-guide-item.clearPath{background:#e8f8ff;border-color:#a9def4;color:#155e75}.action-guide-item.likelyPath{background:#eef3ff;border-color:#c6d4f5;color:#405b92}.action-guide-item.needsDiscovery{background:#f3f1f8;border-color:#d7d2e8;color:#5e5a76}
         .card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;margin:18px 0;box-shadow:0 8px 22px var(--shadow)}.hero-card{border-top:5px solid var(--gold)}.section-card{margin-top:24px}.lede{font-size:16px;color:#40505f;margin-top:0}.section-kicker{margin:0 0 6px;color:var(--gold);font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}.summary-note{background:#fffdf8;border-left:4px solid var(--gold);padding:12px 14px;border-radius:10px}.finding-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.finding-card{border-left:4px solid var(--gold)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.stat{background:var(--soft);border-radius:14px;padding:14px;text-align:center}.stat strong{font-size:30px;color:var(--navy);display:block}.pill{display:inline-block;border-radius:999px;background:var(--soft);padding:4px 9px;font-weight:800}.high{background:var(--red)}.medium{background:var(--yellow)}.low{background:var(--green)}.badge-line{display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 10px}.note-card{border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0;background:#fffdf8}.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.detail{background:#fbf7ef;border:1px solid #eadbc2;border-radius:12px;padding:10px}.not-recorded{color:var(--muted);font-style:italic}.small{font-size:12px;color:var(--muted)}.next-step-list{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:10px}.next-step-list li{border:1px solid #eadbc2;background:#fffdf8;border-radius:12px;padding:12px}.next-step-list strong,.next-step-list span{display:block}.next-step-list span{color:#40505f;margin-top:3px}.pass-card{background:#fbfdfe;border-color:#cbdfe9}.care-table th{background:#17496d}.care-table td{line-height:1.45}
     table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;overflow:hidden;border-radius:12px;border:1px solid var(--line)} th,td{border-bottom:1px solid var(--line);padding:9px;text-align:left;vertical-align:top} th{background:var(--navy);color:#fff;font-size:12px;text-transform:uppercase;letter-spacing:.03em} tr:nth-child(even) td{background:#fbf7ef} tr:last-child td{border-bottom:0} a{color:#0b5cad;font-weight:800} ul{padding-left:20px}.room-section{break-inside:avoid}.mobile-list{display:none}.photo-ref{font-size:12px;color:var(--muted)}
-    .packet-section{break-inside:auto}.subsection{border:1px solid #d6e2e8;border-radius:18px;background:#fbfdfe;padding:14px;margin:14px 0}.subsection h3{display:flex;justify-content:space-between;gap:10px;margin:0 0 10px}.subsection h3 span{font-size:12px;text-transform:uppercase;color:var(--muted);letter-spacing:.04em}.packet-lines{display:grid;gap:10px}.packet-line{display:grid;grid-template-columns:6px minmax(180px,1.15fr) minmax(210px,1fr) minmax(220px,1.35fr);gap:12px;align-items:center;border:1px solid #dbe6eb;border-radius:16px;background:#fff;overflow:hidden;padding:12px 12px 12px 0}.line-stripe{align-self:stretch;background:var(--gold);border-radius:0 999px 999px 0}.line-stripe.sample{display:inline-block;width:24px;height:34px;vertical-align:middle;margin-right:8px}.line-title{display:flex;gap:8px;align-items:center}.line-main p,.line-next{margin:4px 0 0;color:var(--muted);font-weight:800;line-height:1.35}.line-next{color:var(--ink);font-weight:700}.line-chips{display:flex;flex-wrap:wrap;gap:7px}.chip{display:inline-flex;align-items:center;border-radius:999px;background:#edf3f6;color:var(--navy);font-size:12px;font-weight:900;padding:6px 9px}.chip.urgent{background:var(--red);color:#842218}.chip.attention{background:var(--yellow);color:#805f00}.chip.monitor{background:var(--green);color:#285c30}.time-chip{background:#f6f4fb;color:#4c3a72}.certainty-chip.clearPath{background:#e8f3e6;color:#285c30}.certainty-chip.likelyPath{background:#fff2d3;color:#805f00}.certainty-chip.needsDiscovery{background:#f4eafa;color:#5a377a}.room-chip{background:#e9f1f6}.status-dot{display:inline-block;width:11px;height:11px;border-radius:50%;box-shadow:0 0 0 3px rgba(11,54,88,.08)}.status-dot.urgent{background:#c74732}.status-dot.attention{background:#d49a1f}.status-dot.monitor{background:#4c9a58}.status-dot.routine{background:#8aa0ad}.legend-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.legend-grid p{border:1px solid #d6e2e8;border-radius:14px;background:#fbfdfe;padding:12px;margin:0}.room-chart{display:grid;gap:10px}.room-bar{display:grid;grid-template-columns:minmax(150px,1fr) 3fr auto;gap:10px;align-items:center;font-weight:900;color:var(--navy)}.room-bar i{height:14px;border-radius:999px;background:#edf3f6;border:1px solid #d6e2e8;overflow:hidden}.room-bar b{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--gold),#e4b35c)}.trade-handy-services .line-stripe,.trade-handyman .line-stripe{background:#bf8420}.trade-electrical .line-stripe{background:#8c5cff}.trade-plumbing .line-stripe{background:#2f80ed}.trade-hvac .line-stripe{background:#00a0a8}.trade-roof .line-stripe,.trade-roofing .line-stripe{background:#6f4b2a}.trade-safety .line-stripe{background:#c74732}.trade-pest .line-stripe{background:#6d8f2e}.trade-exterior .line-stripe{background:#2f8f5b}.trade-drainage .line-stripe,.trade-gutters-drainage .line-stripe{background:#4d8da8}.trade-appliance .line-stripe{background:#6d7782}.photo-index-intro{margin-top:24px}
-    @media(max-width:780px){main{padding:12px}header{border-radius:0;padding:20px 14px}.workflow span{font-size:13px}.table-wrap{overflow-x:auto}.desktop-table{min-width:760px}.mobile-list{display:block}.mobile-hidden{display:none}.note-card{padding:12px}.detail-grid{grid-template-columns:1fr}}
+    .packet-section{break-inside:auto}.subsection{border:1px solid #d6e2e8;border-radius:18px;background:#fbfdfe;padding:14px;margin:14px 0}.subsection h3{display:flex;justify-content:space-between;gap:10px;margin:0 0 10px}.subsection h3 span{font-size:12px;text-transform:uppercase;color:var(--muted);letter-spacing:.04em}.packet-lines{display:grid;gap:10px}.packet-line{display:grid;grid-template-columns:6px minmax(180px,1.15fr) minmax(210px,1fr) minmax(220px,1.35fr);gap:12px;align-items:center;border:1px solid #dbe6eb;border-radius:16px;background:#fff;overflow:hidden;padding:12px 12px 12px 0}.line-stripe{align-self:stretch;background:var(--gold);border-radius:0 999px 999px 0}.line-stripe.sample{display:inline-block;width:24px;height:34px;vertical-align:middle;margin-right:8px}.line-title{display:flex;gap:8px;align-items:center}.line-main p,.line-next{margin:4px 0 0;color:var(--muted);font-weight:800;line-height:1.35}.line-next{color:var(--ink);font-weight:700}.line-note-label{display:block;color:var(--muted);font-size:11px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;margin-top:4px}.empty-line{opacity:.72}.line-chips{display:flex;flex-wrap:wrap;gap:7px}.chip{display:inline-flex;align-items:center;border-radius:999px;background:#edf3f6;color:var(--navy);font-size:12px;font-weight:900;padding:6px 9px}.chip.urgent{background:var(--red);color:#842218}.chip.attention{background:var(--yellow);color:#805f00}.chip.monitor{background:var(--green);color:#285c30}.time-chip{background:#f6f4fb;color:#4c3a72}.certainty-chip.clearPath{background:#e8f3e6;color:#285c30}.certainty-chip.likelyPath{background:#fff2d3;color:#805f00}.certainty-chip.needsDiscovery{background:#f4eafa;color:#5a377a}.room-chip{background:#e9f1f6}.status-dot{display:inline-block;width:11px;height:11px;border-radius:50%;box-shadow:0 0 0 3px rgba(11,54,88,.08)}.status-dot.urgent{background:#c74732}.status-dot.attention{background:#d49a1f}.status-dot.monitor{background:#4c9a58}.status-dot.routine{background:#8aa0ad}.legend-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.legend-grid p{border:1px solid #d6e2e8;border-radius:14px;background:#fbfdfe;padding:12px;margin:0}.room-chart{display:grid;gap:10px}.room-bar{display:grid;grid-template-columns:minmax(150px,1fr) 3fr auto;gap:10px;align-items:center;font-weight:900;color:var(--navy)}.room-bar i{height:14px;border-radius:999px;background:#edf3f6;border:1px solid #d6e2e8;overflow:hidden}.room-bar b{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--gold),#e4b35c)}.trade-handy-services .line-stripe,.trade-handyman .line-stripe{background:#bf8420}.trade-electrical .line-stripe{background:#8c5cff}.trade-plumbing .line-stripe{background:#2f80ed}.trade-hvac .line-stripe{background:#00a0a8}.trade-roof .line-stripe,.trade-roofing .line-stripe{background:#6f4b2a}.trade-safety .line-stripe{background:#c74732}.trade-pest .line-stripe{background:#6d8f2e}.trade-exterior .line-stripe{background:#2f8f5b}.trade-drainage .line-stripe,.trade-gutters-drainage .line-stripe{background:#4d8da8}.trade-appliance .line-stripe{background:#6d7782}.trade-intake .line-stripe{background:#0b3658}.trade-photo-index .line-stripe{background:#8aa0ad}.trade-pass .line-stripe{background:#17496d}.pass-line{background:#fbfdfe}.photo-line{background:#fcfdff}.photo-index-intro{margin-top:24px}
+    @media(max-width:780px){main{padding:12px}header{border-radius:0;padding:20px 14px}.workflow span{font-size:13px}.table-wrap{overflow-x:auto}.desktop-table{min-width:760px}.mobile-list{display:block}.mobile-hidden{display:none}.note-card{padding:12px}.detail-grid{grid-template-columns:1fr}.packet-line{grid-template-columns:6px 1fr;align-items:start}.line-chips,.line-next{grid-column:2}.line-chips{margin-top:6px}}
     @media print{body{background:#fff;color:#111}header,.card{box-shadow:none;border-color:#bbb}main{max-width:none;padding:0 10px}.card{break-inside:avoid;margin:10px 0}.workflow span{border:1px solid #999;background:#fff;color:#111}a{color:#111;text-decoration:none}.mobile-list{display:none}.mobile-hidden{display:block}.desktop-table{font-size:11px}th{background:#eee!important;color:#111!important}.not-recorded{color:#777}}
   </style></head><body><header><p class="eyebrow">THA Field Package</p><h1>${htmlEscape(title)}</h1><div class="meta-grid"><div class="meta-item"><span>Working Session Name</span><strong>${reportValue(walkthroughName, 'Working session name not recorded')}</strong></div><div class="meta-item"><span>Client Name</span><strong>${reportValue(client.name, 'Client name not recorded')}</strong></div><div class="meta-item"><span>Project Address</span><strong>${reportValue(client.address, 'Project address not recorded')}</strong></div><div class="meta-item"><span>Walkthrough Date / Visit Label</span><strong>${reportValue(client.date, 'Walkthrough date / visit label not recorded')}</strong></div></div><div class="workflow"><span>Intake</span><b>→</b><span>HTC</span><b>→</b><span>PMR</span><b>→</b><span>PASS — Continued Care</span></div></header><main>${body}</main></body></html>`;
 }
@@ -1552,11 +1552,56 @@ function groupByTrade(items = []) {
     return acc;
   }, {});
 }
+
+function visualTradeClass(trade = 'General') {
+  return `trade-${tradeSlug(trade || 'General')}`;
+}
+function visualLineHtml({ trade = 'General', status = '', title = '', context = '', room = '', time = '', certainty = '', next = '', extraClass = '' } = {}) {
+  const certaintyClass = certainty ? actionCertaintyClass(certainty) : 'likelyPath';
+  const statusClass = statusVisualClass(status);
+  const statusLabel = priority(status) || status || 'Routine';
+  const chips = [
+    room ? `<span class="chip room-chip">${htmlEscape(room)}</span>` : '',
+    statusLabel ? `<span class="chip ${statusClass}">${htmlEscape(statusLabel)}</span>` : '',
+    time ? `<span class="chip time-chip">${time}</span>` : '',
+    certainty ? `<span class="chip certainty-chip ${certaintyClass}">${htmlEscape(certainty)}</span>` : ''
+  ].filter(Boolean).join('');
+  return `<article class="packet-line ${visualTradeClass(trade)} ${extraClass}"><div class="line-stripe"></div><div class="line-main"><div class="line-title"><span class="status-dot ${statusClass}"></span><strong>${htmlEscape(title)}</strong></div><p>${context}</p></div><div class="line-chips">${chips}</div><p class="line-next">${next}</p></article>`;
+}
+function passVisualLineHtml(item = {}) {
+  return visualLineHtml({
+    trade: item.resource || item.rule?.trade || 'PASS',
+    status: 'Monitor',
+    title: item.careItem || 'Continued care item',
+    context: `${htmlEscape(item.resource || 'Resource')} · PASS continued care · separate from PMR counts`,
+    room: 'PASS',
+    time: htmlEscape(passSuggestedWindowText(item.targetWindow || item.suggestedWindow) || 'Next normal care window'),
+    certainty: 'Likely Path',
+    next: htmlEscape(passHomeownerFollowUpLanguage(item)),
+    extraClass: 'pass-line'
+  });
+}
 function buildPhotoIndexSection(photoEntries = [], { embedded = false } = {}) {
   const grouped = photoEntries.reduce((acc, entry) => { const room = entry.room || 'Room'; acc[room] = [...(acc[room] || []), entry]; return acc; }, {});
-  const sections = Object.entries(grouped).map(([room, entries]) => `<section class="card room-section photo-room"><h2>${htmlEscape(room)}</h2><div class="table-wrap"><table><thead><tr><th>Room</th><th>Checklist Item / Room Overview</th><th>Photo Label</th><th>Uploaded Drive File Name</th><th>Drive Link</th></tr></thead><tbody>${tableRows(entries, [{value:e=>reportValue(e.room)}, {value:e=>reportValue(e.item)}, {value:e=>reportValue(e.label)}, {value:e=>reportValue(e.driveFileName || flatPhotoDriveName({room:e.room,item:e.item,label:e.label,originalName:e.originalName}))}, {value:e=>e.driveViewLink ? `<a href="${htmlEscape(e.driveViewLink)}">Open photo</a>` : '<span class="not-recorded">Link not available</span>'}])}</tbody></table></div></section>`).join('') || '<section class="card"><p><span class="not-recorded">No photos recorded.</span></p></section>';
-  return `${embedded ? '<section class="card section-card packet-section photo-index-intro"><p class="section-kicker">Section 6 · Last</p>' : '<section class="card">'}<h2>Photo Index</h2><p class="lede">Photos are grouped by room or section. The Drive Photos folder remains flattened with readable file names; this index connects each file back to its room overview or checklist item.</p><p class="small">Thumbnails are intentionally omitted here to keep the exported local HTML package lightweight.</p></section>${sections}`;
+  const photoLine = entry => {
+    const fileName = entry.driveFileName || flatPhotoDriveName({ room: entry.room, item: entry.item, label: entry.label, originalName: entry.originalName });
+    const linkText = entry.driveViewLink ? `<a href="${htmlEscape(entry.driveViewLink)}">Open photo</a>` : '<span class="not-recorded">Link not available</span>';
+    return visualLineHtml({
+      trade: 'Photo Index',
+      status: entry.relatedStatus || 'Monitor',
+      title: entry.item || 'Checklist Item / Room Overview',
+      context: `${htmlEscape(entry.room || 'Room')} · ${htmlEscape(entry.label || 'Photo')} · ${reportValue(fileName)}`,
+      room: entry.room || 'Room',
+      time: htmlEscape(entry.label || 'Photo'),
+      certainty: entry.driveViewLink ? 'Clear Path' : 'Needs Discovery',
+      next: linkText,
+      extraClass: 'photo-line'
+    });
+  };
+  const sections = Object.entries(grouped).map(([room, entries]) => `<section class="subsection room-section photo-room"><h3>${htmlEscape(room)} <span>${entries.length} photo${entries.length === 1 ? '' : 's'}</span></h3><div class="packet-lines">${entries.map(photoLine).join('')}</div></section>`).join('') || '<section class="card"><p><span class="not-recorded">No photos recorded.</span></p></section>';
+  return `${embedded ? '<section class="card section-card packet-section photo-index-intro"><p class="section-kicker">Section 6 · Last</p>' : '<section class="card">'}<h2>Photo Index</h2><p class="lede">Photos are grouped by room or section and use the same line-item system as the packet: resource stripe, status dot, window/file chip, path chip, and room label. The Drive Photos folder remains flattened with readable file names; this index connects each file back to its room overview or checklist item.</p><p class="small">Thumbnails are intentionally omitted here to keep the exported local HTML package lightweight.</p></section>${sections}`;
 }
+
 function buildPmrReportHtml(payload, photoEntries = []) {
   const pmr = payload.pmr || [];
   const rows = payload.rows || [];
@@ -1576,8 +1621,16 @@ function buildPmrReportHtml(payload, photoEntries = []) {
     : 'No PMR repair findings were marked from this walkthrough. PASS continued-care items, if listed below, remain routine care planning and are not defects.';
   const visualLine = (r, options = {}) => {
     const certainty = actionCertaintyCopy(r);
-    const level = priority(r.answer.status) || 'PMR';
-    return `<article class="packet-line trade-${tradeSlug(r.answer.trade)}"><div class="line-stripe"></div><div class="line-main"><div class="line-title"><span class="status-dot ${statusVisualClass(r.answer.status)}"></span><strong>${htmlEscape(r.item)}</strong></div><p>${htmlEscape(options.prefix || (r.roomName || r.room))} · ${htmlEscape(displayTradeLabel(r.answer.trade))}</p></div><div class="line-chips"><span class="chip room-chip">${htmlEscape(r.roomName || r.room)}</span><span class="chip ${statusVisualClass(r.answer.status)}">${htmlEscape(level)}</span><span class="chip time-chip">${reportValue(r.answer.effort)}</span><span class="chip certainty-chip ${actionCertaintyClass(certainty.label)}">${htmlEscape(certainty.label)}</span></div><p class="line-next">${htmlEscape(certainty.next)}</p></article>`;
+    return visualLineHtml({
+      trade: r.answer.trade,
+      status: r.answer.status,
+      title: r.item,
+      context: `${htmlEscape(options.prefix || (r.roomName || r.room))} · ${htmlEscape(displayTradeLabel(r.answer.trade))}`,
+      room: r.roomName || r.room,
+      time: reportValue(r.answer.effort),
+      certainty: certainty.label,
+      next: htmlEscape(certainty.next)
+    });
   };
   const detailCard = r => {
     const certainty = actionCertaintyCopy(r);
@@ -1588,13 +1641,13 @@ function buildPmrReportHtml(payload, photoEntries = []) {
   const tradeSections = Object.entries(tradeGroups).map(([trade, items]) => `<section class="subsection"><h3>${htmlEscape(trade)} <span>${items.length} item${items.length === 1 ? '' : 's'}</span></h3><div class="packet-lines">${items.map(r => visualLine(r, { prefix: displayTradeLabel(r.answer.trade) })).join('')}</div></section>`).join('') || '<p><span class="not-recorded">No PMR findings recorded by trade.</span></p>';
   const intakeList = reviewedIntakeNotes.map(r=>`<li><strong>${htmlEscape(r.roomName || r.room)} — ${htmlEscape(r.item)}</strong><span>${htmlEscape(r.answer.reviewStatus)} · ${htmlEscape(r.intakeFieldLabel)}: ${reportValue(r.intakeValue)}</span></li>`).join('') || '<li><strong>No reviewed intake follow-up notes recorded.</strong><span>Intake context did not add separate follow-up notes for this PMR export.</span></li>';
   const roomChart = roomIssueCounts.length ? `<div class="room-chart">${roomIssueCounts.map(([room, count]) => `<div class="room-bar"><span>${htmlEscape(room)}</span><i><b style="width:${Math.max(8, (count / maxRoomIssueCount) * 100)}%"></b></i><strong>${count}</strong></div>`).join('')}</div>` : '<p><span class="not-recorded">No PMR issues recorded by room.</span></p>';
-  const passRows = tableRows(passCareOutlook, [{ value: r => htmlEscape(r.careItem) }, { value: r => htmlEscape(r.reason) }, { value: r => htmlEscape(passHomeownerFollowUpLanguage(r)) }, { value: r => htmlEscape(passSuggestedWindowText(r.targetWindow || r.suggestedWindow)) }, { value: r => htmlEscape(r.cadence || 'As Needed') }, { value: r => htmlEscape(r.resource) }]);
+  const passLines = passCareOutlook.length ? `<div class="packet-lines">${passCareOutlook.map(passVisualLineHtml).join('')}</div>` : '<p><span class="not-recorded">No PASS continued-care items selected for this packet.</span></p>';
   const detailRows = pmr.map(detailCard).join('') || '<p><span class="not-recorded">No PMR findings recorded.</span></p>';
   const body = `<section class="card hero-card"><p class="section-kicker">Primary homeowner / business deliverable</p><h2>PMR Report Packet</h2><p class="lede">This is the polished homeowner-facing packet. It uses one PMR finding set in multiple views: summary first, room list, trade list, PASS continued care, detail appendix, and Photo Index last.</p></section>
     <section class="card packet-section"><p class="section-kicker">Section 1</p><h2>Snapshot / Summary</h2><p class="lede">${htmlEscape(overallSummary)}</p><div class="grid"><div class="stat high"><strong>${counts.high}</strong>Immediate</div><div class="stat medium"><strong>${counts.med}</strong>Near-Term</div><div class="stat low"><strong>${counts.low}</strong>Monitor</div><div class="stat"><strong>${pmr.length}</strong>PMR Findings</div><div class="stat"><strong>${handyItems.length}</strong>Handy Services</div><div class="stat"><strong>${tradeItems.length}</strong>Trade Items</div></div><h3>Room issue count</h3>${roomChart}</section>
     <section class="card packet-section"><p class="section-kicker">Section 2</p><h2>Room-by-Room Action List</h2><p class="lede">Same PMR findings grouped by location for homeowner review.</p>${roomSections}</section>
     <section class="card packet-section"><p class="section-kicker">Section 3</p><h2>Trade-by-Trade Action List</h2><p class="lede">Same PMR findings grouped by likely resource for handing to a plumber, electrician, handyman, or specialist.</p>${tradeSections}</section>
-    <section class="card packet-section pass-card"><p class="section-kicker">Section 4 · Separate from PMR counts</p><h2>PASS Continued Care Plan</h2><p class="lede">PASS is routine continued care only. These items are not PMR defects, priority counts, or urgent repair directives.</p><div class="table-wrap"><table class="care-table"><thead><tr><th>Care item</th><th>Why it is included</th><th>Continued-care plan</th><th>Target window</th><th>Cadence</th><th>Resource</th></tr></thead><tbody>${passRows}</tbody></table></div></section>
+    <section class="card packet-section pass-card"><p class="section-kicker">Section 4 · Separate from PMR counts</p><h2>PASS Continued Care Plan</h2><p class="lede">PASS is routine continued care only. These items are not PMR defects, priority counts, or urgent repair directives.</p>${passLines}</section>
     <section class="card packet-section"><p class="section-kicker">Section 5</p><h2>Detail Appendix</h2><p class="lede">Expanded notes are here so the top of the packet stays useful without losing what was seen, why it matters, action certainty, timing, and photo references.</p>${detailRows}</section>
     ${reviewedIntakeNotes.length ? `<section class="card packet-section"><h2>Reviewed Intake Follow-Up Context</h2><p class="lede">Included as homeowner context only. Intake alone does not create a PMR finding.</p><ul class="next-step-list">${intakeList}</ul></section>` : ''}
     <section class="card packet-section"><h2>Visual System Guide</h2><div class="legend-grid"><p><span class="line-stripe sample"></span><strong>Left color stripe</strong><br/>Trade / resource grouping</p><p><span class="status-dot urgent"></span><strong>Stoplight dot</strong><br/>Urgency / status</p><p><span class="chip time-chip">Time</span><strong>Time chip</strong><br/>Likely effort or care window</p><p><span class="chip certainty-chip clearPath">Clear Path</span><strong>Certainty chip</strong><br/>Clear Path / Likely Path / Needs Discovery</p></div></section>
@@ -1602,26 +1655,54 @@ function buildPmrReportHtml(payload, photoEntries = []) {
   return reportShell('PMR Report Packet', payload.client, body, payload.walkthroughName);
 }
 function buildHtcChecklistHtml(payload, photoEntries = []) {
-  const rows = (payload.rows || []).map(row => ({ ...row, categoryLabel: categoryInfo(categoryForChecklistItem(row)).label, photoEntries: photoEntries.filter(entry => entry.item === row.item && entry.room === (row.roomName || row.room)) }));
+  const rows = (payload.rows || []).map(row => ({
+    ...row,
+    categoryLabel: categoryForChecklistItem(row),
+    photoEntries: photoEntries.filter(entry => entry.item === row.item && entry.room === (row.roomName || row.room))
+  }));
   const grouped = groupByRoom(rows);
-  const columns = [
-    { value: r => reportValue(r.roomName || r.room) }, { value: r => reportValue(r.item) }, { value: r => reportValue(r.categoryLabel) }, { value: r => reportValue(r.answer.status) }, { value: r => reportValue(r.answer.notes, 'No notes recorded') },
-    { value: r => reportValue(displayTradeLabel(r.answer.trade)) }, { value: r => reportValue(r.answer.pref) }, { value: r => reportValue(actionCertaintyFor(r.answer)) }, { value: r => reportValue(r.answer.effort) },
-    { value: r => r.answer.passCandidate ? 'Yes — PASS candidate' : '<span class="not-recorded">No</span>' }, { value: r => r.photoEntries.length ? `${r.photoEntries.length}<div class="photo-ref">${r.photoEntries.map(p=>htmlEscape(p.driveFileName || p.originalName)).join('<br/>')}</div>` : '<span class="not-recorded">0</span>' }
-  ];
-  const roomSections = Object.entries(grouped).map(([room, items]) => `<section class="card room-section"><h2>${htmlEscape(room)}</h2><div class="table-wrap mobile-hidden"><table class="desktop-table"><thead><tr><th>Room / Section</th><th>Item Title</th><th>Category</th><th>Status</th><th>Notes</th><th>Suggested Trade / Resource</th><th>Homeowner Pace</th><th>Action Certainty</th><th>Approx. Time</th><th>PASS Candidate</th><th>Photos</th></tr></thead><tbody>${tableRows(items, columns)}</tbody></table></div><div class="mobile-list">${items.map(r=>`<article class="note-card"><h3>${htmlEscape(r.item)}</h3><div class="badge-line"><span class="pill">${htmlEscape(r.categoryLabel)}</span><span class="pill">${htmlEscape(r.answer.status || 'Status not recorded')}</span><span class="pill">${htmlEscape(displayTradeLabel(r.answer.trade || 'Resource not recorded'))}</span></div><div class="detail-grid"><div class="detail"><span class="field-label">Notes</span>${reportValue(r.answer.notes, 'No notes recorded')}</div><div class="detail"><span class="field-label">Homeowner pace</span>${reportValue(r.answer.pref)}</div><div class="detail"><span class="field-label">Action certainty</span>${reportValue(actionCertaintyFor(r.answer))}</div><div class="detail"><span class="field-label">Approx. time</span>${reportValue(r.answer.effort)}</div><div class="detail"><span class="field-label">PASS candidate</span>${r.answer.passCandidate ? 'Yes' : '<span class="not-recorded">No</span>'}</div><div class="detail"><span class="field-label">Photos</span>${r.photoEntries.length ? `${r.photoEntries.length}: ${r.photoEntries.map(p=>htmlEscape(p.driveFileName || p.originalName)).join('<br/>')}` : '<span class="not-recorded">0</span>'}</div></div></article>`).join('')}</div></section>`).join('');
-  const body = `<section class="card"><h2>HTC Checklist Field Documentation Record</h2><p class="lede">Room-by-room HTC documentation in walkthrough order. Neutral or blank details are softened so completed observations, notes, resources, pacing, certainty, time, PASS candidate status, and photo references are easier to scan in the field.</p></section>${roomSections || '<section class="card"><p><span class="not-recorded">No checklist items recorded.</span></p></section>'}`;
-  return reportShell('02 - HTC Checklist', payload.client, body, payload.walkthroughName);
+  const checklistLine = r => {
+    const certainty = actionCertaintyFor(r.answer);
+    const photoText = r.photoEntries.length ? `${r.photoEntries.length} photo${r.photoEntries.length === 1 ? '' : 's'} in Photo Index` : 'No linked photos';
+    const next = `<span class="line-note-label">Notes</span>${reportValue(r.answer.notes, 'No notes recorded')}<span class="line-note-label">Photos</span>${htmlEscape(photoText)}`;
+    return visualLineHtml({
+      trade: r.answer.trade,
+      status: r.answer.status,
+      title: r.item,
+      context: `${htmlEscape(r.categoryLabel)} · ${htmlEscape(displayTradeLabel(r.answer.trade || 'Resource not recorded'))}`,
+      room: r.roomName || r.room,
+      time: reportValue(r.answer.effort),
+      certainty,
+      next,
+      extraClass: r.answer.passCandidate ? 'pass-candidate-line' : ''
+    });
+  };
+  const roomSections = Object.entries(grouped).map(([room, items]) => `<section class="subsection room-section"><h3>${htmlEscape(room)} <span>${items.length} checklist item${items.length === 1 ? '' : 's'}</span></h3><div class="packet-lines">${items.map(checklistLine).join('')}</div></section>`).join('');
+  const body = `<section class="card"><p class="section-kicker">Secondary editable field record</p><h2>HTC Checklist Field Documentation Record</h2><p class="lede">Room-by-room HTC documentation in walkthrough order. This backup/editable copy uses the same compact line-item system as the PMR Packet so completed observations, notes, resources, pacing, certainty, time, PASS candidate status, and photo references are easy to scan without creating duplicate PMR counts.</p></section>${roomSections || '<section class="card"><p><span class="not-recorded">No checklist items recorded.</span></p></section>'}`;
+  return reportShell('Secondary - HTC Checklist Editable Copy', payload.client, body, payload.walkthroughName);
 }
+
 function buildIntakeSummaryHtml(payload) {
   const intake = payload.intake || {};
+  const intakeLine = (sectionTitle, label, value) => visualLineHtml({
+    trade: 'Intake',
+    status: meaningfulIntakeValue(value) ? 'Monitor' : '',
+    title: label,
+    context: `${htmlEscape(sectionTitle)} · Homeowner-provided context`,
+    room: sectionTitle,
+    time: meaningfulIntakeValue(value) ? 'Recorded' : 'Not recorded',
+    certainty: 'Needs Discovery',
+    next: reportValue(value, 'Not recorded'),
+    extraClass: meaningfulIntakeValue(value) ? 'intake-line' : 'intake-line empty-line'
+  });
   const sections = INTAKE_EXPORT_SECTIONS.map(section => {
-    const rows = section.fields.map(([label, key]) => ({ label, value: fieldValue(intake, key) }));
-    return `<section class="card"><h2>${htmlEscape(section.title)}</h2><table><thead><tr><th>Topic</th><th>Homeowner Context</th></tr></thead><tbody>${tableRows(rows, [{value:r=>reportValue(r.label)}, {value:r=>reportValue(r.value)}])}</tbody></table></section>`;
+    const rows = section.fields.map(([label, key]) => intakeLine(section.title, label, fieldValue(intake, key))).join('');
+    return `<section class="subsection"><h3>${htmlEscape(section.title)} <span>homeowner context</span></h3><div class="packet-lines">${rows}</div></section>`;
   }).join('');
-  const body = `<section class="card"><h2>Intake — Homeowner Context & Field Prep</h2><p class="lede">Intake captures homeowner-reported context before the walkthrough. HTC verifies conditions in the field. PMR findings are only created after review. Imported raw responses are included only as homeowner-provided context, not verified findings. Empty fields are shown as “Not recorded” for context without turning missing information into a finding.</p></section>${sections}`;
-  return reportShell('01 - Intake Summary', payload.client, body, payload.walkthroughName);
+  const body = `<section class="card"><p class="section-kicker">Secondary editable field-prep record</p><h2>Intake — Homeowner Context & Field Prep</h2><p class="lede">Intake captures homeowner-reported context before the walkthrough. HTC verifies conditions in the field. PMR findings are only created after review. Imported raw responses are included only as homeowner-provided context, not verified findings. Empty fields are shown as “Not recorded” for context without turning missing information into a finding.</p></section>${sections}`;
+  return reportShell('Secondary - Intake Summary Editable Copy', payload.client, body, payload.walkthroughName);
 }
+
 function buildPhotoIndexHtml(payload, photoEntries = []) {
   return reportShell('Secondary - Photo Index Backup', payload.client, buildPhotoIndexSection(photoEntries), payload.walkthroughName);
 }
@@ -1632,6 +1713,7 @@ async function uploadDriveBundle(accessToken, payload) {
   const packageFolderName = drivePackageFolderName(payload.client);
   const packageId = await findOrCreateDriveFolder(accessToken, packageFolderName, incomingId);
   const photosId = await findOrCreateDriveFolder(accessToken, 'Photos', packageId);
+  const supportId = await findOrCreateDriveFolder(accessToken, 'Secondary Editable Copies', packageId);
   const backupId = await findOrCreateDriveFolder(accessToken, 'Backup Data', packageId);
   const uploadedLookup = {};
   const uploadWarnings = [];
@@ -1662,39 +1744,36 @@ async function uploadDriveBundle(accessToken, payload) {
   const photoEntries = photoEntriesForPayload(payload, uploadedLookup);
   const pmrReportHtml = buildPmrReportHtml(payload, photoEntries);
   const readableDocs = [
-    ['Secondary - Intake Summary (editable backup)', buildIntakeSummaryHtml(payload)],
-    ['Secondary - HTC Checklist (editable backup)', buildHtcChecklistHtml(payload, photoEntries)],
-    ['PMR Report Packet - Editable Backup', pmrReportHtml],
-    ['Secondary - Photo Index (editable backup)', buildPhotoIndexHtml(payload, photoEntries)]
+    ['01 - Intake Summary — Secondary Editable Copy', buildIntakeSummaryHtml(payload)],
+    ['02 - HTC Checklist — Secondary Editable Copy', buildHtcChecklistHtml(payload, photoEntries)],
+    ['03 - PMR Report Packet — Editable Recovery Copy', pmrReportHtml],
+    ['99 - Photo Index — Secondary Editable Copy', buildPhotoIndexHtml(payload, photoEntries)]
   ];
 
   const uploadedCoreFiles = [];
+  const uploadedSupportFiles = [];
   for (const [name, html] of readableDocs) {
-    const uploaded = await uploadCoreDriveDoc(accessToken, packageId, name, html);
-    uploadedCoreFiles.push(uploaded.name || name);
+    const uploaded = await uploadCoreDriveDoc(accessToken, supportId, name, html);
+    uploadedSupportFiles.push(uploaded.name || name);
   }
 
   const backupUploads = [];
-  for (const [name, html] of readableDocs) {
-    backupUploads.push(await uploadEmergencyBackupHtml(accessToken, backupId, name, html));
-  }
-  backupUploads.push(await uploadEmergencyBackupJson(accessToken, backupId, '01 - Intake Summary', { client: payload.client, intake: payload.intake }));
-  backupUploads.push(await uploadEmergencyBackupJson(accessToken, backupId, '02 - HTC Walkthrough', { client: payload.client, roomCapture: payload.roomCapture || {}, rows: payload.rows || [] }));
-  backupUploads.push(await uploadEmergencyBackupJson(accessToken, backupId, '03 - PMR Data', { client: payload.client, intake: payload.intake, pmr: payload.pmr || [] }));
+  backupUploads.push(await uploadEmergencyBackupHtml(accessToken, backupId, 'PMR Report Packet', pmrReportHtml));
   backupUploads.push(await uploadEmergencyBackupJson(accessToken, backupId, 'Full Walkthrough Export', payload));
 
-  if (!uploadedCoreFiles.includes('PMR Report Packet - Editable Backup')) {
-    throw Object.assign(new Error('Drive export incomplete — PMR Report Packet editable backup did not upload, so the package cannot be marked successful.'), { code: 'core_upload_failed' });
+  if (!uploadedSupportFiles.includes('03 - PMR Report Packet — Editable Recovery Copy')) {
+    throw Object.assign(new Error('Drive export incomplete — PMR Report Packet editable recovery copy did not upload to Secondary Editable Copies, so the package cannot be marked successful.'), { code: 'core_upload_failed' });
   }
-  if (backupUploads.length < 4) {
+  if (backupUploads.length < 2) {
     throw Object.assign(new Error('Drive export incomplete — emergency backup files did not upload, so the package cannot be marked successful.'), { code: 'backup_upload_failed' });
   }
+  uploadedCoreFiles.push('Secondary Editable Copies folder: ' + uploadedSupportFiles.join(', '));
 
   try {
     const styledHtml = await uploadDriveHtml(accessToken, packageId, 'PMR Report Packet.html', pmrReportHtml);
     uploadedCoreFiles.push(styledHtml.name || 'PMR Report Packet.html');
   } catch (error) {
-    uploadWarnings.push(`PMR Report Packet HTML upload failed; editable Google Doc and emergency HTML backup were saved. ${driveErrorMessage(error, 'Styled HTML upload failed')}`);
+    uploadWarnings.push(`PMR Report Packet HTML upload failed; secondary editable copy and emergency backup were saved. ${driveErrorMessage(error, 'Styled HTML upload failed')}`);
   }
 
   const pdfResult = await tryBuildPmrPdf(pmrReportHtml, { title: 'PMR Report Packet' });
@@ -1703,10 +1782,10 @@ async function uploadDriveBundle(accessToken, payload) {
       const uploadedPdf = await uploadDrivePdf(accessToken, packageId, 'PMR Report Packet.pdf', pdfResult.pdfBlob);
       uploadedCoreFiles.push(uploadedPdf.name || 'PMR Report Packet.pdf');
     } catch (error) {
-      uploadWarnings.push(`PMR Report Packet PDF upload failed; editable Google Doc and HTML backups were saved. ${driveErrorMessage(error, 'PDF upload failed')}`);
+      uploadWarnings.push(`PMR Report Packet PDF upload failed; secondary editable copy and emergency backup were saved. ${driveErrorMessage(error, 'PDF upload failed')}`);
     }
   } else {
-    uploadWarnings.push(`PMR Report Packet PDF generation failed; editable Google Doc and HTML backups were saved. ${pdfResult.error?.message || 'Browser PDF renderer did not return a usable PDF.'}`);
+    uploadWarnings.push(`PMR Report Packet PDF generation failed; secondary editable copy and emergency backup were saved. ${pdfResult.error?.message || 'Browser PDF renderer did not return a usable PDF.'}`);
   }
 
   const folderInfo = await getDriveFileInfo(accessToken, packageId).catch(() => ({ id: packageId, name: packageFolderName, webViewLink: driveFolderUrl(packageId) }));
@@ -2589,7 +2668,7 @@ function App() {
     const payload = buildCurrentDrivePayload();
     return buildPmrReportHtml(payload, photoEntriesForPayload(payload));
   };
-  const styledPmrFileName = () => `THA-Styled-PMR-${cleanDriveName(client.name || 'client')}.html`;
+  const styledPmrFileName = () => `PMR-Report-Packet-${cleanDriveName(client.name || 'client')}.html`;
   const downloadJSON = () => {
     const blob = new Blob([JSON.stringify(buildCurrentDrivePayload(), null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `THA-HTC-PMR-${client.name || 'client'}.json`; a.click(); URL.revokeObjectURL(url);
@@ -2776,7 +2855,7 @@ function App() {
         lastSaved: savedAt,
         lastFolderName: drivePackage.folderName || '',
         lastFolderLink: drivePackage.folderLink || '',
-        ...driveStatusState(`Drive package saved at ${savedAt}. PMR editable copy and emergency backups uploaded.${warningText}`, 'success')
+        ...driveStatusState(`Drive package saved at ${savedAt}. Main PMR Report Packet uploaded; editable copies and emergency backup are secondary.${warningText}`, 'success')
       }));
     } catch (error) {
       if (isDriveSessionExpired(error)) setDriveToken('');
@@ -2842,7 +2921,7 @@ function App() {
           <div className="driveSetupHeader">
             <div>
               <h3>3. Drive / Business Records</h3>
-              <p>Google Drive is for backup, business records, supporting docs, and editable/plain copies — not the primary homeowner PMR download.</p>
+              <p>Google Drive keeps the main PMR Report Packet obvious, with supporting editable copies and recovery data in secondary folders.</p>
               <p className="driveActionHelp">Google Drive authorization still applies to the current browser session, so users may need to reconnect on another device or after the session expires.</p>
             </div>
             <span className={driveToken ? 'drivePill connected' : 'drivePill'}>{driveToken ? 'Connected' : (driveConfigured ? 'Configured' : 'Not configured')}</span>
@@ -2851,7 +2930,7 @@ function App() {
             <div className="driveBrowserStatus" role="status" aria-live="polite">
               <strong>{driveStatusMessage}</strong>
               <span>{hasAppDriveClientId && !usingManualDriveOverride ? 'Drive configured for this app.' : `Client ID source: ${driveClientIdSourceLabel}.`}</span>
-              <span>Connect Google Drive authorizes this browser session. Save Drive Package uploads a reliable Google Doc editable/plain copy, supporting docs, and backups. Styled PMR HTML/PDF is separate and does not depend on Google Docs conversion.</span>
+              <span>Connect Google Drive authorizes this browser session. Save Drive Package places PMR Report Packet HTML/PDF in the package root, then stores editable copies in Secondary Editable Copies and recovery data in Backup Data.</span>
             </div>
             <div className="originCard">
               <span>Drive field workflow</span>
