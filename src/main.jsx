@@ -1369,6 +1369,34 @@ async function buildStyledPdfBlob(html, { title = 'PMR Report' } = {}) {
     frame.remove();
   }
 }
+
+function validatePdfBlob(pdfBlob) {
+  if (!pdfBlob || pdfBlob.type !== 'application/pdf' || pdfBlob.size < 100) {
+    throw new Error('PMR PDF generation failed — browser did not produce a usable PDF file.');
+  }
+  return pdfBlob;
+}
+async function tryBuildPmrPdf(html, { title = 'PMR Report' } = {}) {
+  try {
+    return { pdfBlob: validatePdfBlob(await buildStyledPdfBlob(html, { title })), error: null };
+  } catch (error) {
+    return { pdfBlob: null, error };
+  }
+}
+async function uploadCoreDriveDoc(accessToken, folderId, name, html) {
+  try {
+    return await uploadDriveHtmlAsGoogleDoc(accessToken, folderId, name, html);
+  } catch (error) {
+    throw Object.assign(new Error(`${name} upload failed: ${driveErrorMessage(error, 'Drive upload failed')}`), { code: 'core_upload_failed', cause: error });
+  }
+}
+async function uploadEmergencyBackupHtml(accessToken, backupId, name, html) {
+  return uploadDriveHtml(accessToken, backupId, `Emergency Backup — HTML - ${name}.html`, html);
+}
+async function uploadEmergencyBackupJson(accessToken, backupId, name, data) {
+  return uploadDriveJson(accessToken, backupId, `Emergency Backup — Data - ${name}.json`, data);
+}
+
 async function getDriveFileInfo(accessToken, fileId) {
   return driveFetch(accessToken, `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,webViewLink`);
 }
@@ -1569,6 +1597,7 @@ async function uploadDriveBundle(accessToken, payload) {
   const photosId = await findOrCreateDriveFolder(accessToken, 'Photos', packageId);
   const backupId = await findOrCreateDriveFolder(accessToken, 'Backup Data', packageId);
   const uploadedLookup = {};
+  const uploadWarnings = [];
   const sectionLookup = Object.fromEntries((payload.sectionFlow || []).map(section => [section.key, section]));
 
   for (const [sectionKey, capture] of Object.entries(payload.roomCapture || {})) {
@@ -1582,7 +1611,7 @@ async function uploadDriveBundle(accessToken, payload) {
       uploadedLookup[`room:${sectionKey}:${photo.id}`] = { driveFileName: uploaded.name || fileName, driveViewLink: uploaded.webViewLink || '' };
     }
   }
-  for (const row of payload.rows) {
+  for (const row of payload.rows || []) {
     const room = row.roomName || row.room || 'Room';
     const photos = photoList(row.answer).filter(photo => photo.dataUrl);
     for (const photo of photos) {
@@ -1595,26 +1624,56 @@ async function uploadDriveBundle(accessToken, payload) {
 
   const photoEntries = photoEntriesForPayload(payload, uploadedLookup);
   const pmrReportHtml = buildPmrReportHtml(payload, photoEntries);
-  const pmrReportPdf = await buildStyledPdfBlob(pmrReportHtml, { title: '03 - PMR Report' });
-  await uploadDrivePdf(accessToken, packageId, '03 - PMR Report.pdf', pmrReportPdf);
-  await uploadDriveHtmlAsGoogleDoc(accessToken, packageId, '03 - PMR Report — Editable Copy', pmrReportHtml);
-
   const readableDocs = [
     ['01 - Intake Summary', buildIntakeSummaryHtml(payload)],
     ['02 - HTC Checklist', buildHtcChecklistHtml(payload, photoEntries)],
+    ['03 - PMR Report', pmrReportHtml],
     ['04 - Photo Index', buildPhotoIndexHtml(payload, photoEntries)]
   ];
+
+  const uploadedCoreFiles = [];
   for (const [name, html] of readableDocs) {
-    await uploadDriveHtmlAsGoogleDoc(accessToken, packageId, name, html);
-    await uploadDriveHtml(accessToken, backupId, `Emergency Backup — HTML - ${name}.html`, html);
+    const uploaded = await uploadCoreDriveDoc(accessToken, packageId, name, html);
+    uploadedCoreFiles.push(uploaded.name || name);
   }
-  await uploadDriveHtml(accessToken, backupId, 'Emergency Backup — HTML - 03 - PMR Report.html', pmrReportHtml);
-  await uploadDriveJson(accessToken, backupId, 'intake.json', { client: payload.client, intake: payload.intake });
-  await uploadDriveJson(accessToken, backupId, 'htc-walkthrough.json', { client: payload.client, roomCapture: payload.roomCapture || {}, rows: payload.rows });
-  await uploadDriveJson(accessToken, backupId, 'pmr-data.json', { client: payload.client, intake: payload.intake, pmr: payload.pmr });
-  await uploadDriveJson(accessToken, backupId, 'full-walkthrough-export.json', payload);
+
+  const backupUploads = [];
+  for (const [name, html] of readableDocs) {
+    backupUploads.push(await uploadEmergencyBackupHtml(accessToken, backupId, name, html));
+  }
+  backupUploads.push(await uploadEmergencyBackupJson(accessToken, backupId, '01 - Intake Summary', { client: payload.client, intake: payload.intake }));
+  backupUploads.push(await uploadEmergencyBackupJson(accessToken, backupId, '02 - HTC Walkthrough', { client: payload.client, roomCapture: payload.roomCapture || {}, rows: payload.rows || [] }));
+  backupUploads.push(await uploadEmergencyBackupJson(accessToken, backupId, '03 - PMR Data', { client: payload.client, intake: payload.intake, pmr: payload.pmr || [] }));
+  backupUploads.push(await uploadEmergencyBackupJson(accessToken, backupId, 'Full Walkthrough Export', payload));
+
+  if (!uploadedCoreFiles.includes('03 - PMR Report')) {
+    throw Object.assign(new Error('Drive export incomplete — 03 - PMR Report did not upload, so the package cannot be marked successful.'), { code: 'core_upload_failed' });
+  }
+  if (backupUploads.length < 4) {
+    throw Object.assign(new Error('Drive export incomplete — emergency backup files did not upload, so the package cannot be marked successful.'), { code: 'backup_upload_failed' });
+  }
+
+  const pdfResult = await tryBuildPmrPdf(pmrReportHtml, { title: '03 - PMR Report' });
+  if (pdfResult.pdfBlob) {
+    try {
+      const uploadedPdf = await uploadDrivePdf(accessToken, packageId, '03 - PMR Report.pdf', pdfResult.pdfBlob);
+      uploadedCoreFiles.push(uploadedPdf.name || '03 - PMR Report.pdf');
+    } catch (error) {
+      uploadWarnings.push(`PDF upload failed; readable Google Doc and HTML backups were saved. ${driveErrorMessage(error, 'PDF upload failed')}`);
+    }
+  } else {
+    uploadWarnings.push(`PDF generation failed; readable Google Doc and HTML backups were saved. ${pdfResult.error?.message || 'Browser PDF renderer did not return a usable PDF.'}`);
+  }
+
   const folderInfo = await getDriveFileInfo(accessToken, packageId).catch(() => ({ id: packageId, name: packageFolderName, webViewLink: driveFolderUrl(packageId) }));
-  return { folderId: packageId, folderName: folderInfo.name || packageFolderName, folderLink: folderInfo.webViewLink || driveFolderUrl(packageId) };
+  return {
+    folderId: packageId,
+    folderName: folderInfo.name || packageFolderName,
+    folderLink: folderInfo.webViewLink || driveFolderUrl(packageId),
+    uploadedCoreFiles,
+    backupFileCount: backupUploads.length,
+    warnings: uploadWarnings
+  };
 }
 function safeJsonParse(value, fallback) {
   try {
@@ -2640,13 +2699,14 @@ function App() {
       const drivePackage = await uploadDriveBundle(driveToken, payload);
       const savedAt = driveSavedTime();
       setPendingCount(0);
+      const warningText = drivePackage.warnings?.length ? ` ${drivePackage.warnings.join(' ')}` : '';
       setDriveMeta(meta => ({
         ...meta,
         hasConnected: true,
         lastSaved: savedAt,
         lastFolderName: drivePackage.folderName || '',
         lastFolderLink: drivePackage.folderLink || '',
-        ...driveStatusState(`PDF Drive package saved at ${savedAt}.`, 'success')
+        ...driveStatusState(`Drive package saved at ${savedAt}. 03 - PMR Report and emergency backups uploaded.${warningText}`, 'success')
       }));
     } catch (error) {
       if (isDriveSessionExpired(error)) setDriveToken('');
