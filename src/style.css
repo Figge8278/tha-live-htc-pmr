@@ -325,3 +325,22 @@
 .workflowCue{display:flex;flex-direction:column;gap:3px;border:1px solid #cfe1ec;border-radius:14px;background:#f3f9fd;color:var(--navy);padding:9px 11px;font-weight:900;line-height:1.2}
 .workflowCue strong{font-size:12px;text-transform:uppercase;letter-spacing:.02em}.workflowCue small{color:var(--muted);font-size:12px;font-weight:800}.workflowCue.ready{background:#f3f8f1;border-color:#d8e8d1;color:#285c30}.workflowCue.ready small{color:#3d7c44}.workflowCue.missing{background:#fff7f5;border-color:#efc3bc;color:#842218}.workflowCue.missing small{color:#842218}.workflowCue.warning{background:#fff9e8;border-color:#f1d37a;color:#805f00}.workflowCue.warning small{color:#805f00}.workflowCue.neutral{background:#f3f9fd;border-color:#cfe1ec;color:var(--navy)}
 .saveStatus{background:#f3f9fd;color:var(--navy);border-color:#cfe1ec}.drivePill,.pendingSync,.driveSummaryPill,.summaryFlag.info,.summaryFlag.quiet,.photoStatusBadge.local,.intakeLane summary:after,.demoScenarioSummary:after{background:#f3f9fd;color:var(--navy);border-color:#cfe1ec}.summaryItem{background:#f7fbfe;border-color:#d7e7f0}.intakeStatusSummary .notReady{background:#f3f9fd;border-color:#cfe1ec}.driveStatusBox.info,.driveBrowserStatus{background:#f3f9fd;border-color:#cfe1ec;color:var(--navy)}
+
+:root{--setup-orange:#c95f0b;--setup-orange-soft:#fff4e8;--setup-orange-line:#f2a45f;--setup-ready:#285c30;--setup-ready-soft:#f3f8f1;--setup-ready-line:#b9d9ad}
+.summaryItem.setupMissing{background:var(--setup-orange-soft);border-color:var(--setup-orange-line);box-shadow:inset 4px 0 0 var(--setup-orange)}
+.summaryItem.setupReady{background:#f7fbfe;border-color:#cfe1ec;box-shadow:inset 4px 0 0 var(--setup-ready-line)}
+.summaryItem small{display:block;margin-top:4px;font-size:11px;font-weight:900;line-height:1.15;color:var(--muted)}
+.summaryItem.setupMissing small{color:var(--setup-orange)}
+.summaryItem.setupReady small{color:var(--setup-ready)}
+.requiredSetupField{position:relative;border:1px solid #d7e7f0;background:#f7fbfe;border-radius:14px;padding:9px;gap:6px}
+.requiredSetupField input{border-width:2px}
+.requiredSetupField small{font-size:12px;font-weight:900;line-height:1.2}
+.requiredSetupField.setupMissing{border-color:var(--setup-orange-line);background:var(--setup-orange-soft);box-shadow:inset 4px 0 0 var(--setup-orange)}
+.requiredSetupField.setupMissing input{border-color:var(--setup-orange);box-shadow:0 0 0 3px rgba(201,95,11,.14)}
+.requiredSetupField.setupMissing small{color:var(--setup-orange)}
+.requiredSetupField.setupReady{border-color:#cfe1ec;background:#f7fbfe}
+.requiredSetupField.setupReady input{border-color:#b9d9ad;background:#fbfefb}
+.requiredSetupField.setupReady small{color:var(--setup-ready)}
+.workflowCue.setupMissing{background:var(--setup-orange-soft);border-color:var(--setup-orange-line);color:var(--setup-orange);box-shadow:inset 4px 0 0 var(--setup-orange)}
+.workflowCue.setupMissing small{color:var(--setup-orange)}
+.controlAttentionPill.setupAttention{background:var(--setup-orange-soft);color:var(--setup-orange);border-color:var(--setup-orange-line)}
