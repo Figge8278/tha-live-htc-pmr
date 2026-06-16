@@ -188,6 +188,24 @@ function passCalendarIntroCopy(pmrCount = 0) {
   return `${zeroFindingLead}The PASS Maintenance Calendar is for proactive continued home care. These items are not PMR defects and do not affect red, yellow, or green PMR counts. The calendar helps schedule routine upkeep even when the house is in good condition. Known last-service dates generate next suggested windows; unknown dates create “verify / establish baseline” planning items, not urgent concerns.`;
 }
 
+
+const GENERIC_PROJECT_IDENTITY_VALUES = new Set([
+  'client name',
+  'client',
+  'project address',
+  'address',
+  'walkthrough date / visit label',
+  'walkthrough date',
+  'visit label',
+  'new blank walkthrough',
+  'untitled walkthrough',
+  'your walkthrough'
+]);
+function isMissingProjectIdentityValue(value = '') {
+  const normalized = String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return !normalized || GENERIC_PROJECT_IDENTITY_VALUES.has(normalized);
+}
+
 const PASS_CARE_RULES = [
   { id: 'furnace-filter-check', careItem: 'Furnace filter check / replacement', resource: 'HVAC', trade: 'HVAC', cadence: 'Every 1–3 months during heating/cooling use', cadenceMonths: 3, suggestedWindow: 'check at the next seasonal visit, then every 1–3 months during regular system use', intakeKeys: ['hvacFilter', 'furnaceService', 'hvacService'], rowKeywords: ['furnace', 'filter', 'hvac filter'], reason: 'Routine airflow care helps the HVAC system operate efficiently and keeps the service plan current.', groupingNote: 'Could be grouped with the next seasonal PASS visit.' },
   { id: 'furnace-service', careItem: 'Furnace service', resource: 'HVAC', trade: 'HVAC', cadence: 'Annual', cadenceMonths: 12, suggestedWindow: 'fall, before heating season', intakeKeys: ['furnaceService', 'hvacService'], rowKeywords: ['furnace service', 'heating service', 'hvac service'], reason: 'Annual heating-system service supports reliability before peak heating demand.' },
@@ -2226,7 +2244,7 @@ function App() {
   const [expandedChecklistItems, setExpandedChecklistItems] = useState({});
   const [controlsCollapsed, setControlsCollapsed] = useState(() => {
     const initialClient = initialState.data.client || {};
-    const missingBasicInfo = !initialClient.name?.trim() || !initialClient.address?.trim() || !initialClient.date?.trim();
+    const missingBasicInfo = isMissingProjectIdentityValue(initialClient.name) || isMissingProjectIdentityValue(initialClient.address) || isMissingProjectIdentityValue(initialClient.date);
     const savedDriveMeta = safeJsonParse(localStorage.getItem(DRIVE_META_KEY), null);
     const hasDriveError = Boolean(savedDriveMeta?.lastError);
     return Boolean(initialState.activeId && !missingBasicInfo && !hasDriveError && localStorage.getItem(WALKTHROUGH_CONTROLS_COLLAPSED_KEY) === 'true');
@@ -2333,8 +2351,13 @@ function App() {
           ? 'Drive is configured. Connect Google Drive before exporting.'
           : 'Drive is not configured. Add the OAuth Client ID in Drive Setup Help or use Download Local Emergency Backup.';
   const driveClientIdSourceLabel = usingManualDriveOverride ? 'Manual override on this browser' : (hasAppDriveClientId ? 'App configuration' : 'Manual browser setup');
-  const requiredClientFields = [client.name, client.address, client.date];
-  const missingClientFieldCount = requiredClientFields.filter(value => !String(value || '').trim()).length;
+  const requiredProjectIdentityFields = [
+    { key: 'clientName', label: 'Client Name', value: client.name, helper: 'Client name needed' },
+    { key: 'projectAddress', label: 'Project Address', value: client.address, helper: 'Project address needed' },
+    { key: 'walkthroughDate', label: 'Walkthrough Date / Visit Label', value: client.date, helper: 'Required before final PMR packet' }
+  ];
+  const missingProjectIdentityFields = requiredProjectIdentityFields.filter(field => isMissingProjectIdentityValue(field.value));
+  const missingClientFieldCount = missingProjectIdentityFields.length;
   const homeownerCompletedForCues = completedIntakeFieldCount(intake, HOMEOWNER_QUICK_INTAKE_FIELDS);
   const fieldPrepCompletedForCues = completedIntakeFieldCount(intake, THA_FIELD_PREP_FIELDS);
   const intakeFollowUpCount = intakeFollowUpRows.length;
@@ -2350,13 +2373,13 @@ function App() {
   const driveCueState = driveMeta.lastError ? 'warning' : (driveMeta.lastSaved || driveToken ? 'ready' : 'neutral');
   const driveCueText = driveMeta.lastError ? 'Needs review' : (driveMeta.lastSaved ? 'Package saved' : (driveToken ? 'Connected' : 'Optional Drive upload'));
   const workflowCues = [
-    { label: 'Client/project info', state: missingClientFieldCount ? 'missing' : 'ready', text: missingClientFieldCount ? `${missingClientFieldCount} required missing` : 'Ready' },
+    { label: 'Client/project info', state: missingClientFieldCount ? 'setupMissing' : 'ready', text: missingClientFieldCount ? `${missingProjectIdentityFields.map(field => field.label.replace(' / Visit Label', '')).join(', ')} needed` : 'Ready' },
     { label: 'Homeowner intake', state: intakeFollowUpCount ? 'warning' : (readyForHTC ? 'ready' : 'neutral'), text: intakeFollowUpCount ? `${intakeFollowUpCount} follow-up${intakeFollowUpCount === 1 ? '' : 's'} to review` : (readyForHTC ? 'Ready for HTC' : 'Optional / not started') },
     { label: 'HTC walkthrough', state: answeredHtcRows ? 'ready' : 'neutral', text: htcProgressText },
     { label: 'PMR review', state: pmrNeedsReview ? 'warning' : 'ready', text: pmrNeedsReview ? `${unreviewedIntakeRows.length} intake follow-up${unreviewedIntakeRows.length === 1 ? '' : 's'} not reviewed` : 'Ready for output' },
     { label: 'PASS review', state: passNeedsReview ? 'warning' : (passCareCandidates.length ? 'ready' : 'neutral'), text: passNeedsReview ? 'Needs care wording' : (passCareCandidates.length ? `${passCareCandidates.length} candidate${passCareCandidates.length === 1 ? '' : 's'} ready` : 'Optional / none') },
     { label: 'Drive package', state: driveCueState, text: driveCueText },
-    { label: 'Homeowner output', state: homeownerOutputReady ? 'ready' : 'missing', text: homeownerOutputReady ? 'Preview/download ready' : 'Needs client info or review' }
+    { label: 'Homeowner output', state: homeownerOutputReady ? 'ready' : 'setupMissing', text: homeownerOutputReady ? 'Preview/download ready' : 'Required before final PMR packet' }
   ];
   const updateDriveClientId = (value) => {
     setDriveClientId(value);
@@ -2726,7 +2749,7 @@ function App() {
     setActiveWalkthroughId(id);
     setWalkthroughName(session.name || 'Untitled Walkthrough');
     const openedClient = session.data.client || {};
-    const openedMissingBasicInfo = !openedClient.name?.trim() || !openedClient.address?.trim() || !openedClient.date?.trim();
+    const openedMissingBasicInfo = isMissingProjectIdentityValue(openedClient.name) || isMissingProjectIdentityValue(openedClient.address) || isMissingProjectIdentityValue(openedClient.date);
     setControlsCollapsed(openedMissingBasicInfo ? false : localStorage.getItem(WALKTHROUGH_CONTROLS_COLLAPSED_KEY) === 'true');
   };
   const deleteSavedWalkthrough = () => {
@@ -2836,11 +2859,7 @@ function App() {
   };
   const savedSessionList = Object.values(savedSessions).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
   const hasUnsavedVisiblePhotos = saveStatus.state !== 'saved' && hasVisiblePhotoDataUrls(answers, roomCapture);
-  const controlsMissingFields = [
-    !client.name?.trim() && 'Client Name',
-    !client.address?.trim() && 'Project Address',
-    !client.date?.trim() && 'Walkthrough Date / Visit Label'
-  ].filter(Boolean);
+  const controlsMissingFields = missingProjectIdentityFields.map(field => field.label);
   const controlsNeedsAttention = Boolean(controlsMissingFields.length || storageWarning || photoFeedback.message || driveMeta.lastError || saveStatus.state === 'failed' || pendingCount || pendingPhotoCount);
   const controlsAttentionText = controlsMissingFields.length
     ? `Needs ${controlsMissingFields.join(', ')}`
@@ -2928,6 +2947,9 @@ function App() {
     if (counts.watch) badges.push({ key: 'watch', label: `Watch ${counts.watch}`, tone: 'watch' });
     return { ...counts, badges, hasAttention, immediateCount };
   };
+  const setupFieldState = (value) => isMissingProjectIdentityValue(value) ? 'setupMissing' : 'setupReady';
+  const setupFieldHelp = (value, missingText) => isMissingProjectIdentityValue(value) ? missingText : 'Ready for PMR packet';
+  const setupFieldIcon = (value) => isMissingProjectIdentityValue(value) ? '!' : '✓';
   const syncDrive = async ({includeDownload=false, retryQueue=false} = {}) => {
     if (includeDownload) downloadJSON();
     const payload = buildCurrentDrivePayload();
@@ -2990,25 +3012,25 @@ function App() {
       </div>
       <div className="walkthroughControlsSummary" aria-label="Walkthrough control summary">
         <div className="summaryItem"><span>Working Session Name</span><strong title={walkthroughName || 'Untitled Walkthrough'}>{walkthroughName || 'Untitled Walkthrough'}</strong></div>
-        <div className="summaryItem"><span>Client Name</span><strong title={client.name || 'Missing'}>{client.name || 'Missing'}</strong></div>
-        <div className="summaryItem"><span>Project Address</span><strong title={client.address || 'Missing'}>{client.address || 'Missing'}</strong></div>
-        <div className="summaryItem"><span>Walkthrough Date / Visit Label</span><strong title={client.date || 'Missing'}>{client.date || 'Missing'}</strong></div>
+        <div className={`summaryItem ${setupFieldState(client.name)}`}><span>Client Name</span><strong title={client.name || 'Missing'}>{client.name || 'Missing'}</strong><small>{setupFieldIcon(client.name)} {setupFieldHelp(client.name, 'Client name needed')}</small></div>
+        <div className={`summaryItem ${setupFieldState(client.address)}`}><span>Project Address</span><strong title={client.address || 'Missing'}>{client.address || 'Missing'}</strong><small>{setupFieldIcon(client.address)} {setupFieldHelp(client.address, 'Project address needed')}</small></div>
+        <div className={`summaryItem ${setupFieldState(client.date)}`}><span>Walkthrough Date / Visit Label</span><strong title={client.date || 'Missing'}>{client.date || 'Missing'}</strong><small>{setupFieldIcon(client.date)} {setupFieldHelp(client.date, 'Required before final PMR packet')}</small></div>
         <div className="summaryItem"><span>Intake ID</span><strong title={intake.intakeId || 'Not generated yet'}>{intake.intakeId || 'Not generated yet'}</strong></div>
         <span className={`saveStatus ${saveStatus.state}`} role="status" aria-live="polite"><span className="saveStatusDot" aria-hidden="true"></span>{saveStatusText(saveStatus, hasUnsavedVisiblePhotos)}</span>
         <span className={`driveSummaryPill ${driveMeta.lastError ? 'error' : (driveToken ? 'connected' : '')}`} title={driveSummaryText}>{driveSummaryText}</span>
-        {controlsNeedsAttention && <span className="controlAttentionPill" role="status"><AlertTriangle size={14}/> {controlsAttentionText}</span>}
+        {controlsNeedsAttention && <span className={`controlAttentionPill ${controlsMissingFields.length ? 'setupAttention' : ''}`} role="status"><AlertTriangle size={14}/> {controlsAttentionText}</span>}
         {controlsCollapsed && <button type="button" className="openControlsButton" onClick={()=>setControlsCollapsedPreference(false)}>Open Controls</button>}
       </div>
       {!controlsCollapsed && <div className="workflowCueStrip" aria-label="Workflow completion cues">
-        {workflowCues.map(cue => <span key={cue.label} className={`workflowCue ${cue.state}`}><strong>{cue.state === 'ready' ? '✓' : (cue.state === 'warning' ? '⚠' : (cue.state === 'missing' ? '!' : '•'))} {cue.label}</strong><small>{cue.text}</small></span>)}
+        {workflowCues.map(cue => <span key={cue.label} className={`workflowCue ${cue.state}`}><strong>{cue.state === 'ready' ? '✓' : (cue.state === 'warning' ? '⚠' : (cue.state === 'missing' || cue.state === 'setupMissing' ? '!' : '•'))} {cue.label}</strong><small>{cue.text}</small></span>)}
       </div>}
       {!controlsCollapsed && <div className="walkthroughControlsBody">
         <section className="controlGroup sessionCard" aria-label="Walkthrough Info">
           <div className="controlGroupTitle"><h3>Walkthrough Info</h3></div>
           <label>Working Session Name<input value={walkthroughName} onChange={e=>setWalkthroughName(e.target.value)} placeholder="Name this working session"/></label>
-          <label>Client Name<input value={client.name} onChange={e=>setClient({...client,name:e.target.value})}/></label>
-          <label>Project Address<input value={client.address} onChange={e=>setClient({...client,address:e.target.value})}/></label>
-          <label>Walkthrough Date / Visit Label<input value={client.date} onChange={e=>setClient({...client,date:e.target.value})}/></label>
+          <label className={`requiredSetupField ${setupFieldState(client.name)}`}>Client Name<input value={client.name} onChange={e=>setClient({...client,name:e.target.value})} placeholder="Client name"/><small>{setupFieldHelp(client.name, 'Client name needed')}</small></label>
+          <label className={`requiredSetupField ${setupFieldState(client.address)}`}>Project Address<input value={client.address} onChange={e=>setClient({...client,address:e.target.value})} placeholder="Project address"/><small>{setupFieldHelp(client.address, 'Project address needed')}</small></label>
+          <label className={`requiredSetupField ${setupFieldState(client.date)}`}>Walkthrough Date / Visit Label<input value={client.date} onChange={e=>setClient({...client,date:e.target.value})} placeholder="Walkthrough date / visit label"/><small>{setupFieldHelp(client.date, 'Required before final PMR packet')}</small></label>
         </section>
         <section className="controlGroup sessionCard localWorkCard" aria-label="Local Work">
           <div className="controlGroupTitle"><h3>1. Local Work / This Device</h3><p>Autosaves and saved sessions stay in this browser on this device unless you download or upload them.</p></div>
