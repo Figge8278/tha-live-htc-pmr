@@ -109,9 +109,10 @@ const ACTION_CERTAINTY_GUIDE = [
   { label: 'Needs Discovery', body: 'more information, pricing, or specialist input needed before committing' }
 ];
 const PREFS = ['Do now','Plan soon','Budget for later','Watchlist only'];
-const PASS_CADENCE = ['Monthly','Quarterly','Seasonal','Annual','As Needed'];
-const PASS_FOLLOW_UP_STATUSES = ['Not Scheduled','Planned','Scheduled','Completed','Deferred'];
-const PASS_RESOURCES = ['Handy Services','HVAC','Plumbing','Roofing','Gutters/Drainage','Pest','Safety','Other'];
+const PASS_CADENCE = ['Monthly','Quarterly','Seasonal','Semiannual','Annual','Condition-Based','As Needed'];
+const PASS_DATE_SOURCES = ['unknown','homeowner-reported','THA observed'];
+const PASS_FOLLOW_UP_STATUSES = ['Not Scheduled','Verify / Establish Baseline','Planned','Scheduled','Completed','Deferred'];
+const PASS_RESOURCES = ['Handy Services','HVAC','Plumbing','Roofing','Gutters/Drainage','Pest','Safety','Appliance','Chimney','Other'];
 const PHOTO_LABELS = ['Context','Close-up','Detail'];
 const ROOM_PHOTO_LABELS = ['Overview'];
 const ROOM_STATUS_OPTIONS = ['Looking Good','Watch Item / Worth Watching','Handy Services','Trade Attention','Routine Care / PASS','Homeowner Goal'];
@@ -132,6 +133,7 @@ const SMART_ROOM_PROMPTS = [
   { group: 'Surfaces', prompt: 'Look at walls, ceilings, floors, and caulk lines for stains, cracking, wear, or movement.' },
   { group: 'General / Safety', prompt: 'Capture life-safety, access, and unusual conditions that need homeowner awareness or follow-up.' }
 ];
+
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const DRIVE_QUEUE_KEY = 'tha-drive-pending-queue';
 const DRIVE_META_KEY = 'tha-drive-meta';
@@ -166,114 +168,29 @@ const PHOTO_BATCH_WARNING_COUNT = 5;
 const PHOTO_AUTOSAVE_FAILURE_MESSAGE = 'Photo added, but autosave failed — download backup or remove photos.';
 const TRADE_OPTIONS = [...Object.keys(ICONS), 'Carpentry', 'General Contractor', 'Design', 'Flooring', 'Landscape', 'Review / Assign Later'];
 
-
 const PMR_TIME_INVESTMENT_GUIDE = [
   { key: 'quick', icon: '⏱', label: 'Quick', display: 'Quick — half day to one day' },
   { key: 'short', icon: '🕒', label: 'Short', display: 'Short — one to two days' },
   { key: 'future', icon: '📅', label: 'Larger / Future Project', display: 'Larger / Future Project — plan, estimate, or schedule' }
 ];
 
-
 const PASS_CARE_RULES = [
-  {
-    id: 'furnace-filter-rhythm',
-    careItem: 'Furnace service / filter rhythm',
-    resource: 'HVAC',
-    trade: 'HVAC',
-    cadence: 'Seasonal / filter every 1–3 months',
-    suggestedWindow: 'Suggested next normal window: fall, before heating season; filter check every 1–3 months during regular use',
-    intakeKeys: ['furnaceService', 'hvacService', 'hvacFilter'],
-    rowKeywords: ['furnace', 'filter', 'hvac service'],
-    reason: 'Care planning for normal heating-system service and airflow upkeep before peak heating demand.'
-  },
-  {
-    id: 'ac-heat-pump-service',
-    careItem: 'A/C or heat pump service',
-    resource: 'HVAC',
-    trade: 'HVAC',
-    cadence: 'Annual',
-    suggestedWindow: 'Suggested next normal window: spring, before cooling season',
-    intakeKeys: ['acHeatPumpService', 'hvacAcService', 'comfort'],
-    rowKeywords: ['a/c', 'ac service', 'heat pump', 'cooling'],
-    reason: 'Care planning for normal cooling-system service before seasonal use.'
-  },
-  {
-    id: 'gutters-drainage-review',
-    careItem: 'Gutter/downspout/drainage review',
-    resource: 'Gutters/Drainage',
-    trade: 'Handyman',
-    cadence: 'Seasonal',
-    suggestedWindow: 'Suggested next normal window: fall after leaf drop, plus spring or snowmelt check where relevant',
-    intakeKeys: ['gutters', 'drainagePooling', 'drainageHistory', 'drainageGrading'],
-    rowKeywords: ['gutter', 'downspout', 'drainage', 'grading', 'pooling'],
-    reason: 'Care planning for routine water-management review around the home.'
-  },
-  {
-    id: 'water-heater-service',
-    careItem: 'Water heater service / flush review',
-    resource: 'Plumbing',
-    trade: 'Plumbing',
-    cadence: 'Annual or next plumbing visit',
-    suggestedWindow: 'Suggested next normal window: annual care planning or next plumbing visit',
-    intakeKeys: ['waterHeaterService', 'waterHeater', 'plumbingHistory'],
-    rowKeywords: ['water heater', 'tankless', 'flush'],
-    reason: 'Care planning for normal water-heater maintenance history and service review.'
-  },
-  {
-    id: 'chimney-fireplace-service',
-    careItem: 'Chimney/fireplace cleaning or inspection',
-    resource: 'Roofing',
-    trade: 'Chimney',
-    cadence: 'Annual / Fall',
-    suggestedWindow: 'Suggested next normal window: fall, before heating season or fireplace use',
-    intakeKeys: ['chimneyFireplaceService', 'chimney'],
-    rowKeywords: ['chimney', 'fireplace', 'hearth', 'damper'],
-    reason: 'Care planning for normal fireplace and chimney service timing before seasonal use.'
-  },
-  {
-    id: 'smoke-co-extinguisher-check',
-    careItem: 'Smoke/CO detector + extinguisher check',
-    resource: 'Safety',
-    trade: 'Safety',
-    cadence: 'Annual',
-    suggestedWindow: 'Suggested next normal window: annual safety review',
-    intakeKeys: ['smokeCO', 'fireExtinguishers'],
-    rowKeywords: ['smoke', 'co detector', 'carbon monoxide', 'extinguisher'],
-    reason: 'Care planning for routine annual safety-device date, battery, gauge, and placement review.'
-  },
-  {
-    id: 'exterior-paint-caulk-review',
-    careItem: 'Exterior paint/stain/caulk review',
-    resource: 'Handy Services',
-    trade: 'Paint',
-    cadence: 'Annual review',
-    suggestedWindow: 'Suggested next normal window: dry/warm exterior season',
-    intakeKeys: ['exteriorPaintStain', 'paintStain', 'productsColors'],
-    rowKeywords: ['paint', 'stain', 'caulk', 'exterior finish'],
-    reason: 'Care planning for normal exterior finish review during practical weather.'
-  },
-  {
-    id: 'pest-prevention-watch',
-    careItem: 'Pest prevention/watch',
-    resource: 'Pest',
-    trade: 'Pest',
-    cadence: 'Seasonal / As Needed',
-    suggestedWindow: 'Suggested next normal window: spring/fall or as needed',
-    intakeKeys: ['pestActivity', 'pests'],
-    rowKeywords: ['pest', 'insect', 'rodent', 'bug'],
-    reason: 'Care planning for routine pest prevention and seasonal watch items.'
-  },
-  {
-    id: 'windows-doors-weatherstripping',
-    careItem: 'Windows/doors/weatherstripping',
-    resource: 'Handy Services',
-    trade: 'Windows',
-    cadence: 'Seasonal',
-    suggestedWindow: 'Suggested next normal window: before heating or cooling season',
-    intakeKeys: ['windowsDoorsRepairedReplaced', 'windowsDoors', 'fogging', 'stickyOpeningsDrafts'],
-    rowKeywords: ['window', 'door', 'weatherstripping', 'draft', 'seal'],
-    reason: 'Care planning for normal comfort, operation, and weatherstripping review before peak seasons.'
-  }
+  { id: 'furnace-filter-check', careItem: 'Furnace filter check / replacement', resource: 'HVAC', trade: 'HVAC', cadence: 'Every 1–3 months during heating/cooling use', cadenceMonths: 3, suggestedWindow: 'check at the next seasonal visit, then every 1–3 months during regular system use', intakeKeys: ['hvacFilter', 'furnaceService', 'hvacService'], rowKeywords: ['furnace', 'filter', 'hvac filter'], reason: 'Routine airflow care helps the HVAC system operate efficiently and keeps the service plan current.', groupingNote: 'Could be grouped with the next seasonal PASS visit.' },
+  { id: 'furnace-service', careItem: 'Furnace service', resource: 'HVAC', trade: 'HVAC', cadence: 'Annual', cadenceMonths: 12, suggestedWindow: 'fall, before heating season', intakeKeys: ['furnaceService', 'hvacService'], rowKeywords: ['furnace service', 'heating service', 'hvac service'], reason: 'Annual heating-system service supports reliability before peak heating demand.' },
+  { id: 'ac-heat-pump-service', careItem: 'A/C or heat pump service', resource: 'HVAC', trade: 'HVAC', cadence: 'Annual', cadenceMonths: 12, suggestedWindow: 'spring, before cooling season', intakeKeys: ['acHeatPumpService', 'hvacAcService', 'comfort'], rowKeywords: ['a/c', 'ac service', 'heat pump', 'cooling'], reason: 'Cooling equipment should be reviewed before seasonal use so minor issues can be planned, not treated as defects.' },
+  { id: 'water-heater-flush-service-review', careItem: 'Water heater flush / service review', resource: 'Plumbing', trade: 'Plumbing', cadence: 'Annual; six-month preferred cadence where appropriate', cadenceMonths: 12, suggestedWindow: 'annual care planning or the next plumbing visit', intakeKeys: ['waterHeaterService', 'waterHeater', 'plumbingHistory'], rowKeywords: ['water heater', 'tankless', 'flush'], reason: 'Water-heater service history belongs in routine care planning unless active symptoms are observed.', groupingNote: 'Can be grouped with other plumbing or seasonal PASS work.' },
+  { id: 'dryer-vent-cleaning', careItem: 'Dryer vent cleaning', resource: 'Handy Services', trade: 'Handyman', cadence: 'Annual', cadenceMonths: 12, suggestedWindow: 'fall or the next laundry / exterior vent visit', intakeKeys: ['otherMaintenanceHistory'], rowKeywords: ['dryer vent', 'lint', 'exterior flap'], reason: 'Routine dryer vent cleaning supports dryer performance and fire-safety housekeeping.' },
+  { id: 'dishwasher-filter-cleaning', careItem: 'Dishwasher filter cleaning', resource: 'Appliance', trade: 'Appliance', cadence: 'Monthly to quarterly', cadenceMonths: 3, suggestedWindow: 'next kitchen care visit, then monthly to quarterly depending on use', intakeKeys: ['otherMaintenanceHistory'], rowKeywords: ['dishwasher', 'filter'], reason: 'Dishwasher filters are routine homeowner / appliance care and should not become PMR defects unless performance issues are observed.', groupingNote: 'Could be grouped with the next kitchen handyman or appliance visit.' },
+  { id: 'range-hood-filter-cleaning', careItem: 'Range hood filter cleaning', resource: 'Appliance', trade: 'Appliance', cadence: 'Quarterly', cadenceMonths: 3, suggestedWindow: 'next kitchen care visit, then quarterly or as cooking use requires', intakeKeys: ['otherMaintenanceHistory'], rowKeywords: ['range hood', 'hood filter', 'ventilation'], reason: 'Range hood filter cleaning is routine kitchen ventilation care.' },
+  { id: 'smoke-co-detector-check', careItem: 'Smoke/CO detector check', resource: 'Safety', trade: 'Safety', cadence: 'Annual test/review; replace devices per manufacturer date', cadenceMonths: 12, suggestedWindow: 'annual safety review or next PASS visit', intakeKeys: ['smokeCO'], rowKeywords: ['smoke', 'co detector', 'carbon monoxide'], reason: 'Safety devices need routine date, battery, placement, and function checks separate from PMR finding counts.' },
+  { id: 'fire-extinguisher-check', careItem: 'Fire extinguisher check', resource: 'Safety', trade: 'Safety', cadence: 'Annual', cadenceMonths: 12, suggestedWindow: 'annual safety review or next PASS visit', intakeKeys: ['fireExtinguishers'], rowKeywords: ['fire extinguisher', 'extinguisher'], reason: 'Extinguisher gauge, placement, and service-date checks are recurring safety care.' },
+  { id: 'gutter-downspout-review', careItem: 'Gutter/downspout review', resource: 'Gutters/Drainage', trade: 'Handyman', cadence: 'Seasonal', cadenceMonths: 6, suggestedWindow: 'spring and fall, especially after leaf drop or snowmelt', intakeKeys: ['gutters', 'drainagePooling', 'drainageHistory', 'drainageGrading'], rowKeywords: ['gutter', 'downspout'], reason: 'Water-management reviews help catch routine debris, discharge, or splashback concerns before they become larger issues.' },
+  { id: 'drainage-grading-water-path-review', careItem: 'Drainage / grading / water path review', resource: 'Gutters/Drainage', trade: 'Handyman', cadence: 'Seasonal / after major storms', cadenceMonths: 6, suggestedWindow: 'next wet-season or seasonal exterior visit', intakeKeys: ['drainagePooling', 'drainageHistory', 'drainageGrading'], rowKeywords: ['drainage', 'grading', 'pooling', 'water path'], reason: 'Surface water patterns are best watched over time and should remain separate from PMR defects unless active damage is observed.' },
+  { id: 'exterior-caulk-paint-stain-review', careItem: 'Exterior caulk / paint / stain review', resource: 'Handy Services', trade: 'Paint', cadence: 'Annual review', cadenceMonths: 12, suggestedWindow: 'dry/warm exterior season', intakeKeys: ['exteriorPaintStain', 'paintStain', 'productsColors'], rowKeywords: ['paint', 'stain', 'caulk', 'exterior finish'], reason: 'Exterior finish review is routine preservation planning and can be batched with handyman touch-ups.', groupingNote: 'Could be grouped with the next exterior handyman visit.' },
+  { id: 'pest-prevention-watch', careItem: 'Pest prevention watch', resource: 'Pest', trade: 'Pest', cadence: 'Seasonal / As Needed', cadenceMonths: 6, suggestedWindow: 'spring/fall or as needed based on activity', intakeKeys: ['pestActivity', 'pests'], rowKeywords: ['pest', 'insect', 'rodent', 'bug'], reason: 'Pest history and prevention should be tracked as a watch item unless active evidence creates a separate PMR finding.' },
+  { id: 'chimney-fireplace-inspection-cleaning', careItem: 'Chimney / fireplace inspection or cleaning, if applicable', resource: 'Chimney', trade: 'Chimney', cadence: 'Annual when used / as applicable', cadenceMonths: 12, suggestedWindow: 'fall, before fireplace use', intakeKeys: ['chimneyFireplaceService', 'chimney'], rowKeywords: ['chimney', 'fireplace', 'hearth', 'damper'], reason: 'If the home has a fireplace or chimney, service timing should be planned before seasonal use.', groupingNote: 'Verify applicability before scheduling.' },
+  { id: 'sump-pump-test', careItem: 'Sump pump test, if applicable', resource: 'Plumbing', trade: 'Plumbing', cadence: 'Seasonal / before wet season', cadenceMonths: 6, suggestedWindow: 'before wet season or next basement/mechanical visit', intakeKeys: ['plumbingHistory', 'drainageHistory', 'otherMaintenanceHistory'], rowKeywords: ['sump pump', 'sump', 'pump test'], reason: 'If present, sump pumps should be tested routinely before wet weather rather than treated as an urgent defect without symptoms.', groupingNote: 'Verify applicability before scheduling.' },
+  { id: 'hvac-duct-cleaning-review', careItem: 'HVAC duct cleaning review', resource: 'HVAC', trade: 'HVAC', cadence: 'Condition-Based only — not automatic annual cleaning', cadenceMonths: null, suggestedWindow: 'review only as-needed based on dust, renovation history, airflow concerns, pests, moisture, or occupant needs', intakeKeys: ['airDuctsCleaned', 'hvacService', 'comfort'], rowKeywords: ['duct', 'air ducts', 'airflow'], reason: 'Duct cleaning should be considered only when conditions justify it, not as an automatic annual service.', groupingNote: 'Could be discussed during the next HVAC service visit.' }
 ];
 
 const INTAKE_DEFAULTS = {
@@ -697,6 +614,118 @@ function passRoutineObservationBasis(rows = [], rule = {}) {
 function passManualBasis(row = {}) {
   return ['Manually marked PASS continued-care candidate', row.roomName || row.room, row.item].filter(Boolean).join(' · ');
 }
+function passDateSourceText(source = 'unknown') {
+  const normalized = String(source || '').trim();
+  return PASS_DATE_SOURCES.includes(normalized) ? normalized : 'unknown';
+}
+function passCalendarToday() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+function passIsoDate(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+function passDisplayDate(value = '') {
+  const parsed = parsePassServiceDate(value);
+  if (!parsed) return String(value || '').trim();
+  return parsed.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+}
+function addPassMonths(date, months = 0) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime()) || !Number.isFinite(months)) return null;
+  const next = new Date(date);
+  const day = next.getDate();
+  next.setMonth(next.getMonth() + months);
+  if (next.getDate() < day) next.setDate(0);
+  return next;
+}
+function parsePassServiceDate(value = '', today = passCalendarToday()) {
+  const text = String(value || '').trim();
+  if (!text) return null;
+  const iso = text.match(/\b(20\d{2}|19\d{2})-(\d{1,2})-(\d{1,2})\b/);
+  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+  const slash = text.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
+  if (slash) {
+    const year = Number(slash[3].length === 2 ? `20${slash[3]}` : slash[3]);
+    return new Date(year, Number(slash[1]) - 1, Number(slash[2]));
+  }
+  const monthName = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+  const monthMatch = text.match(new RegExp(`\\b${monthName}\\s+(\\d{1,2},?\\s+)?(20\\d{2}|19\\d{2})\\b`, 'i'));
+  if (monthMatch) {
+    const monthIndex = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'].findIndex(m => monthMatch[1].toLowerCase().startsWith(m));
+    const day = monthMatch[2] ? Number(monthMatch[2].replace(/\D/g, '')) || 1 : 1;
+    return new Date(Number(monthMatch[3]), monthIndex, day);
+  }
+  const monthsAgo = text.match(/\b(\d+)\s+months?\s+ago\b/i);
+  if (monthsAgo) return addPassMonths(today, -Number(monthsAgo[1]));
+  if (/\blast\s+month\b/i.test(text) || /\bone\s+month\s+ago\b/i.test(text)) return addPassMonths(today, -1);
+  const yearsAgo = text.match(/\b(\d+)\s+years?\s+ago\b/i);
+  if (yearsAgo) return addPassMonths(today, -Number(yearsAgo[1]) * 12);
+  return null;
+}
+function passLastCompletedFromIntake(intake = {}, rule = {}) {
+  for (const key of rule.intakeKeys || []) {
+    const value = passIntakeValueByKey(intake, key);
+    const date = parsePassServiceDate(value);
+    if (date) return { date, value, source: 'homeowner-reported', label: intakeFieldLabel(key) };
+  }
+  return null;
+}
+function passLastCompletedFromRows(rows = [], rule = {}) {
+  for (const row of rows || []) {
+    const text = `${row.roomName || row.room || ''} ${row.zone || ''} ${row.item || ''} ${row.prompt || ''} ${row.answer?.notes || ''}`;
+    if (!passTextMatchesRule(text, rule)) continue;
+    const date = parsePassServiceDate(row.answer?.notes || '');
+    if (date) return { date, value: row.answer.notes, source: 'THA observed', label: row.item };
+  }
+  return null;
+}
+function buildPassCalendarFields({ rule = {}, intake = {}, rows = [], review = {}, item = {} } = {}) {
+  const reviewedDate = review.lastCompletedDate || review.completedDate;
+  const reviewedSource = review.dateSource;
+  const parsedReviewed = parsePassServiceDate(reviewedDate);
+  const intakeDate = passLastCompletedFromIntake(intake, rule);
+  const observedDate = passLastCompletedFromRows(rows, rule);
+  const itemDate = parsePassServiceDate(item.lastCompletedDate);
+  const selected = parsedReviewed
+    ? { date: parsedReviewed, value: reviewedDate, source: passDateSourceText(reviewedSource || 'homeowner-reported'), label: 'THA review override' }
+    : (intakeDate || observedDate || (itemDate ? { date: itemDate, value: item.lastCompletedDate, source: passDateSourceText(item.dateSource), label: 'stored PASS calendar date' } : null));
+  const cadenceMonths = Number.isFinite(Number(review.cadenceMonths)) ? Number(review.cadenceMonths) : (Number.isFinite(Number(item.cadenceMonths)) ? Number(item.cadenceMonths) : rule.cadenceMonths);
+  const lastCompletedDate = selected?.date ? passIsoDate(selected.date) : '';
+  const dateSource = selected?.source || passDateSourceText(reviewedSource || item.dateSource);
+  const nextDate = selected?.date && Number.isFinite(cadenceMonths) ? addPassMonths(selected.date, Number(cadenceMonths)) : null;
+  const cadence = review.cadence ?? item.cadence ?? rule.cadence ?? 'As Needed';
+  const nextSuggestedWindow = selected?.date && nextDate
+    ? `About ${passDisplayDate(passIsoDate(nextDate))}`
+    : (review.nextSuggestedWindow || review.targetWindow || item.targetWindow || `Establish baseline at next seasonal visit; then use ${cadence} cadence.`);
+  const followUpStatus = passPlanningStatusText(review.followUpStatus ?? item.followUpStatus ?? (selected?.date ? 'Not Scheduled' : 'Verify / Establish Baseline'));
+  return {
+    lastCompletedDate,
+    lastCompletedDisplay: selected?.date ? passDisplayDate(passIsoDate(selected.date)) : 'Unknown — verify / establish baseline',
+    dateSource,
+    nextSuggestedWindow,
+    followUpStatus,
+    groupingNote: review.groupingNote ?? item.groupingNote ?? rule.groupingNote ?? '',
+    dateBasis: selected ? `${selected.source}: ${selected.label || 'service history'}${selected.value ? ` — ${selected.value}` : ''}` : 'Unknown service history'
+  };
+}
+function passUpcomingBucket(item = {}) {
+  const text = String(item.nextSuggestedWindow || item.targetWindow || '').toLowerCase();
+  if (text.includes('baseline')) return 'Verify / establish baseline';
+  if (text.includes('spring')) return 'Spring window';
+  if (text.includes('fall')) return 'Fall window';
+  if (text.includes('season')) return 'Next seasonal visit';
+  if (text.includes('about')) return 'Date-based follow-up';
+  if (text.includes('condition')) return 'Condition-based / as needed';
+  return 'Next practical window';
+}
+function groupPassCalendar(items = [], keyFn = item => item.resource || 'Other') {
+  return items.reduce((acc, item) => {
+    const key = keyFn(item) || 'Other';
+    acc[key] = [...(acc[key] || []), item];
+    return acc;
+  }, {});
+}
 function passPlanningStatusText(status = '') {
   return PASS_FOLLOW_UP_STATUSES.includes(status) ? status : PASS_FOLLOW_UP_STATUSES[0];
 }
@@ -708,7 +737,7 @@ function passHomeownerFollowUpLanguage(item = {}) {
   return `Continued-care status: ${status}. Best reviewed during ${windowText}, then kept on a ${cadence} cadence with ${resource}. This is planning guidance for routine care, not an urgent repair item.`;
 }
 function passManualCareRow(row = {}) {
-  return {
+  const item = {
     id: `manual-pass-${row.id}`,
     source: 'manual',
     careItem: row.item || 'Manual PASS candidate',
@@ -719,29 +748,38 @@ function passManualCareRow(row = {}) {
     resource: row.answer?.passResource || passResourceFor(row),
     followUpStatus: passPlanningStatusText(row.answer?.passFollowUpStatus),
     internalNote: row.answer?.passNote || '',
+    groupingNote: row.answer?.passGroupingNote || '',
     basis: passManualBasis(row),
     row
   };
+  return {
+    ...item,
+    ...buildPassCalendarFields({ rule: {}, rows: [row], item, review: { followUpStatus: item.followUpStatus } })
+  };
 }
-function buildPassCareOutlook({ intake = {}, rows = [] } = {}) {
+function buildPassCareOutlook({ intake = {}, rows = [], passReview = {} } = {}) {
   const normalizedRows = Array.isArray(rows) ? rows : [];
   const manualRows = normalizedRows.filter(row => row.answer?.passCandidate).map(passManualCareRow);
   const generatedRows = PASS_CARE_RULES.map(rule => {
     const basis = [passIntakeBasis(intake, rule), passRoutineObservationBasis(normalizedRows, rule), `Common care cadence: ${rule.cadence}`].filter(Boolean).join(' · ');
-    return {
+    const base = {
       id: `generated-pass-${rule.id}`,
       source: 'generated',
       careItem: rule.careItem,
       reason: rule.reason,
-      targetWindow: passSuggestedWindowText(rule.suggestedWindow),
+      targetWindow: rule.suggestedWindow,
       suggestedWindow: `Suggested window: ${rule.suggestedWindow}`,
       cadence: rule.cadence,
+      cadenceMonths: rule.cadenceMonths,
       resource: rule.resource,
       followUpStatus: PASS_FOLLOW_UP_STATUSES[0],
       internalNote: '',
+      groupingNote: rule.groupingNote || '',
       basis,
       rule
     };
+    const calendarFields = buildPassCalendarFields({ rule, intake, rows: normalizedRows, item: base, review: passReview?.[base.id] || {} });
+    return { ...base, ...calendarFields, suggestedWindow: `Suggested window: ${calendarFields.nextSuggestedWindow}` };
   });
   return [...manualRows, ...generatedRows];
 }
@@ -1454,7 +1492,7 @@ function sanitizeRowsForPassExport(rows = [], visiblePassIds = new Set()) {
   });
 }
 function buildDrivePayload({ walkthroughName = '', client, intake, rows, pmr, passCareOutlook, passReview = {}, dynamicRooms = [], sections = [], sectionOrderState = [], itemOrderState = {}, pinnedItems = {}, roomCapture = {} }) {
-  const reviewedPassOutlook = passCareOutlook || applyPassReview(buildPassCareOutlook({ intake, rows }), passReview);
+  const reviewedPassOutlook = passCareOutlook || applyPassReview(buildPassCareOutlook({ intake, rows, passReview }), passReview);
   const passCareOutlookForExport = reviewedPassOutlook.map(removePassPrivateFields);
   const visiblePassIds = new Set(passCareOutlookForExport.map(item => item.id));
   const rowsForExport = sanitizeRowsForPassExport(rows, visiblePassIds);
@@ -1599,14 +1637,14 @@ function buildPhotoIndexSection(photoEntries = [], { embedded = false } = {}) {
     });
   };
   const sections = Object.entries(grouped).map(([room, entries]) => `<section class="subsection room-section photo-room"><h3>${htmlEscape(room)} <span>${entries.length} photo${entries.length === 1 ? '' : 's'}</span></h3><div class="packet-lines">${entries.map(photoLine).join('')}</div></section>`).join('') || '<section class="card"><p><span class="not-recorded">No photos recorded.</span></p></section>';
-  return `${embedded ? '<section class="card section-card packet-section photo-index-intro"><p class="section-kicker">Section 6 · Last</p>' : '<section class="card">'}<h2>Photo Index</h2><p class="lede">Photos are grouped by room or section and use a quieter line-item system: resource stripe, status dot, photo label, room, and link. The Drive Photos folder remains flattened with readable file names; this index connects each file back to its room overview or checklist item.</p><p class="small">Thumbnails are intentionally omitted here to keep the exported local HTML package lightweight.</p></section>${sections}`;
+  return `${embedded ? '<section class="card section-card packet-section photo-index-intro"><p class="section-kicker">Section 7 · Last</p>' : '<section class="card">'}<h2>Photo Index</h2><p class="lede">Photos are grouped by room or section and use a quieter line-item system: resource stripe, status dot, photo label, room, and link. The Drive Photos folder remains flattened with readable file names; this index connects each file back to its room overview or checklist item.</p><p class="small">Thumbnails are intentionally omitted here to keep the exported local HTML package lightweight.</p></section>${sections}`;
 }
 
 function buildPmrReportHtml(payload, photoEntries = []) {
   const pmr = payload.pmr || [];
   const rows = payload.rows || [];
   const counts = { high: pmr.filter(r=>priority(r.answer.status)==='High').length, med: pmr.filter(r=>priority(r.answer.status)==='Medium').length, low: pmr.filter(r=>priority(r.answer.status)==='Low').length };
-  const passCareOutlook = payload.passCareOutlook || buildPassCareOutlook({ intake: payload.intake, rows });
+  const passCareOutlook = payload.passCareOutlook || buildPassCareOutlook({ intake: payload.intake, rows, passReview: payload.passReview });
   const reviewedIntakeNotes = rows.filter(r => isIntakeFollowUp(r) && r.answer.reviewStatus && r.answer.reviewStatus !== 'Not Reviewed' && r.answer.reviewStatus !== INTAKE_PMR_REVIEW_STATUS);
   const immediateItems = pmr.filter(r => r.answer.status === 'Immediate Concern');
   const handyItems = pmr.filter(r => r.answer.trade === 'Handyman');
@@ -1643,13 +1681,17 @@ function buildPmrReportHtml(payload, photoEntries = []) {
   const intakeList = reviewedIntakeNotes.map(r=>`<li><strong>${htmlEscape(r.roomName || r.room)} — ${htmlEscape(r.item)}</strong><span>${htmlEscape(r.answer.reviewStatus)} · ${htmlEscape(r.intakeFieldLabel)}: ${reportValue(r.intakeValue)}</span></li>`).join('') || '<li><strong>No reviewed intake follow-up notes recorded.</strong><span>Intake context did not add separate follow-up notes for this PMR export.</span></li>';
   const roomChart = roomIssueCounts.length ? `<div class="room-chart">${roomIssueCounts.map(([room, count]) => `<div class="room-bar"><span>${htmlEscape(room)}</span><i><b style="width:${Math.max(8, (count / maxRoomIssueCount) * 100)}%"></b></i><strong>${count}</strong></div>`).join('')}</div>` : '<p><span class="not-recorded">No PMR issues recorded by room.</span></p>';
   const passLines = passCareOutlook.length ? `<div class="packet-lines">${passCareOutlook.map(passVisualLineHtml).join('')}</div>` : '<p><span class="not-recorded">No PASS continued-care items selected for this packet.</span></p>';
+  const passCalendarRows = passCareOutlook.map(item => `<tr><td>${reportValue(item.careItem)}</td><td>${reportValue(item.lastCompletedDisplay || 'Unknown — verify / establish baseline')}</td><td>${reportValue(passDateSourceText(item.dateSource))}</td><td>${reportValue(item.cadence)}</td><td>${reportValue(item.nextSuggestedWindow || passSuggestedWindowText(item.targetWindow || item.suggestedWindow) || 'Establish baseline at next seasonal visit')}</td><td>${reportValue(item.resource)}</td><td>${reportValue(passPlanningStatusText(item.followUpStatus))}</td><td>${reportValue(item.groupingNote, 'No grouping note recorded')}</td></tr>`).join('') || '<tr><td colspan="8"><span class="not-recorded">No PASS calendar items selected for this packet.</span></td></tr>';
+  const passResourceGroups = Object.entries(groupPassCalendar(passCareOutlook, item => item.resource || 'Other')).map(([resource, items]) => `<p><strong>${htmlEscape(resource)}:</strong> ${htmlEscape(items.map(item => item.careItem).join(' · '))}</p>`).join('');
+  const passWindowGroups = Object.entries(groupPassCalendar(passCareOutlook, passUpcomingBucket)).map(([windowName, items]) => `<p><strong>${htmlEscape(windowName)}:</strong> ${htmlEscape(items.map(item => item.careItem).join(' · '))}</p>`).join('');
   const detailRows = pmr.map(detailCard).join('') || '<p><span class="not-recorded">No PMR findings recorded.</span></p>';
   const body = `<section class="card hero-card"><p class="section-kicker">Primary homeowner / business deliverable</p><h2>PMR Report Packet</h2><p class="lede">This is the polished homeowner-facing packet. It uses one PMR finding set in multiple views: summary first, room list, trade list, PASS continued care, detail appendix, and Photo Index last.</p></section>
     <section class="card packet-section"><p class="section-kicker">Section 1</p><h2>Snapshot / Summary</h2><p class="lede">${htmlEscape(overallSummary)}</p><div class="grid"><div class="stat high"><strong>${counts.high}</strong>Immediate</div><div class="stat medium"><strong>${counts.med}</strong>Near-Term</div><div class="stat low"><strong>${counts.low}</strong>Monitor</div><div class="stat"><strong>${pmr.length}</strong>PMR Findings</div><div class="stat"><strong>${handyItems.length}</strong>Handy Services</div><div class="stat"><strong>${tradeItems.length}</strong>Trade Items</div></div><h3>Room issue count</h3>${roomChart}</section>
     <section class="card packet-section"><p class="section-kicker">Section 2</p><h2>Room-by-Room Action List</h2><p class="lede">Same PMR findings grouped by location for homeowner review.</p>${roomSections}</section>
     <section class="card packet-section"><p class="section-kicker">Section 3</p><h2>Trade-by-Trade Action List</h2><p class="lede">Same PMR findings grouped by likely resource for handing to a plumber, electrician, handyman, or specialist.</p>${tradeSections}</section>
-    <section class="card packet-section pass-card"><p class="section-kicker">Section 4 · Separate from PMR counts</p><h2>PASS Continued Care Plan</h2><p class="lede">PASS is routine continued care only. These items are not PMR defects, priority counts, or urgent repair directives.</p>${passLines}</section>
-    <section class="card packet-section"><p class="section-kicker">Section 5</p><h2>Detail Appendix</h2><p class="lede">Expanded notes are here so the top of the packet stays useful without losing what was seen, why it matters, action certainty, timing, and photo references.</p>${detailRows}</section>
+    <section class="card packet-section pass-card"><p class="section-kicker">Section 4 · Required · Separate from PMR counts</p><h2>PASS Maintenance Calendar</h2><p class="lede">PASS Calendar items are recurring maintenance planning items, not PMR defects. Unknown service history creates a baseline-verification step rather than an overdue or urgent repair finding.</p><table class="care-table"><thead><tr><th>Care item</th><th>Last completed</th><th>Date source</th><th>Cadence</th><th>Next suggested date/window</th><th>Resource/trade</th><th>Follow-up status</th><th>Grouping note</th></tr></thead><tbody>${passCalendarRows}</tbody></table><div class="detail-grid"><div class="detail"><span class="field-label">Grouped by resource/trade</span>${passResourceGroups || '<span class="not-recorded">No resource grouping available.</span>'}</div><div class="detail"><span class="field-label">Grouped by upcoming window</span>${passWindowGroups || '<span class="not-recorded">No window grouping available.</span>'}</div></div></section>
+    <section class="card packet-section pass-card"><p class="section-kicker">Section 5 · Separate from PMR counts</p><h2>PASS Continued Care Plan</h2><p class="lede">PASS is routine continued care only. These items are not PMR defects, priority counts, or urgent repair directives.</p>${passLines}</section>
+    <section class="card packet-section"><p class="section-kicker">Section 6</p><h2>Detail Appendix</h2><p class="lede">Expanded notes are here so the top of the packet stays useful without losing what was seen, why it matters, action certainty, timing, and photo references.</p>${detailRows}</section>
     ${reviewedIntakeNotes.length ? `<section class="card packet-section"><h2>Reviewed Intake Follow-Up Context</h2><p class="lede">Included as homeowner context only. Intake alone does not create a PMR finding.</p><ul class="next-step-list">${intakeList}</ul></section>` : ''}
     <section class="card packet-section"><h2>Visual System Guide</h2><div class="legend-grid"><p><span class="line-stripe sample"></span><strong>Left color stripe</strong><br/>Trade / resource grouping</p><p><span class="status-dot urgent"></span><strong>Stoplight dot</strong><br/>Urgency / status</p><p><span class="chip time-chip">Time</span><strong>Time chip</strong><br/>Likely effort or care window</p><p><span class="chip certainty-chip clearPath">Clear Path</span><strong>Certainty chip</strong><br/>Clear Path / Likely Path / Needs Discovery</p></div></section>
     ${buildPhotoIndexSection(photoEntries, { embedded: true })}`;
@@ -2230,7 +2272,7 @@ function App() {
   const counts = { high: pmr.filter(r=>priority(r.answer.status)==='High').length, med: pmr.filter(r=>priority(r.answer.status)==='Medium').length, low: pmr.filter(r=>priority(r.answer.status)==='Low').length };
   const quickHits = pmr.filter(r => ['Handyman','Safety'].includes(r.answer.trade) && ['15 min','30 min','45–60 min','1–2 hrs'].includes(r.answer.effort));
   const pass = rows.filter(r => r.answer.passCandidate);
-  const passCareCandidates = buildPassCareOutlook({ intake, rows });
+  const passCareCandidates = buildPassCareOutlook({ intake, rows, passReview });
   const passCareOutlook = applyPassReview(passCareCandidates, passReview);
   const pendingPhotoCount = pendingPhotoUploadCount(answers, roomCapture);
   const hasAppDriveClientId = Boolean(APP_GOOGLE_OAUTH_CLIENT_ID);
@@ -3219,6 +3261,18 @@ function PMR({client, intake, pmr, counts, quickHits, passCareOutlook = [], pass
   const compactNextStep = (row) => actionCertaintyCopy(row).next;
   const roomGroups = groupByRoom(pmr);
   const tradeGroups = groupByTrade(pmr);
+  const passByResource = groupPassCalendar(passCareOutlook, item => item.resource || 'Other');
+  const passByWindow = groupPassCalendar(passCareOutlook, passUpcomingBucket);
+  const CalendarRow = ({ item }) => <article className="passCalendarRow">
+    <div><strong>{item.careItem}</strong><small>{item.reason}</small></div>
+    <span>{item.lastCompletedDisplay || 'Unknown — verify / establish baseline'}</span>
+    <span>{passDateSourceText(item.dateSource)}</span>
+    <span>{item.cadence || 'As Needed'}</span>
+    <span>{item.nextSuggestedWindow || passSuggestedWindowText(item.targetWindow || item.suggestedWindow) || 'Establish baseline at next seasonal visit'}</span>
+    <span>{item.resource || 'Other'}</span>
+    <span>{passPlanningStatusText(item.followUpStatus)}</span>
+    <span>{item.groupingNote || '—'}</span>
+  </article>;
   const VisualActionRow = ({ row, context }) => {
     const certainty = actionCertaintyCopy(row);
     const level = priority(row.answer.status) || 'PMR';
@@ -3248,6 +3302,12 @@ function PMR({client, intake, pmr, counts, quickHits, passCareOutlook = [], pass
     })}</CollapsibleBlock>
     <CollapsibleBlock title="Homeowner Goals & Intake Context" icon={<Home size={20}/>} summary="Support context for the walkthrough; not a duplicate PMR deliverable" defaultOpen={false} className="intakeSummary"><div className="findGrid"><p><strong>Primary priorities:</strong><br/>{summary.priorities}</p><p><strong>Preferred pace:</strong><br/>{summary.pace}</p><p><strong>Budget mindset:</strong><br/>{summary.budget}</p><p><strong>Decision style:</strong><br/>{summary.decision}</p><p><strong>Homeowner notes:</strong><br/>{summary.notes}</p><p><strong>Workflow:</strong><br/>Intake captures context. HTC verifies and triages. PMR documents findings and next steps. PASS tracks routine continued care and stays separate from PMR counts.</p><p><strong>Systems history:</strong><br/>Panel: {intake.electricalPanel || 'Unknown'}<br/>Water shut-off: {intake.waterShutoff || 'Unknown'}<br/>Furnace: {intake.hvacService || 'Unknown'}<br/>A/C: {intake.hvacAcService || 'Unknown'}</p><p><strong>Known issues:</strong><br/>{intake.plumbingHistory || 'No plumbing history recorded.'}<br/>{intake.comfort || ''}</p><p><strong>Exterior history:</strong><br/>Roof: {intake.roofAge || 'Unknown'}<br/>Drainage: {intake.drainagePooling || 'Unknown'}<br/>Paint/Stain: {intake.paintStain || 'Unknown'}</p><p><strong>Safety history:</strong><br/>Smoke/CO: {intake.smokeCO || 'Unknown'}<br/>Fire extinguishers: {intake.fireExtinguishers || 'Unknown'}</p><p><strong>Misc. history:</strong><br/>Pest: {intake.pests || 'Unknown'}<br/>Chimney: {intake.chimney || 'Unknown'}</p><p><strong>Do-not-overlook items:</strong><br/>{intake.doNotOverlook || 'No do-not-overlook items recorded.'}</p></div></CollapsibleBlock>
     <CollapsibleBlock title="Planning Guides" icon={<ClipboardList size={20}/>} summary="Action certainty and time/investment reference" defaultOpen={false} className="guideSupportBlock"><section className="guideGrid"><div className="guideCard actionCertaintyGuide"><h2><ClipboardList size={20}/> Action Certainty Guide</h2>{ACTION_CERTAINTY_GUIDE.map(item => <p key={item.label} className={`actionGuideItem ${actionCertaintyClass(item.label)}`}><CertaintyDot label={item.label}/> <strong>{item.label}</strong><br/><span>{item.body}</span></p>)}</div><div className="guideCard timeGuideCard"><h2><Clock3 size={20}/> Time / Investment Guide</h2>{PMR_TIME_INVESTMENT_GUIDE.map(item => <p key={item.key} className={`timeGuideItem ${item.key}`}><span className="timeGuideIcon" aria-hidden="true">{item.icon}</span><strong>{item.label}</strong><span>{item.display.replace(item.label, '')}</span></p>)}</div></section></CollapsibleBlock>
+    <CollapsibleBlock title="PASS Maintenance Calendar" icon={<CalendarDays/>} summary={`${passCareOutlook.length} recurring care item${passCareOutlook.length === 1 ? '' : 's'} · required even with zero PMR findings`} defaultOpen={true} className="passCalendar">
+      <p className="lede">PASS Calendar items are recurring maintenance planning items, not PMR defects. Unknown service history creates a baseline-verification step rather than an overdue or urgent repair finding.</p>
+      <div className="passCalendarLegend"><span>Grouped by resource/trade for scheduling</span><span>Also grouped by upcoming service window below</span><span>PMR count impact: 0</span></div>
+      <div className="passCalendarTable"><div className="passCalendarHeader"><span>Care item</span><span>Last completed</span><span>Date source</span><span>Cadence</span><span>Next suggested date/window</span><span>Resource/trade</span><span>Follow-up status</span><span>Grouping note</span></div>{passCareOutlook.map(item => <CalendarRow key={`calendar-${item.id}`} item={item}/>)}</div>
+      <div className="passCalendarGroups"><section><h3>By resource / trade</h3>{Object.entries(passByResource).map(([resource, items]) => <p key={`resource-${resource}`}><strong>{resource}</strong><span>{items.map(item => item.careItem).join(' · ')}</span></p>)}</section><section><h3>By upcoming window</h3>{Object.entries(passByWindow).map(([windowName, items]) => <p key={`window-${windowName}`}><strong>{windowName}</strong><span>{items.map(item => item.careItem).join(' · ')}</span></p>)}</section></div>
+    </CollapsibleBlock>
     <CollapsibleBlock title="PASS Continued Care Outlook" icon={<CalendarDays/>} summary={`${passCareOutlook.length} homeowner-facing routine care item${passCareOutlook.length === 1 ? '' : 's'} · separate from PMR defects/counts`} defaultOpen={false} className="passOutlook"><p className="lede">PASS is ongoing home-care planning, not an urgent repair list. These items stay separate from PMR findings, priority counts, and defects. Hidden PASS/internal notes stay excluded from homeowner output.</p><CollapsibleBlock title="THA PASS Review Controls" summary={`${passCareCandidates.length} candidate${passCareCandidates.length === 1 ? '' : 's'} before homeowner export · internal notes remain hidden`} defaultOpen={false} className="passReviewPanel noPrint"><p>Manual PASS candidates stay included by default. Generated continued-care items are also included by default and can be hidden here.</p><div className="passReviewGrid">{passCareCandidates.map(item => {
       const review = passReview[item.id] || {};
       const included = review.included !== false;
@@ -3257,8 +3317,12 @@ function PMR({client, intake, pmr, counts, quickHits, passCareOutlook = [], pass
       const cadence = review.cadence ?? item.cadence ?? 'As Needed';
       const resource = review.resource ?? item.resource;
       const followUpStatus = passPlanningStatusText(review.followUpStatus ?? item.followUpStatus);
+      const lastCompletedDate = review.lastCompletedDate ?? item.lastCompletedDate ?? '';
+      const dateSource = passDateSourceText(review.dateSource ?? item.dateSource);
+      const nextSuggestedWindow = review.nextSuggestedWindow ?? item.nextSuggestedWindow ?? '';
+      const groupingNote = review.groupingNote ?? item.groupingNote ?? '';
       const internalNote = review.internalNote ?? item.internalNote ?? '';
-      return <article className={`passReviewCard ${included ? 'included' : 'hidden'}`} key={`review-${item.id}`}><div className="passReviewTop"><label className="includeToggle"><input type="checkbox" checked={included} onChange={e=>onPassReviewChange(item.id, { included: e.target.checked })}/><span><strong>{included ? 'Include' : 'Hidden from export'}</strong><small>{item.source === 'manual' ? 'Manual PASS candidate' : 'Generated continued-care item'}</small></span></label><span className="sourceBadge">{item.source === 'manual' ? 'Manual' : 'Generated'}</span></div><h4>{item.careItem}</h4><label>Homeowner-facing reason<textarea value={reason} onChange={e=>onPassReviewChange(item.id, { reason: e.target.value })}/></label><label>Target season / window<input value={targetWindow} onChange={e=>onPassReviewChange(item.id, { targetWindow: e.target.value, suggestedWindow: `Suggested window: ${e.target.value}` })}/></label><label>Suggested cadence<select value={cadence} onChange={e=>onPassReviewChange(item.id, { cadence: e.target.value })}>{PASS_CADENCE.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Responsible resource / trade<select value={resource} onChange={e=>onPassReviewChange(item.id, { resource: e.target.value })}>{PASS_RESOURCES.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Follow-up status<select value={followUpStatus} onChange={e=>onPassReviewChange(item.id, { followUpStatus: e.target.value })}>{PASS_FOLLOW_UP_STATUSES.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label className="passInternalNote">Internal THA note<textarea value={internalNote} onChange={e=>onPassReviewChange(item.id, { internalNote: e.target.value })} placeholder="Internal planning note; not shown in PMR export."/></label></article>
+      return <article className={`passReviewCard ${included ? 'included' : 'hidden'}`} key={`review-${item.id}`}><div className="passReviewTop"><label className="includeToggle"><input type="checkbox" checked={included} onChange={e=>onPassReviewChange(item.id, { included: e.target.checked })}/><span><strong>{included ? 'Include' : 'Hidden from export'}</strong><small>{item.source === 'manual' ? 'Manual PASS candidate' : 'Generated continued-care item'}</small></span></label><span className="sourceBadge">{item.source === 'manual' ? 'Manual' : 'Generated'}</span></div><h4>{item.careItem}</h4><label>Homeowner-facing reason<textarea value={reason} onChange={e=>onPassReviewChange(item.id, { reason: e.target.value })}/></label><label>Last completed date, if known<input type="date" value={lastCompletedDate} onChange={e=>onPassReviewChange(item.id, { lastCompletedDate: e.target.value })}/></label><label>Source of date<select value={dateSource} onChange={e=>onPassReviewChange(item.id, { dateSource: e.target.value })}>{PASS_DATE_SOURCES.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Next suggested service date / window<input value={nextSuggestedWindow || targetWindow} onChange={e=>onPassReviewChange(item.id, { nextSuggestedWindow: e.target.value, targetWindow: e.target.value, suggestedWindow: `Suggested window: ${e.target.value}` })}/></label><label>Recommended cadence<select value={cadence} onChange={e=>onPassReviewChange(item.id, { cadence: e.target.value })}>{PASS_CADENCE.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Responsible resource / trade<select value={resource} onChange={e=>onPassReviewChange(item.id, { resource: e.target.value })}>{PASS_RESOURCES.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Follow-up status<select value={followUpStatus} onChange={e=>onPassReviewChange(item.id, { followUpStatus: e.target.value })}>{PASS_FOLLOW_UP_STATUSES.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Optional grouping note<input value={groupingNote} onChange={e=>onPassReviewChange(item.id, { groupingNote: e.target.value })} placeholder="Could be grouped with next handyman visit"/></label><label className="passInternalNote">Internal THA note<textarea value={internalNote} onChange={e=>onPassReviewChange(item.id, { internalNote: e.target.value })} placeholder="Internal planning note; not shown in PMR export."/></label></article>
     })}</div></CollapsibleBlock><div className="passOutlookGrid">{passCareOutlook.map(item=><article className="passOutlookCard" key={item.id}><div className="findTop"><TradeIcon trade={item.rule?.trade || item.row?.answer?.trade || item.resource}/><div><h3>{item.careItem}</h3><p>{item.resource} · Care planning · {passPlanningStatusText(item.followUpStatus)}</p></div></div><div className="findGrid"><p><strong>Homeowner-facing reason:</strong><br/>{item.reason}</p><p><strong>Follow-up planning:</strong><br/>{passHomeownerFollowUpLanguage(item)}</p><p><strong>Target season / window:</strong><br/>{passSuggestedWindowText(item.targetWindow || item.suggestedWindow)}</p><p><strong>Suggested cadence:</strong><br/>{item.cadence || 'As Needed'}</p><p><strong>Responsible resource / trade:</strong><br/>{item.resource}</p></div></article>)}</div>{passCareCandidates.length > 0 && passCareOutlook.length === 0 && <p className="lede">All PASS continued-care items are hidden from the homeowner export for this draft.</p>}{passCareCandidates.some(item => !visiblePassIds.has(item.id)) && <p className="passHiddenNote noPrint">Hidden PASS items stay out of PMR export and Drive package.</p>}</CollapsibleBlock>
     <footer className="promise"><ShieldCheck/> You don’t hire trades — you hire The Homeowner Advocate. One point of contact. Every step. Every task.</footer>
   </main>

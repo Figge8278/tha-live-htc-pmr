@@ -302,3 +302,15 @@
 .collapsibleBlock{border-color:#d6e2e8}.collapsibleHeader{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.collapsibleHeader h2{margin:0;display:flex;gap:8px;align-items:center;color:var(--navy)}.collapsibleSummary{margin:5px 0 0;color:var(--muted);font-weight:800;line-height:1.35}.collapseToggle{background:#fff;border:1px solid #cfd9df;color:var(--navy);white-space:nowrap}.collapsibleContent{margin-top:14px}.collapsibleBlock.isCollapsed{background:#fbfdfe}.collapsibleBlock.isCollapsed .collapsibleHeader h2{margin-bottom:0}@media screen{.collapsibleBlock.isCollapsed .collapsibleContent{display:none}}@media print{.collapseToggle{display:none!important}.collapsibleContent{display:block!important}.collapsibleBlock{break-inside:avoid}}
 .passOutlook.collapsibleBlock{border-color:#cbdfe9;background:#fbfdfe}.passOutlook.collapsibleBlock.isCollapsed{border-style:dashed}.passReviewPanel.collapsibleBlock{box-shadow:none;margin:14px 0 18px}.passReviewPanel.collapsibleBlock .collapsibleHeader h2{font-size:18px}.guideSupportBlock .guideGrid{padding:0}.intakeFollowUpBlock .checkList{margin-top:0}
 @media(max-width:700px){.collapsibleHeader{flex-direction:column}.collapseToggle{width:100%;justify-content:center}}
+
+.passCalendar.collapsibleBlock{border-color:#bcd8e8;background:#f7fbfd}
+.passCalendarLegend{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.passCalendarLegend span{border:1px solid #d6e2e8;background:#fff;border-radius:999px;color:var(--navy);font-weight:900;padding:7px 10px;font-size:12px}
+.passCalendarTable{border:1px solid #d6e2e8;border-radius:18px;overflow:auto;background:#fff}
+.passCalendarHeader,.passCalendarRow{display:grid;grid-template-columns:minmax(220px,1.5fr) minmax(130px,.8fr) minmax(120px,.8fr) minmax(150px,1fr) minmax(220px,1.35fr) minmax(120px,.8fr) minmax(130px,.8fr) minmax(160px,1fr);min-width:1180px}
+.passCalendarHeader{background:var(--navy);color:#fff;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}
+.passCalendarHeader span,.passCalendarRow>span,.passCalendarRow>div{padding:11px;border-right:1px solid #d6e2e8;border-bottom:1px solid #d6e2e8}
+.passCalendarHeader span:last-child,.passCalendarRow>span:last-child{border-right:0}.passCalendarRow:last-child>span,.passCalendarRow:last-child>div{border-bottom:0}
+.passCalendarRow strong{display:block;color:var(--navy);margin-bottom:4px}.passCalendarRow small{display:block;color:var(--muted);font-weight:700;line-height:1.35}.passCalendarRow span{font-weight:800;color:var(--ink);line-height:1.35}
+.passCalendarGroups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}.passCalendarGroups section{border:1px solid #d6e2e8;border-radius:18px;background:#fff;padding:14px}.passCalendarGroups h3{margin:0 0 10px;color:var(--navy)}.passCalendarGroups p{margin:8px 0;border-top:1px solid #edf3f6;padding-top:8px}.passCalendarGroups strong,.passCalendarGroups span{display:block}.passCalendarGroups span{color:var(--muted);font-weight:800;margin-top:3px}
+@media(max-width:900px){.passCalendarGroups{grid-template-columns:1fr}}
