@@ -283,7 +283,7 @@
 
 .localWorkCard,.homeownerOutputCard{align-content:start}
 .localBackupRestore{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px dashed var(--gold);border-radius:16px;background:#fffaf1;padding:12px}
-.localBackupRestore p{margin:0;color:var(--navy);font-weight:800}.localBackupRestore span{color:var(--muted);font-weight:700}
+.localBackupRestore p{margin:0;color:var(--navy);font-weight:800}.localBackupRestore span{color:var(--muted);font-weight:700}.sectionHelperText{grid-column:1/-1;margin:0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.4}
 .homeownerOutputCard{border-color:#b9d9ad;background:#fbfffa}.homeownerOutputCard .controlGroupTitle p,.localWorkCard .controlGroupTitle p{margin:3px 0 0;color:var(--muted);font-size:12px;font-weight:800}
 .businessRecordsCard{background:#fbfdff}.businessRecordsCard .driveSetupHeader p:first-of-type{font-weight:800;color:var(--navy)}
 .releaseNoteInline{margin-top:14px;border-top:1px solid #d7c4ef;padding-top:12px}.releaseNoteInline h3{margin:0 0 6px;color:var(--navy)}
