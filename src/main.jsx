@@ -736,7 +736,7 @@ function passHomeownerFollowUpLanguage(item = {}) {
   const status = passPlanningStatusText(item.followUpStatus);
   return `Continued-care status: ${status}. Best reviewed during ${windowText}, then kept on a ${cadence} cadence with ${resource}. This is planning guidance for routine care, not an urgent repair item.`;
 }
-function passManualCareRow(row = {}) {
+function passManualCareRow(row = {}, review = {}) {
   const item = {
     id: `manual-pass-${row.id}`,
     source: 'manual',
@@ -754,12 +754,15 @@ function passManualCareRow(row = {}) {
   };
   return {
     ...item,
-    ...buildPassCalendarFields({ rule: {}, rows: [row], item, review: { followUpStatus: item.followUpStatus } })
+    ...buildPassCalendarFields({ rule: {}, rows: [row], item, review: { followUpStatus: item.followUpStatus, ...review } })
   };
 }
 function buildPassCareOutlook({ intake = {}, rows = [], passReview = {} } = {}) {
   const normalizedRows = Array.isArray(rows) ? rows : [];
-  const manualRows = normalizedRows.filter(row => row.answer?.passCandidate).map(passManualCareRow);
+  const manualRows = normalizedRows.filter(row => row.answer?.passCandidate).map(row => {
+    const manualId = `manual-pass-${row.id}`;
+    return passManualCareRow(row, passReview?.[manualId] || {});
+  });
   const generatedRows = PASS_CARE_RULES.map(rule => {
     const basis = [passIntakeBasis(intake, rule), passRoutineObservationBasis(normalizedRows, rule), `Common care cadence: ${rule.cadence}`].filter(Boolean).join(' · ');
     const base = {
