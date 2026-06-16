@@ -304,14 +304,19 @@
 @media(max-width:700px){.collapsibleHeader{flex-direction:column}.collapseToggle{width:100%;justify-content:center}}
 
 .passCalendar.collapsibleBlock{border-color:#bcd8e8;background:#f7fbfd}
-.passCalendarLegend{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
-.passCalendarLegend span{border:1px solid #d6e2e8;background:#fff;border-radius:999px;color:var(--navy);font-weight:900;padding:7px 10px;font-size:12px}
+.passCalendarIntro{background:#f3f9fd;border:1px solid #cfe1ec;border-left:5px solid #5f9fbd;border-radius:16px;padding:14px 16px;color:#314756}
+.passCalendarLegend{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 16px}
+.passCalendarLegend span{display:inline-flex;align-items:center;gap:5px;border:1px solid #d6e2e8;background:#fff;border-radius:999px;color:var(--navy);font-weight:900;padding:7px 10px;font-size:12px}
+.passCalendarCareGroup{border:1px solid #d6e2e8;border-radius:20px;background:#fff;padding:14px;margin:16px 0;box-shadow:0 8px 18px rgba(13,44,73,.04)}
+.passCalendarCareGroup h3{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:0 0 10px;color:var(--navy)}.passCalendarCareGroup h3 span{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:900}
 .passCalendarTable{border:1px solid #d6e2e8;border-radius:18px;overflow:auto;background:#fff}
-.passCalendarHeader,.passCalendarRow{display:grid;grid-template-columns:minmax(220px,1.5fr) minmax(130px,.8fr) minmax(120px,.8fr) minmax(150px,1fr) minmax(220px,1.35fr) minmax(120px,.8fr) minmax(130px,.8fr) minmax(160px,1fr);min-width:1180px}
+.passCalendarHeader,.passCalendarRow{display:grid;grid-template-columns:minmax(240px,1.55fr) minmax(150px,.9fr) minmax(150px,.9fr) minmax(240px,1.45fr) minmax(130px,.8fr) minmax(150px,.9fr);min-width:1080px}
 .passCalendarHeader{background:var(--navy);color:#fff;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}
-.passCalendarHeader span,.passCalendarRow>span,.passCalendarRow>div{padding:11px;border-right:1px solid #d6e2e8;border-bottom:1px solid #d6e2e8}
+.passCalendarHeader span,.passCalendarRow>span,.passCalendarRow>div{padding:12px;border-right:1px solid #d6e2e8;border-bottom:1px solid #d6e2e8}
 .passCalendarHeader span:last-child,.passCalendarRow>span:last-child{border-right:0}.passCalendarRow:last-child>span,.passCalendarRow:last-child>div{border-bottom:0}
-.passCalendarRow strong{display:block;color:var(--navy);margin-bottom:4px}.passCalendarRow small{display:block;color:var(--muted);font-weight:700;line-height:1.35}.passCalendarRow span{font-weight:800;color:var(--ink);line-height:1.35}
+.passCalendarRow.baseline{background:#f3f9fd}.passCalendarRow.ready{background:#f5fbf3}.passCalendarRow>div:first-child{border-left:5px solid #8fb7ca}.passCalendarRow.ready>div:first-child{border-left-color:#6aa56f}
+.passCalendarRow strong{display:block;color:var(--navy);margin-bottom:4px}.passCalendarRow small{display:block;color:var(--muted);font-weight:700;line-height:1.35}.passCalendarRow span{font-weight:800;color:var(--ink);line-height:1.35}.passCalendarRow .nextWindow{display:flex;align-items:flex-start;gap:6px;color:var(--navy)}
+.passStatusChip{display:inline-flex;border-radius:999px;border:1px solid #cfe1ec;background:#eef6fb;color:var(--navy);font-style:normal;padding:6px 9px;font-size:12px;font-weight:900}.passStatusChip.ready{background:#edf6ea;border-color:#cfe5c7;color:#2d6433}
 .passCalendarGroups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}.passCalendarGroups section{border:1px solid #d6e2e8;border-radius:18px;background:#fff;padding:14px}.passCalendarGroups h3{margin:0 0 10px;color:var(--navy)}.passCalendarGroups p{margin:8px 0;border-top:1px solid #edf3f6;padding-top:8px}.passCalendarGroups strong,.passCalendarGroups span{display:block}.passCalendarGroups span{color:var(--muted);font-weight:800;margin-top:3px}
 @media(max-width:900px){.passCalendarGroups{grid-template-columns:1fr}}
 
