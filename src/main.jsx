@@ -2317,6 +2317,31 @@ function App() {
           ? 'Drive is configured. Connect Google Drive before exporting.'
           : 'Drive is not configured. Add the OAuth Client ID in Drive Setup Help or use Download Local Emergency Backup.';
   const driveClientIdSourceLabel = usingManualDriveOverride ? 'Manual override on this browser' : (hasAppDriveClientId ? 'App configuration' : 'Manual browser setup');
+  const requiredClientFields = [client.name, client.address, client.date];
+  const missingClientFieldCount = requiredClientFields.filter(value => !String(value || '').trim()).length;
+  const homeownerCompletedForCues = completedIntakeFieldCount(intake, HOMEOWNER_QUICK_INTAKE_FIELDS);
+  const fieldPrepCompletedForCues = completedIntakeFieldCount(intake, THA_FIELD_PREP_FIELDS);
+  const intakeFollowUpCount = intakeFollowUpRows.length;
+  const readyForHTC = homeownerCompletedForCues >= 2 || fieldPrepCompletedForCues >= 3 || intakeFollowUpCount > 0;
+  const answeredHtcRows = rows.filter(row => row.answer.status !== 'Not Checked' || row.answer.notes.trim() || row.answer.photos.length).length;
+  const htcProgressText = rows.length ? `${answeredHtcRows}/${rows.length} items touched` : 'No HTC items loaded';
+  const pmrNeedsReview = unreviewedIntakeRows.length > 0;
+  const passNeedsReview = passCareCandidates.some(item => {
+    const review = passReview[item.id] || {};
+    return review.included !== false && !((review.reason ?? item.reason) || '').trim();
+  });
+  const homeownerOutputReady = !missingClientFieldCount && !pmrNeedsReview;
+  const driveCueState = driveMeta.lastError ? 'warning' : (driveMeta.lastSaved || driveToken ? 'ready' : 'neutral');
+  const driveCueText = driveMeta.lastError ? 'Needs review' : (driveMeta.lastSaved ? 'Package saved' : (driveToken ? 'Connected' : 'Optional Drive upload'));
+  const workflowCues = [
+    { label: 'Client/project info', state: missingClientFieldCount ? 'missing' : 'ready', text: missingClientFieldCount ? `${missingClientFieldCount} required missing` : 'Ready' },
+    { label: 'Homeowner intake', state: intakeFollowUpCount ? 'warning' : (readyForHTC ? 'ready' : 'neutral'), text: intakeFollowUpCount ? `${intakeFollowUpCount} follow-up${intakeFollowUpCount === 1 ? '' : 's'} to review` : (readyForHTC ? 'Ready for HTC' : 'Optional / not started') },
+    { label: 'HTC walkthrough', state: answeredHtcRows ? 'ready' : 'neutral', text: htcProgressText },
+    { label: 'PMR review', state: pmrNeedsReview ? 'warning' : 'ready', text: pmrNeedsReview ? `${unreviewedIntakeRows.length} intake follow-up${unreviewedIntakeRows.length === 1 ? '' : 's'} not reviewed` : 'Ready for output' },
+    { label: 'PASS review', state: passNeedsReview ? 'warning' : (passCareCandidates.length ? 'ready' : 'neutral'), text: passNeedsReview ? 'Needs care wording' : (passCareCandidates.length ? `${passCareCandidates.length} candidate${passCareCandidates.length === 1 ? '' : 's'} ready` : 'Optional / none') },
+    { label: 'Drive package', state: driveCueState, text: driveCueText },
+    { label: 'Homeowner output', state: homeownerOutputReady ? 'ready' : 'missing', text: homeownerOutputReady ? 'Preview/download ready' : 'Needs client info or review' }
+  ];
   const updateDriveClientId = (value) => {
     setDriveClientId(value);
     if (value.trim()) {
@@ -2958,6 +2983,9 @@ function App() {
         {controlsNeedsAttention && <span className="controlAttentionPill" role="status"><AlertTriangle size={14}/> {controlsAttentionText}</span>}
         {controlsCollapsed && <button type="button" className="openControlsButton" onClick={()=>setControlsCollapsedPreference(false)}>Open Controls</button>}
       </div>
+      {!controlsCollapsed && <div className="workflowCueStrip" aria-label="Workflow completion cues">
+        {workflowCues.map(cue => <span key={cue.label} className={`workflowCue ${cue.state}`}><strong>{cue.state === 'ready' ? '✓' : (cue.state === 'warning' ? '⚠' : (cue.state === 'missing' ? '!' : '•'))} {cue.label}</strong><small>{cue.text}</small></span>)}
+      </div>}
       {!controlsCollapsed && <div className="walkthroughControlsBody">
         <section className="controlGroup sessionCard" aria-label="Walkthrough Info">
           <div className="controlGroupTitle"><h3>Walkthrough Info</h3></div>
