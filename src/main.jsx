@@ -2306,17 +2306,42 @@ function App() {
         ? 'Drive connected — ready to export.'
         : driveConfigured
           ? driveConfiguredMessage
-          : 'Drive is not configured. Add the OAuth Client ID in Drive Setup Help or use Download Emergency Backup.';
+          : 'Drive is not configured. Add the OAuth Client ID in Drive Setup Help or use Download Local Emergency Backup.';
   const driveWarningText = driveMeta.lastSaved
-    ? 'Drive export is active. Download Emergency Backup is still recommended as a safety copy.'
+    ? 'Drive export is active. Download Local Emergency Backup is still recommended as a safety copy.'
     : driveToken
       ? 'Drive connected — ready to export.'
       : hasAppDriveClientId && !usingManualDriveOverride
         ? 'Drive is configured for this app. Connect Google Drive before exporting.'
         : driveConfigured
           ? 'Drive is configured. Connect Google Drive before exporting.'
-          : 'Drive is not configured. Add the OAuth Client ID in Drive Setup Help or use Download Emergency Backup.';
+          : 'Drive is not configured. Add the OAuth Client ID in Drive Setup Help or use Download Local Emergency Backup.';
   const driveClientIdSourceLabel = usingManualDriveOverride ? 'Manual override on this browser' : (hasAppDriveClientId ? 'App configuration' : 'Manual browser setup');
+  const requiredClientFields = [client.name, client.address, client.date];
+  const missingClientFieldCount = requiredClientFields.filter(value => !String(value || '').trim()).length;
+  const homeownerCompletedForCues = completedIntakeFieldCount(intake, HOMEOWNER_QUICK_INTAKE_FIELDS);
+  const fieldPrepCompletedForCues = completedIntakeFieldCount(intake, THA_FIELD_PREP_FIELDS);
+  const intakeFollowUpCount = intakeFollowUpRows.length;
+  const readyForHTC = homeownerCompletedForCues >= 2 || fieldPrepCompletedForCues >= 3 || intakeFollowUpCount > 0;
+  const answeredHtcRows = rows.filter(row => row.answer.status !== 'Not Checked' || row.answer.notes.trim() || row.answer.photos.length).length;
+  const htcProgressText = rows.length ? `${answeredHtcRows}/${rows.length} items touched` : 'No HTC items loaded';
+  const pmrNeedsReview = unreviewedIntakeRows.length > 0;
+  const passNeedsReview = passCareCandidates.some(item => {
+    const review = passReview[item.id] || {};
+    return review.included !== false && !((review.reason ?? item.reason) || '').trim();
+  });
+  const homeownerOutputReady = !missingClientFieldCount && !pmrNeedsReview;
+  const driveCueState = driveMeta.lastError ? 'warning' : (driveMeta.lastSaved || driveToken ? 'ready' : 'neutral');
+  const driveCueText = driveMeta.lastError ? 'Needs review' : (driveMeta.lastSaved ? 'Package saved' : (driveToken ? 'Connected' : 'Optional Drive upload'));
+  const workflowCues = [
+    { label: 'Client/project info', state: missingClientFieldCount ? 'missing' : 'ready', text: missingClientFieldCount ? `${missingClientFieldCount} required missing` : 'Ready' },
+    { label: 'Homeowner intake', state: intakeFollowUpCount ? 'warning' : (readyForHTC ? 'ready' : 'neutral'), text: intakeFollowUpCount ? `${intakeFollowUpCount} follow-up${intakeFollowUpCount === 1 ? '' : 's'} to review` : (readyForHTC ? 'Ready for HTC' : 'Optional / not started') },
+    { label: 'HTC walkthrough', state: answeredHtcRows ? 'ready' : 'neutral', text: htcProgressText },
+    { label: 'PMR review', state: pmrNeedsReview ? 'warning' : 'ready', text: pmrNeedsReview ? `${unreviewedIntakeRows.length} intake follow-up${unreviewedIntakeRows.length === 1 ? '' : 's'} not reviewed` : 'Ready for output' },
+    { label: 'PASS review', state: passNeedsReview ? 'warning' : (passCareCandidates.length ? 'ready' : 'neutral'), text: passNeedsReview ? 'Needs care wording' : (passCareCandidates.length ? `${passCareCandidates.length} candidate${passCareCandidates.length === 1 ? '' : 's'} ready` : 'Optional / none') },
+    { label: 'Drive package', state: driveCueState, text: driveCueText },
+    { label: 'Homeowner output', state: homeownerOutputReady ? 'ready' : 'missing', text: homeownerOutputReady ? 'Preview/download ready' : 'Needs client info or review' }
+  ];
   const updateDriveClientId = (value) => {
     setDriveClientId(value);
     if (value.trim()) {
@@ -2891,7 +2916,7 @@ function App() {
     if (includeDownload) downloadJSON();
     const payload = buildCurrentDrivePayload();
     if (!driveToken) {
-      setDriveMeta(meta => ({...meta, lastStatus: '', lastStatusTone: '', lastError: driveConfigured ? 'Drive session expired — reconnect to export.' : 'Drive is not configured. Add the OAuth Client ID in Drive Setup Help or use Download Emergency Backup.', lastErrorDetails: ''}));
+      setDriveMeta(meta => ({...meta, lastStatus: '', lastStatusTone: '', lastError: driveConfigured ? 'Drive session expired — reconnect to export.' : 'Drive is not configured. Add the OAuth Client ID in Drive Setup Help or use Download Local Emergency Backup.', lastErrorDetails: ''}));
       return;
     }
     if (!navigator.onLine) {
@@ -2958,6 +2983,9 @@ function App() {
         {controlsNeedsAttention && <span className="controlAttentionPill" role="status"><AlertTriangle size={14}/> {controlsAttentionText}</span>}
         {controlsCollapsed && <button type="button" className="openControlsButton" onClick={()=>setControlsCollapsedPreference(false)}>Open Controls</button>}
       </div>
+      {!controlsCollapsed && <div className="workflowCueStrip" aria-label="Workflow completion cues">
+        {workflowCues.map(cue => <span key={cue.label} className={`workflowCue ${cue.state}`}><strong>{cue.state === 'ready' ? '✓' : (cue.state === 'warning' ? '⚠' : (cue.state === 'missing' ? '!' : '•'))} {cue.label}</strong><small>{cue.text}</small></span>)}
+      </div>}
       {!controlsCollapsed && <div className="walkthroughControlsBody">
         <section className="controlGroup sessionCard" aria-label="Walkthrough Info">
           <div className="controlGroupTitle"><h3>Walkthrough Info</h3></div>
@@ -2967,26 +2995,27 @@ function App() {
           <label>Walkthrough Date / Visit Label<input value={client.date} onChange={e=>setClient({...client,date:e.target.value})}/></label>
         </section>
         <section className="controlGroup sessionCard localWorkCard" aria-label="Local Work">
-          <div className="controlGroupTitle"><h3>1. Local Work</h3><p>Start, save, reopen, or restore work on this device.</p></div>
+          <div className="controlGroupTitle"><h3>1. Local Work / This Device</h3><p>Autosaves and saved sessions stay in this browser on this device unless you download or upload them.</p></div>
           <div className="walkthroughActions" aria-label="Walkthrough save and backup actions">
-            <button type="button" onClick={startNewWalkthrough}>New Blank Walkthrough</button>
-            <div className="manualSaveGroup"><button type="button" onClick={saveWalkthrough}>Save Working Walkthrough</button><span className={`saveStatus ${saveStatus.state}`} role="status" aria-live="polite"><span className="saveStatusDot" aria-hidden="true"></span>{saveStatusText(saveStatus, hasUnsavedVisiblePhotos)}</span></div>
+            <button type="button" onClick={startNewWalkthrough}>New Blank Local Walkthrough</button>
+            <div className="manualSaveGroup"><button type="button" onClick={saveWalkthrough}>Save Local Session</button><span className={`saveStatus ${saveStatus.state}`} role="status" aria-live="polite"><span className="saveStatusDot" aria-hidden="true"></span>{saveStatusText(saveStatus, hasUnsavedVisiblePhotos)}</span></div>
           </div>
-          <label>Saved walkthroughs<select value={selectedWalkthroughId} onChange={e=>openSavedWalkthrough(e.target.value)}><option value="">Choose saved walkthrough</option>{savedSessionList.map(session=><option key={session.id} value={session.id}>{session.name || 'Untitled Walkthrough'}{session.updatedAt ? ` · ${new Date(session.updatedAt).toLocaleString()}` : ''}</option>)}</select></label>
-          <button type="button" onClick={deleteSavedWalkthrough} disabled={!selectedWalkthroughId || !savedSessions[selectedWalkthroughId]}>Delete Selected Walkthrough</button>
-          <div className="localBackupRestore"><p><strong>Local backup / restore</strong><br/><span>Use this device backup if Drive is unavailable or you need a local recovery copy.</span></p><button type="button" onClick={downloadEmergencyBackup}><Download size={16}/> Download Emergency Backup</button></div>
+          <p className="sectionHelperText">This working walkthrough is automatically saved in this browser's local storage. “Save Local Session” updates the saved session list below; it does not create a homeowner report or upload anything to Drive.</p>
+          <label>Saved local sessions<select value={selectedWalkthroughId} onChange={e=>openSavedWalkthrough(e.target.value)}><option value="">Choose saved local session</option>{savedSessionList.map(session=><option key={session.id} value={session.id}>{session.name || 'Untitled Walkthrough'}{session.updatedAt ? ` · ${new Date(session.updatedAt).toLocaleString()}` : ''}</option>)}</select></label>
+          <button type="button" onClick={deleteSavedWalkthrough} disabled={!selectedWalkthroughId || !savedSessions[selectedWalkthroughId]}>Delete Selected Local Session</button>
+          <div className="localBackupRestore"><p><strong>Local backup download</strong><br/><span>Downloads a JSON recovery file to this device only. It is not homeowner-facing and does not upload to Drive.</span></p><button type="button" onClick={downloadEmergencyBackup}><Download size={16}/> Download Local Emergency Backup</button></div>
         </section>
         <section className="controlGroup clientCard homeownerOutputCard" aria-label="Homeowner Output">
-          <div className="controlGroupTitle"><h3>2. Homeowner Output</h3><p>Short, homeowner-friendly PMR report preview and download.</p></div>
-          <p className="driveActionHelp">Use these for the polished homeowner deliverable. Drive saves business records and editable copies separately.</p>
-          <div className="pmrPrintActions" aria-label="PMR homeowner deliverable actions"><button type="button" onClick={openStyledPMRPreview}><FileText size={16}/> Preview PMR Report Packet</button><button type="button" className="finalPrintButton" onClick={downloadStyledPMR}><Download size={16}/> Download PMR Report Packet</button><button type="button" onClick={()=>window.print()}><Printer size={16}/> Print / Save Draft PMR</button><button type="button" onClick={printFinalPMR}><Printer size={16}/> Print Final PMR</button></div>
+          <div className="controlGroupTitle"><h3>2. Homeowner Output</h3><p>Preview or download the polished PMR Report Packet for the homeowner.</p></div>
+          <p className="driveActionHelp">“Preview” opens the homeowner-facing report in a browser tab. “Download” saves the PMR Report Packet file to this device. These buttons do not update local sessions or upload business records to Drive.</p>
+          <div className="pmrPrintActions" aria-label="PMR homeowner deliverable actions"><button type="button" onClick={openStyledPMRPreview}><FileText size={16}/> Preview PMR Report Packet</button><button type="button" className="finalPrintButton" onClick={downloadStyledPMR}><Download size={16}/> Download PMR Report Packet</button><button type="button" onClick={()=>window.print()}><Printer size={16}/> Print Draft PMR</button><button type="button" onClick={printFinalPMR}><Printer size={16}/> Print Final PMR</button></div>
         </section>
         <section className="controlGroup driveStatus driveSetupPanel businessRecordsCard" aria-label="Drive / Business Records">
           <div className="driveSetupHeader">
             <div>
               <h3>3. Drive / Business Records</h3>
-              <p>Google Drive keeps the main PMR Report Packet obvious, with supporting editable copies and recovery data in secondary folders.</p>
-              <p className="driveActionHelp">Google Drive authorization still applies to the current browser session, so users may need to reconnect on another device or after the session expires.</p>
+              <p>Save internal business records, editable copies, photos, and backup data to Google Drive.</p>
+              <p className="driveActionHelp">Connect Google Drive authorizes uploads from this browser. Save Drive Package uploads a business/internal package to Drive; it is separate from the homeowner download above.</p>
             </div>
             <span className={driveToken ? 'drivePill connected' : 'drivePill'}>{driveToken ? 'Connected' : (driveConfigured ? 'Configured' : 'Not configured')}</span>
           </div>
@@ -2994,22 +3023,22 @@ function App() {
             <div className="driveBrowserStatus" role="status" aria-live="polite">
               <strong>{driveStatusMessage}</strong>
               <span>{hasAppDriveClientId && !usingManualDriveOverride ? 'Drive configured for this app.' : `Client ID source: ${driveClientIdSourceLabel}.`}</span>
-              <span>Connect Google Drive authorizes this browser session. Save Drive Package places PMR Report Packet HTML/PDF in the package root, then stores editable copies in Secondary Editable Copies and recovery data in Backup Data.</span>
+              <span>Save Drive Package uploads to Drive: PMR Report Packet HTML/PDF in the package root, editable business copies in Secondary Editable Copies, photos, and recovery backup data in Backup Data.</span>
             </div>
             <div className="originCard">
-              <span>Drive field workflow</span>
-              <p>The OAuth Client ID is app configuration. Field users should not need to paste it on each device.</p>
-              <p>Reconnect is usually enough on this browser; full setup is only needed after reset, a new browser/device, or browser storage being cleared.</p>
+              <span>Drive upload workflow</span>
+              <p>Use Connect Google Drive first, then Save Drive Package to upload business records and editable/recovery copies.</p>
+              <p>The local emergency backup remains a device download; Drive package upload is the business record copy.</p>
             </div>
           </div>
           <div className="driveSetupActions">
             <button onClick={connectDrive} disabled={driveBusy || !driveConfigured}><FolderOpen size={16}/> Connect Google Drive</button>
-            <button onClick={()=>syncDrive({retryQueue:true})} disabled={driveBusy || !driveToken}><Upload size={16}/> Save Drive Package</button>
+            <button onClick={()=>syncDrive({retryQueue:true})} disabled={driveBusy || !driveToken}><Upload size={16}/> Save Drive Package to Drive</button>
             {driveMeta.lastFolderLink ? <a className="driveFolderLink driveActionLink" href={driveMeta.lastFolderLink} target="_blank" rel="noreferrer"><FolderOpen size={14}/> Open Last Drive Folder</a> : <button type="button" disabled><FolderOpen size={16}/> Open Last Drive Folder</button>}
             <button onClick={syncPendingPhotosToDrive} disabled={driveBusy || !driveToken || !pendingPhotoCount}><Upload size={16}/> Sync Pending Photos</button>
             {copyFeedback && <span className="copyFeedback" role="status">{copyFeedback}</span>}
           </div>
-          {!driveConfigured && <div className="driveErrorBox" role="status"><AlertTriangle size={16}/><span>Drive is not configured. Add the OAuth Client ID in Drive Setup Help or use Download Emergency Backup.</span></div>}
+          {!driveConfigured && <div className="driveErrorBox" role="status"><AlertTriangle size={16}/><span>Drive is not configured. Add the OAuth Client ID in Drive Setup Help or use Download Local Emergency Backup.</span></div>}
           {driveMeta.lastStatus && <div className={`driveStatusBox ${driveMeta.lastStatusTone || 'info'}`} role="status" aria-live="polite"><CheckCircle2 size={16}/><strong>{driveMeta.lastStatus}</strong></div>}
           {driveMeta.lastError && <div className="driveErrorBox" role="alert"><AlertTriangle size={16}/><div><strong>{driveMeta.lastError}</strong>{driveMeta.lastErrorDetails && <details open><summary>Technical details</summary><pre>{driveMeta.lastErrorDetails}</pre></details>}</div></div>}
           <div className="driveMetaRow">
