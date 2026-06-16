@@ -1648,7 +1648,7 @@ function buildPmrReportHtml(payload, photoEntries = []) {
   const rows = payload.rows || [];
   const counts = { high: pmr.filter(r=>priority(r.answer.status)==='High').length, med: pmr.filter(r=>priority(r.answer.status)==='Medium').length, low: pmr.filter(r=>priority(r.answer.status)==='Low').length };
   const passCareOutlook = payload.passCareOutlook || buildPassCareOutlook({ intake: payload.intake, rows, passReview: payload.passReview });
-  const reviewedIntakeNotes = rows.filter(r => isIntakeFollowUp(r) && r.answer.reviewStatus && r.answer.reviewStatus !== 'Not Reviewed' && r.answer.reviewStatus !== INTAKE_PMR_REVIEW_STATUS);
+  const reviewedIntakeNotes = rows.filter(r => isIntakeFollowUp(r) && r.intakeField !== 'additionalConcerns' && r.answer.reviewStatus && r.answer.reviewStatus !== 'Not Reviewed' && r.answer.reviewStatus !== INTAKE_PMR_REVIEW_STATUS);
   const immediateItems = pmr.filter(r => r.answer.status === 'Immediate Concern');
   const handyItems = pmr.filter(r => r.answer.trade === 'Handyman');
   const tradeItems = pmr.filter(r => !['Handyman','Safety'].includes(r.answer.trade));
@@ -1989,6 +1989,17 @@ function blankIntakeTemplate() {
     importedUnmappedNotes: ''
   };
 }
+
+function hasWalkthroughContent(data = {}) {
+  const client = data.client || {};
+  const intake = normalizeIntakeData(data.intake || {});
+  return Boolean(
+    client.name?.trim() || client.address?.trim() || client.date?.trim() ||
+    meaningfulIntakeValue(intake.notes) || meaningfulIntakeValue(intake.priorityAreas) || meaningfulIntakeValue(intake.doNotOverlook) ||
+    Object.keys(data.answers || {}).length || Object.keys(data.roomCapture || {}).length || Object.keys(data.passReview || {}).length
+  );
+}
+
 function cleanWalkthroughData() {
   return {
     client: { name: '', address: '', date: '' },
@@ -2271,7 +2282,7 @@ function App() {
   const pmr = rows.filter(includePMRRow);
   const intakeReviewRows = rows.filter(isIntakeFollowUp);
   const unreviewedIntakeRows = intakeReviewRows.filter(r => r.answer.reviewStatus === 'Not Reviewed');
-  const reviewedIntakeNotes = intakeReviewRows.filter(r => r.answer.reviewStatus && r.answer.reviewStatus !== 'Not Reviewed' && r.answer.reviewStatus !== INTAKE_PMR_REVIEW_STATUS);
+  const reviewedIntakeNotes = intakeReviewRows.filter(r => r.intakeField !== 'additionalConcerns' && r.answer.reviewStatus && r.answer.reviewStatus !== 'Not Reviewed' && r.answer.reviewStatus !== INTAKE_PMR_REVIEW_STATUS);
   const counts = { high: pmr.filter(r=>priority(r.answer.status)==='High').length, med: pmr.filter(r=>priority(r.answer.status)==='Medium').length, low: pmr.filter(r=>priority(r.answer.status)==='Low').length };
   const quickHits = pmr.filter(r => ['Handyman','Safety'].includes(r.answer.trade) && ['15 min','30 min','45–60 min','1–2 hrs'].includes(r.answer.effort));
   const pass = rows.filter(r => r.answer.passCandidate);
@@ -2615,13 +2626,17 @@ function App() {
       autosaveReadyRef.current = true;
       return undefined;
     }
+    if (!activeWalkthroughId && !hasWalkthroughContent(currentWalkthroughData())) {
+      setSaveStatus(status => status.state === 'failed' ? status : { state: 'saved', time: '' });
+      return undefined;
+    }
     setSaveStatus(status => status.state === 'failed' ? status : { state: 'unsaved', time: status.time || '' });
     const timeout = window.setTimeout(() => {
       setSaveStatus({ state: 'saving', time: '' });
       persistCurrentWalkthroughSession();
     }, 1000);
     return () => window.clearTimeout(timeout);
-  }, [client, answers, intake, dynamicRooms, sectionOrderState, itemOrderState, pinnedItems, roomCapture, passReview, walkthroughName]);
+  }, [activeWalkthroughId, client, answers, intake, dynamicRooms, sectionOrderState, itemOrderState, pinnedItems, roomCapture, passReview, walkthroughName]);
   const applyWalkthroughData = (data) => {
     const clean = cleanWalkthroughData();
     setClient(data?.client || clean.client);
@@ -2639,13 +2654,12 @@ function App() {
     setView('intake');
   };
   const startNewWalkthrough = () => {
-    const nextId = `walkthrough-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const nextName = `New Walkthrough ${new Date().toLocaleDateString()}`;
     applyWalkthroughData(cleanWalkthroughData());
-    setWalkthroughName(nextName);
-    setActiveWalkthroughId(nextId);
+    setWalkthroughName('New Blank Walkthrough');
+    setActiveWalkthroughId('');
     setSelectedWalkthroughId('');
     setControlsCollapsed(false);
+    setSaveStatus({ state: 'saved', time: '' });
   };
   const loadDemoScenario = (scenario) => {
     const nextId = `demo-${scenario.id}-${Date.now()}`;
@@ -2717,6 +2731,11 @@ function App() {
   const downloadJSON = () => {
     const blob = new Blob([JSON.stringify(buildCurrentDrivePayload(), null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `THA-HTC-PMR-${client.name || 'client'}.json`; a.click(); URL.revokeObjectURL(url);
+  };
+  const downloadEmergencyBackup = () => {
+    downloadJSON();
+    setCopyFeedback('Emergency backup downloaded');
+    window.setTimeout(() => setCopyFeedback(''), 2500);
   };
   const downloadStyledPMR = () => {
     const html = buildCurrentStyledPmrHtml();
@@ -2955,7 +2974,7 @@ function App() {
           </div>
           <label>Saved walkthroughs<select value={selectedWalkthroughId} onChange={e=>openSavedWalkthrough(e.target.value)}><option value="">Choose saved walkthrough</option>{savedSessionList.map(session=><option key={session.id} value={session.id}>{session.name || 'Untitled Walkthrough'}{session.updatedAt ? ` · ${new Date(session.updatedAt).toLocaleString()}` : ''}</option>)}</select></label>
           <button type="button" onClick={deleteSavedWalkthrough} disabled={!selectedWalkthroughId || !savedSessions[selectedWalkthroughId]}>Delete Selected Walkthrough</button>
-          <div className="localBackupRestore"><p><strong>Local backup / restore</strong><br/><span>Use this device backup if Drive is unavailable or you need a local recovery copy.</span></p><button type="button" onClick={()=>syncDrive({includeDownload:true})}><Download size={16}/> Download Emergency Backup</button></div>
+          <div className="localBackupRestore"><p><strong>Local backup / restore</strong><br/><span>Use this device backup if Drive is unavailable or you need a local recovery copy.</span></p><button type="button" onClick={downloadEmergencyBackup}><Download size={16}/> Download Emergency Backup</button></div>
         </section>
         <section className="controlGroup clientCard homeownerOutputCard" aria-label="Homeowner Output">
           <div className="controlGroupTitle"><h3>2. Homeowner Output</h3><p>Short, homeowner-friendly PMR report preview and download.</p></div>
@@ -3303,7 +3322,7 @@ function PMR({client, intake, pmr, counts, quickHits, passCareOutlook = [], pass
         <div className="findGrid"><p><strong>What we saw:</strong><br/>{r.answer.notes || 'No additional notes recorded yet.'}</p><p><strong>Why it matters:</strong><br/>{r.why}</p><p><strong>Action certainty:</strong><br/>{certainty.title}: {certainty.body}</p><p><strong>Timing:</strong><br/>{timingFor(r, r.answer.status)} · Homeowner pace: {r.answer.pref}</p><p><strong>Photos:</strong><br/>{photoSummary(r.answer.photos)}</p><p><strong>Notes:</strong><br/>Approx. time: {r.answer.effort} · Intake context: {intakeInfluence(r, intake)}</p></div>
       </article>
     })}</CollapsibleBlock>
-    <CollapsibleBlock title="Homeowner Goals & Intake Context" icon={<Home size={20}/>} summary="Support context for the walkthrough; not a duplicate PMR deliverable" defaultOpen={false} className="intakeSummary"><div className="findGrid"><p><strong>Primary priorities:</strong><br/>{summary.priorities}</p><p><strong>Preferred pace:</strong><br/>{summary.pace}</p><p><strong>Budget mindset:</strong><br/>{summary.budget}</p><p><strong>Decision style:</strong><br/>{summary.decision}</p><p><strong>Homeowner notes:</strong><br/>{summary.notes}</p><p><strong>Workflow:</strong><br/>Intake captures context. HTC verifies and triages. PMR documents findings and next steps. PASS tracks routine continued care and stays separate from PMR counts.</p><p><strong>Systems history:</strong><br/>Panel: {intake.electricalPanel || 'Unknown'}<br/>Water shut-off: {intake.waterShutoff || 'Unknown'}<br/>Furnace: {intake.hvacService || 'Unknown'}<br/>A/C: {intake.hvacAcService || 'Unknown'}</p><p><strong>Known issues:</strong><br/>{intake.plumbingHistory || 'No plumbing history recorded.'}<br/>{intake.comfort || ''}</p><p><strong>Exterior history:</strong><br/>Roof: {intake.roofAge || 'Unknown'}<br/>Drainage: {intake.drainagePooling || 'Unknown'}<br/>Paint/Stain: {intake.paintStain || 'Unknown'}</p><p><strong>Safety history:</strong><br/>Smoke/CO: {intake.smokeCO || 'Unknown'}<br/>Fire extinguishers: {intake.fireExtinguishers || 'Unknown'}</p><p><strong>Misc. history:</strong><br/>Pest: {intake.pests || 'Unknown'}<br/>Chimney: {intake.chimney || 'Unknown'}</p><p><strong>Do-not-overlook items:</strong><br/>{intake.doNotOverlook || 'No do-not-overlook items recorded.'}</p></div></CollapsibleBlock>
+    <CollapsibleBlock title="Homeowner Goals & Intake Context" icon={<Home size={20}/>} summary="Homeowner-provided context only; internal THA field-prep notes are excluded" defaultOpen={false} className="intakeSummary"><div className="findGrid"><p><strong>Primary priorities:</strong><br/>{summary.priorities}</p><p><strong>Preferred pace:</strong><br/>{summary.pace}</p><p><strong>Budget mindset:</strong><br/>{summary.budget}</p><p><strong>Decision style:</strong><br/>{summary.decision}</p><p><strong>Homeowner notes:</strong><br/>{summary.notes}</p><p><strong>Priority areas:</strong><br/>{intake.priorityAreas || 'No priority areas recorded.'}</p><p><strong>Known issues / recurring symptoms:</strong><br/>{structuredIntakeAnswerValue(intake, 'knownIssues', 'symptoms') || 'No homeowner-provided recurring symptoms recorded.'}</p><p><strong>Recent repairs / records:</strong><br/>{structuredIntakeAnswerValue(intake, 'recentRepairs', 'completed') || intake.helpfulRecords || 'No homeowner-provided repair or records context recorded.'}</p><p><strong>Access notes:</strong><br/>{structuredIntakeAnswerValue(intake, 'accessNotes', 'access') || 'No homeowner-provided access notes recorded.'}</p><p><strong>Do-not-overlook items:</strong><br/>{intake.doNotOverlook || 'No do-not-overlook items recorded.'}</p><p><strong>Workflow:</strong><br/>Intake captures context. HTC verifies and triages. PMR documents findings and next steps. PASS tracks routine continued care and stays separate from PMR counts.</p></div></CollapsibleBlock>
     <CollapsibleBlock title="Planning Guides" icon={<ClipboardList size={20}/>} summary="Action certainty and time/investment reference" defaultOpen={false} className="guideSupportBlock"><section className="guideGrid"><div className="guideCard actionCertaintyGuide"><h2><ClipboardList size={20}/> Action Certainty Guide</h2>{ACTION_CERTAINTY_GUIDE.map(item => <p key={item.label} className={`actionGuideItem ${actionCertaintyClass(item.label)}`}><CertaintyDot label={item.label}/> <strong>{item.label}</strong><br/><span>{item.body}</span></p>)}</div><div className="guideCard timeGuideCard"><h2><Clock3 size={20}/> Time / Investment Guide</h2>{PMR_TIME_INVESTMENT_GUIDE.map(item => <p key={item.key} className={`timeGuideItem ${item.key}`}><span className="timeGuideIcon" aria-hidden="true">{item.icon}</span><strong>{item.label}</strong><span>{item.display.replace(item.label, '')}</span></p>)}</div></section></CollapsibleBlock>
     <CollapsibleBlock title="PASS Maintenance Calendar" icon={<CalendarDays/>} summary={`${passCareOutlook.length} recurring care item${passCareOutlook.length === 1 ? '' : 's'} · required even with zero PMR findings`} defaultOpen={true} className="passCalendar">
       <p className="lede">PASS Calendar items are recurring maintenance planning items, not PMR defects. Unknown service history creates a baseline-verification step rather than an overdue or urgent repair finding.</p>
