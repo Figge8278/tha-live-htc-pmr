@@ -185,7 +185,7 @@ function passCalendarState(item = {}) {
 }
 function passCalendarIntroCopy(pmrCount = 0) {
   const zeroFindingLead = pmrCount === 0 ? 'This home currently has no PMR findings, and the PASS Maintenance Calendar is still included as a proactive planning tool. ' : '';
-  return `${zeroFindingLead}The PASS Maintenance Calendar is for proactive continued home care. These items are not PMR defects and do not affect red, yellow, or green PMR counts. The calendar helps schedule routine upkeep even when the house is in good condition. Known last-service dates generate next suggested windows; unknown dates create “verify / establish baseline” planning items, not urgent concerns.`;
+  return `${zeroFindingLead}The PASS Maintenance Calendar is for proactive continued home care. These items are not PMR defects and do not affect red, yellow, or green PMR counts. The calendar helps schedule routine upkeep even when the house is in good condition. Known last-service dates generate next suggested windows; unknown dates create “Verify / Establish Baseline” planning items, not urgent concerns.`;
 }
 
 
@@ -733,7 +733,7 @@ function buildPassCalendarFields({ rule = {}, intake = {}, rows = [], review = {
   const followUpStatus = passPlanningStatusText(review.followUpStatus ?? item.followUpStatus ?? (selected?.date ? 'Not Scheduled' : 'Verify / Establish Baseline'));
   return {
     lastCompletedDate,
-    lastCompletedDisplay: selected?.date ? passDisplayDate(passIsoDate(selected.date)) : 'Unknown — verify / establish baseline',
+    lastCompletedDisplay: selected?.date ? passDisplayDate(passIsoDate(selected.date)) : 'Unknown — Verify / Establish Baseline',
     dateSource,
     nextSuggestedWindow,
     followUpStatus,
@@ -743,7 +743,7 @@ function buildPassCalendarFields({ rule = {}, intake = {}, rows = [], review = {
 }
 function passUpcomingBucket(item = {}) {
   const text = String(item.nextSuggestedWindow || item.targetWindow || '').toLowerCase();
-  if (text.includes('baseline')) return 'Verify / establish baseline';
+  if (text.includes('baseline')) return 'Verify / Establish Baseline';
   if (text.includes('spring')) return 'Spring window';
   if (text.includes('fall')) return 'Fall window';
   if (text.includes('season')) return 'Next seasonal visit';
@@ -1678,6 +1678,10 @@ function buildPhotoIndexSection(photoEntries = [], { embedded = false } = {}) {
 function buildPmrReportHtml(payload, photoEntries = []) {
   const pmr = payload.pmr || [];
   const rows = payload.rows || [];
+  const hasRequiredProjectSetup = !isMissingProjectIdentityValue(payload.client?.name) && !isMissingProjectIdentityValue(payload.client?.address) && !isMissingProjectIdentityValue(payload.client?.date);
+  if (!hasRequiredProjectSetup && !pmr.length) {
+    return reportShell('PMR Report Packet', payload.client, `<section class="card hero-card"><p class="section-kicker">Setup needed</p><h2>Complete project setup before generating the PMR Report Packet</h2><p class="lede">Enter the client name, project address, and walkthrough date / visit label before previewing or downloading the homeowner-facing PMR packet.</p></section>`, payload.walkthroughName);
+  }
   const counts = { high: pmr.filter(r=>priority(r.answer.status)==='High').length, med: pmr.filter(r=>priority(r.answer.status)==='Medium').length, low: pmr.filter(r=>priority(r.answer.status)==='Low').length };
   const passCareOutlook = payload.passCareOutlook || buildPassCareOutlook({ intake: payload.intake, rows, passReview: payload.passReview });
   const reviewedIntakeNotes = rows.filter(r => isIntakeFollowUp(r) && r.intakeField !== 'additionalConcerns' && r.answer.reviewStatus && r.answer.reviewStatus !== 'Not Reviewed' && r.answer.reviewStatus !== INTAKE_PMR_REVIEW_STATUS);
@@ -1691,7 +1695,7 @@ function buildPmrReportHtml(payload, photoEntries = []) {
   const photoCountFor = row => photoEntries.filter(entry => entry.item === row.item && entry.room === (row.roomName || row.room)).length;
   const overallSummary = pmr.length
     ? `We found ${pmr.length} PMR item${pmr.length === 1 ? '' : 's'} to consider. ${immediateItems.length ? `${immediateItems.length} item${immediateItems.length === 1 ? '' : 's'} should be handled first because they are higher concern. ` : 'No immediate higher-concern PMR items were marked. '}Room and trade views below use the same findings so the homeowner can review by location or hand a focused list to the right resource. PASS continued-care items are routine care only and are not included in PMR defect counts.`
-    : 'This home currently has no PMR findings from this walkthrough. The report still includes a proactive PASS Maintenance Calendar so routine upkeep can be planned without treating those care items as defects.';
+    : 'No immediate PMR findings were identified during this walkthrough. The home appears to be in good working order based on the reviewed areas. This report still includes a proactive PASS Maintenance Calendar to help plan routine upkeep and continued home care.';
   const visualLine = (r, options = {}) => {
     const certainty = actionCertaintyCopy(r);
     return visualLineHtml({
@@ -1717,7 +1721,7 @@ function buildPmrReportHtml(payload, photoEntries = []) {
   const roomChart = roomIssueCounts.length ? `<div class="room-chart">${roomIssueCounts.map(([room, count]) => `<div class="room-bar"><span>${htmlEscape(room)}</span><i><b style="width:${Math.max(8, (count / maxRoomIssueCount) * 100)}%"></b></i><strong>${count}</strong></div>`).join('')}</div>` : '<p><span class="not-recorded">No PMR issues recorded by room.</span></p>';
   const passLines = passCareOutlook.length ? `<div class="packet-lines">${passCareOutlook.map(passVisualLineHtml).join('')}</div>` : '<p><span class="not-recorded">No PASS continued-care items selected for this packet.</span></p>';
   const passCalendarGroups = Object.entries(groupPassCalendar(passCareOutlook, passCareGroup));
-  const passCalendarTableRows = items => items.map(item => `<tr class="pass-calendar-row ${passCalendarState(item)}"><td><strong>${reportValue(item.careItem)}</strong><small>${reportValue(item.reason, 'Routine care planning item.')}</small></td><td>${reportValue(item.cadence)}</td><td>${reportValue(item.lastCompletedDisplay || 'Unknown — verify / establish baseline')}</td><td><span class="calendar-window">📅 ${reportValue(item.nextSuggestedWindow || passSuggestedWindowText(item.targetWindow || item.suggestedWindow) || 'Establish baseline at next seasonal visit')}</span></td><td>${reportValue(item.resource)}</td><td><span class="pass-status-chip ${passCalendarState(item)}">${reportValue(passPlanningStatusText(item.followUpStatus))}</span></td></tr>`).join('');
+  const passCalendarTableRows = items => items.map(item => `<tr class="pass-calendar-row ${passCalendarState(item)}"><td><strong>${reportValue(item.careItem)}</strong><small>${reportValue(item.reason, 'Routine care planning item.')}</small></td><td>${reportValue(item.cadence)}</td><td>${reportValue(item.lastCompletedDisplay || 'Unknown — Verify / Establish Baseline')}</td><td><span class="calendar-window">📅 ${reportValue(item.nextSuggestedWindow || passSuggestedWindowText(item.targetWindow || item.suggestedWindow) || 'Establish baseline at next seasonal visit')}</span></td><td>${reportValue(item.resource)}</td><td><span class="pass-status-chip ${passCalendarState(item)}">${reportValue(passPlanningStatusText(item.followUpStatus))}</span></td></tr>`).join('');
   const passCalendarSections = passCalendarGroups.map(([groupName, items]) => `<div class="pass-calendar-group"><h3>${htmlEscape(groupName)} <span>${items.length} item${items.length === 1 ? '' : 's'}</span></h3><table class="care-table pass-calendar-table"><thead><tr><th>Care item</th><th>Recommended cadence</th><th>Last completed</th><th>Next suggested date/window</th><th>Resource/trade</th><th>Follow-up status</th></tr></thead><tbody>${passCalendarTableRows(items)}</tbody></table></div>`).join('') || '<p><span class="not-recorded">No PASS calendar items selected for this packet.</span></p>';
   const passResourceGroups = Object.entries(groupPassCalendar(passCareOutlook, item => item.resource || 'Other')).map(([resource, items]) => `<p><strong>${htmlEscape(resource)}:</strong> ${htmlEscape(items.map(item => item.careItem).join(' · '))}</p>`).join('');
   const passWindowGroups = Object.entries(groupPassCalendar(passCareOutlook, passUpcomingBucket)).map(([windowName, items]) => `<p><strong>${htmlEscape(windowName)}:</strong> ${htmlEscape(items.map(item => item.careItem).join(' · '))}</p>`).join('');
@@ -1726,7 +1730,7 @@ function buildPmrReportHtml(payload, photoEntries = []) {
     <section class="card packet-section"><p class="section-kicker">Section 1</p><h2>Snapshot / Summary</h2><p class="lede">${htmlEscape(overallSummary)}</p><div class="grid"><div class="stat high"><strong>${counts.high}</strong>Immediate</div><div class="stat medium"><strong>${counts.med}</strong>Near-Term</div><div class="stat low"><strong>${counts.low}</strong>Monitor</div><div class="stat"><strong>${pmr.length}</strong>PMR Findings</div><div class="stat"><strong>${handyItems.length}</strong>Handy Services</div><div class="stat"><strong>${tradeItems.length}</strong>Trade Items</div></div><h3>Room issue count</h3>${roomChart}</section>
     <section class="card packet-section"><p class="section-kicker">Section 2</p><h2>Room-by-Room Action List</h2><p class="lede">Same PMR findings grouped by location for homeowner review.</p>${roomSections}</section>
     <section class="card packet-section"><p class="section-kicker">Section 3</p><h2>Trade-by-Trade Action List</h2><p class="lede">Same PMR findings grouped by likely resource for handing to a plumber, electrician, handyman, or specialist.</p>${tradeSections}</section>
-    <section class="card packet-section pass-card"><p class="section-kicker">Section 4 · Required · Separate from PMR counts</p><h2>PASS Maintenance Calendar</h2><p class="lede pass-intro">${htmlEscape(passCalendarIntroCopy(pmr.length))}</p><div class="pass-calendar-legend"><span>📅 Suggested upkeep window</span><span>Neutral = verify / establish baseline</span><span>Ready = known date + next window</span><span>PMR count impact: 0</span></div>${passCalendarSections}<div class="detail-grid"><div class="detail"><span class="field-label">Grouped by resource/trade</span>${passResourceGroups || '<span class="not-recorded">No resource grouping available.</span>'}</div><div class="detail"><span class="field-label">Grouped by upcoming window</span>${passWindowGroups || '<span class="not-recorded">No window grouping available.</span>'}</div></div></section>
+    <section class="card packet-section pass-card"><p class="section-kicker">Section 4 · Required · Separate from PMR counts</p><h2>PASS Maintenance Calendar</h2><p class="lede pass-intro">${htmlEscape(passCalendarIntroCopy(pmr.length))}</p><div class="pass-calendar-legend"><span>📅 Suggested upkeep window</span><span>Neutral = Verify / Establish Baseline</span><span>Ready = known date + next window</span><span>PMR count impact: 0</span></div>${passCalendarSections}<div class="detail-grid"><div class="detail"><span class="field-label">Grouped by resource/trade</span>${passResourceGroups || '<span class="not-recorded">No resource grouping available.</span>'}</div><div class="detail"><span class="field-label">Grouped by upcoming window</span>${passWindowGroups || '<span class="not-recorded">No window grouping available.</span>'}</div></div></section>
     <section class="card packet-section pass-card"><p class="section-kicker">Section 5 · Separate from PMR counts</p><h2>PASS Continued Care Plan</h2><p class="lede">PASS is routine continued care only. These items are not PMR defects, priority counts, or urgent repair directives.</p>${passLines}</section>
     <section class="card packet-section"><p class="section-kicker">Section 6</p><h2>Detail Appendix</h2><p class="lede">Expanded notes are here so the top of the packet stays useful without losing what was seen, why it matters, action certainty, timing, and photo references.</p>${detailRows}</section>
     ${reviewedIntakeNotes.length ? `<section class="card packet-section"><h2>Reviewed Intake Follow-Up Context</h2><p class="lede">Included as homeowner context only. Intake alone does not create a PMR finding.</p><ul class="next-step-list">${intakeList}</ul></section>` : ''}
@@ -3046,7 +3050,7 @@ function App() {
         <section className="controlGroup clientCard homeownerOutputCard" aria-label="Homeowner Output">
           <div className="controlGroupTitle"><h3>2. Homeowner Output</h3><p>Preview or download the polished PMR Report Packet for the homeowner.</p></div>
           <p className="driveActionHelp">“Preview” opens the homeowner-facing report in a browser tab. “Download” saves the PMR Report Packet file to this device. These buttons do not update local sessions or upload business records to Drive.</p>
-          <div className="pmrPrintActions" aria-label="PMR homeowner deliverable actions"><button type="button" onClick={openStyledPMRPreview}><FileText size={16}/> Preview PMR Report Packet</button><button type="button" className="finalPrintButton" onClick={downloadStyledPMR}><Download size={16}/> Download PMR Report Packet</button><button type="button" onClick={()=>window.print()}><Printer size={16}/> Print Draft PMR</button><button type="button" onClick={printFinalPMR}><Printer size={16}/> Print Final PMR</button></div>
+          <div className="pmrPrintActions" aria-label="PMR homeowner deliverable actions"><button type="button" onClick={openStyledPMRPreview} disabled={!homeownerOutputReady}><FileText size={16}/> Preview PMR Report Packet</button><button type="button" className="finalPrintButton" onClick={downloadStyledPMR} disabled={!homeownerOutputReady}><Download size={16}/> Download PMR Report Packet</button><button type="button" onClick={()=>window.print()}><Printer size={16}/> Print Draft PMR</button><button type="button" onClick={printFinalPMR} disabled={!homeownerOutputReady}><Printer size={16}/> Print Final PMR</button></div>
         </section>
         <section className="controlGroup driveStatus driveSetupPanel businessRecordsCard" aria-label="Drive / Business Records">
           <div className="driveSetupHeader">
@@ -3334,6 +3338,10 @@ function CollapsibleBlock({ title, icon = null, summary = '', defaultOpen = fals
 
 function PMR({client, intake, pmr, counts, quickHits, passCareOutlook = [], passCareCandidates = passCareOutlook, passReview = {}, onPassReviewChange = () => {}, unreviewedIntakeRows = [], reviewedIntakeNotes = []}) {
   const summary = intakeSummary(intake);
+  const hasRequiredProjectSetup = !isMissingProjectIdentityValue(client?.name) && !isMissingProjectIdentityValue(client?.address) && !isMissingProjectIdentityValue(client?.date);
+  if (!hasRequiredProjectSetup && !pmr.length) {
+    return <main className="pmr"><section className="pmrBlock frontSummary"><h1>Complete setup before generating</h1><p className="lede">Enter the client name, project address, and walkthrough date / visit label before previewing, downloading, or printing the PMR Report Packet.</p></section></main>;
+  }
   const visiblePassIds = new Set(passCareOutlook.map(item => item.id));
   const tradeItems = pmr.filter(r => !['Handyman','Safety'].includes(r.answer.trade));
   const immediateItems = pmr.filter(r => r.answer.status === 'Immediate Concern');
@@ -3346,7 +3354,7 @@ function PMR({client, intake, pmr, counts, quickHits, passCareOutlook = [], pass
   const maxRoomIssueCount = Math.max(1, ...roomIssueCounts.map(([, count]) => count));
   const overallSummary = pmr.length
     ? `We found ${pmr.length} PMR item${pmr.length === 1 ? '' : 's'} to consider. ${immediateItems.length ? `${immediateItems.length} item${immediateItems.length === 1 ? '' : 's'} should be handled first because they are higher concern. ` : 'No immediate higher-concern PMR items were marked. '}Handy Services items may be good candidates to group into one visit, while trade items are separated for specialist review. PASS continued-care items are listed separately as routine care and are not counted as PMR defects.`
-    : 'This home currently has no PMR findings from this walkthrough. The report still includes a proactive PASS Maintenance Calendar so routine upkeep can be planned without treating those care items as defects.';
+    : 'No immediate PMR findings were identified during this walkthrough. The home appears to be in good working order based on the reviewed areas. This report still includes a proactive PASS Maintenance Calendar to help plan routine upkeep and continued home care.';
   const compactNextStep = (row) => actionCertaintyCopy(row).next;
   const roomGroups = groupByRoom(pmr);
   const tradeGroups = groupByTrade(pmr);
@@ -3358,7 +3366,7 @@ function PMR({client, intake, pmr, counts, quickHits, passCareOutlook = [], pass
     return <article className={`passCalendarRow ${state}`}>
       <div><strong>{item.careItem}</strong><small>{item.reason}</small></div>
       <span>{item.cadence || 'As Needed'}</span>
-      <span>{item.lastCompletedDisplay || 'Unknown — verify / establish baseline'}</span>
+      <span>{item.lastCompletedDisplay || 'Unknown — Verify / Establish Baseline'}</span>
       <span className="nextWindow"><CalendarDays size={15}/>{item.nextSuggestedWindow || passSuggestedWindowText(item.targetWindow || item.suggestedWindow) || 'Establish baseline at next seasonal visit'}</span>
       <span>{item.resource || 'Other'}</span>
       <span><em className={`passStatusChip ${state}`}>{passPlanningStatusText(item.followUpStatus)}</em></span>
@@ -3395,7 +3403,7 @@ function PMR({client, intake, pmr, counts, quickHits, passCareOutlook = [], pass
     <CollapsibleBlock title="Planning Guides" icon={<ClipboardList size={20}/>} summary="Action certainty and time/investment reference" defaultOpen={false} className="guideSupportBlock"><section className="guideGrid"><div className="guideCard actionCertaintyGuide"><h2><ClipboardList size={20}/> Action Certainty Guide</h2>{ACTION_CERTAINTY_GUIDE.map(item => <p key={item.label} className={`actionGuideItem ${actionCertaintyClass(item.label)}`}><CertaintyDot label={item.label}/> <strong>{item.label}</strong><br/><span>{item.body}</span></p>)}</div><div className="guideCard timeGuideCard"><h2><Clock3 size={20}/> Time / Investment Guide</h2>{PMR_TIME_INVESTMENT_GUIDE.map(item => <p key={item.key} className={`timeGuideItem ${item.key}`}><span className="timeGuideIcon" aria-hidden="true">{item.icon}</span><strong>{item.label}</strong><span>{item.display.replace(item.label, '')}</span></p>)}</div></section></CollapsibleBlock>
     <CollapsibleBlock title="PASS Maintenance Calendar" icon={<CalendarDays/>} summary={`${passCareOutlook.length} recurring care item${passCareOutlook.length === 1 ? '' : 's'} · required even with zero PMR findings`} defaultOpen={true} className="passCalendar">
       <p className="lede passCalendarIntro">{passCalendarIntroCopy(pmr.length)}</p>
-      <div className="passCalendarLegend"><span><CalendarDays size={14}/> Suggested upkeep window</span><span>Neutral = verify / establish baseline</span><span>Ready = known date + next window</span><span>PMR count impact: 0</span></div>
+      <div className="passCalendarLegend"><span><CalendarDays size={14}/> Suggested upkeep window</span><span>Neutral = Verify / Establish Baseline</span><span>Ready = known date + next window</span><span>PMR count impact: 0</span></div>
       {Object.entries(passByGroup).map(([groupName, items]) => <section className="passCalendarCareGroup" key={`pass-group-${groupName}`}><h3>{groupName} <span>{items.length} item{items.length === 1 ? '' : 's'}</span></h3><div className="passCalendarTable"><div className="passCalendarHeader"><span>Care item</span><span>Recommended cadence</span><span>Last completed</span><span>Next suggested date/window</span><span>Resource/trade</span><span>Follow-up status</span></div>{items.map(item => <CalendarRow key={`calendar-${item.id}`} item={item}/>)}</div></section>)}
       <div className="passCalendarGroups"><section><h3>By resource / trade</h3>{Object.entries(passByResource).map(([resource, items]) => <p key={`resource-${resource}`}><strong>{resource}</strong><span>{items.map(item => item.careItem).join(' · ')}</span></p>)}</section><section><h3>By upcoming window</h3>{Object.entries(passByWindow).map(([windowName, items]) => <p key={`window-${windowName}`}><strong>{windowName}</strong><span>{items.map(item => item.careItem).join(' · ')}</span></p>)}</section></div>
     </CollapsibleBlock>
