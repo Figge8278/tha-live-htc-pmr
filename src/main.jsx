@@ -871,6 +871,7 @@ const livingFamilyTemplate = [
   {room:'Living / Family Rooms', zone:'Fireplace', item:'Fireplace, hearth, damper, and visible masonry', trade:'Chimney', effort:'Trade scope', prompt:'Check visible firebox, hearth cracks, damper movement, odor, staining, and last service history.', why:'Fireplaces and chimneys need regular review for fire safety, drafting, and masonry condition.', action:'Schedule chimney inspection or cleaning if service history is unknown, overdue, or symptoms are present.', pass:true, frequency:'Annual / Fall'}
 ];
 
+const DEFAULT_SECTION_ORDER = ['Exterior','Kitchen','Living / Family Rooms','Bedrooms','Bathrooms','Mechanical','Laundry','Safety'];
 const DYNAMIC_ROOM_TYPES = {
   Bedrooms: { roomType: 'Bedrooms', templateRoom: 'Bedroom', addLabel: '+ Add Room', example: 'Primary Bedroom' },
   Bathrooms: { roomType: 'Bathrooms', templateRoom: 'Bathroom', addLabel: '+ Add Room', example: 'Hall Bath' },
@@ -893,7 +894,7 @@ const DEFAULT_DYNAMIC_ROOMS = [
   { id: 'default-bedroom-1', roomName: 'Bedroom 1', roomType: 'Bedrooms' },
   { id: 'default-bathroom-1', roomName: 'Bathroom 1', roomType: 'Bathrooms' }
 ];
-const sectionOrder = [...new Set(library.map(x => x.room))];
+const sectionOrder = [...DEFAULT_SECTION_ORDER];
 const checklistLibrary = sectionOrder.flatMap(room => [
   ...library.filter(item => item.room === room),
   {
@@ -2246,6 +2247,8 @@ function App() {
   const [storageWarning, setStorageWarning] = useState('');
   const [saveStatus, setSaveStatus] = useState({ state: 'saved', time: initialState.activeId ? 'loaded' : '' });
   const [expandedChecklistItems, setExpandedChecklistItems] = useState({});
+  const [roomOverviewExpandedByRoom, setRoomOverviewExpandedByRoom] = useState({});
+  const [smartPromptExpandedByRoom, setSmartPromptExpandedByRoom] = useState({});
   const [controlsCollapsed, setControlsCollapsed] = useState(() => {
     const initialClient = initialState.data.client || {};
     const missingBasicInfo = isMissingProjectIdentityValue(initialClient.name) || isMissingProjectIdentityValue(initialClient.address) || isMissingProjectIdentityValue(initialClient.date);
@@ -2284,21 +2287,39 @@ function App() {
   }, [controlsCollapsed]);
   const baseSections = useMemo(() => {
     const list = [];
-    sectionOrder.forEach(room => {
-      if (room === 'Kitchen') {
-        list.push({ key: room, label: room, rows: buildStaticSectionRows(room) });
+    sectionOrder.forEach(groupKey => {
+      if (groupKey === 'Exterior') {
+        list.push({ key: 'Exterior', label: 'Exterior', rows: buildStaticSectionRows('Exterior') });
+        return;
+      }
+      if (groupKey === 'Kitchen') {
+        list.push({ key: 'Kitchen', label: 'Kitchen', rows: buildStaticSectionRows('Kitchen') });
+        return;
+      }
+      if (groupKey === 'Mechanical') {
+        list.push({ key: 'Mechanical', label: 'Mechanical', rows: buildStaticSectionRows('Mechanical') });
+        return;
+      }
+      if (groupKey === 'Laundry') {
+        list.push({ key: 'Laundry', label: 'Laundry', rows: buildStaticSectionRows('Laundry') });
+        return;
+      }
+      if (groupKey === 'Safety') {
+        list.push({ key: 'Safety', label: 'Safety', rows: buildStaticSectionRows('Safety') });
+        return;
+      }
+      if (groupKey === 'Living / Family Rooms') {
         dynamicRooms.filter(x => x.roomType === 'Living / Family Rooms').forEach(roomConfig => list.push({ key: roomConfig.id, label: roomConfig.roomName, roomType: roomConfig.roomType, roomName: roomConfig.roomName, rows: buildDynamicRoomRows(roomConfig) }));
         return;
       }
-      if (room === 'Bedroom') {
+      if (groupKey === 'Bedrooms') {
         dynamicRooms.filter(x => x.roomType === 'Bedrooms').forEach(roomConfig => list.push({ key: roomConfig.id, label: roomConfig.roomName, roomType: roomConfig.roomType, roomName: roomConfig.roomName, rows: buildDynamicRoomRows(roomConfig) }));
         return;
       }
-      if (room === 'Bathroom') {
+      if (groupKey === 'Bathrooms') {
         dynamicRooms.filter(x => x.roomType === 'Bathrooms').forEach(roomConfig => list.push({ key: roomConfig.id, label: roomConfig.roomName, roomType: roomConfig.roomType, roomName: roomConfig.roomName, rows: buildDynamicRoomRows(roomConfig) }));
         return;
       }
-      if (!DYNAMIC_TEMPLATE_ROOMS.includes(room)) list.push({ key: room, label: room, rows: buildStaticSectionRows(room) });
     });
     return list;
   }, [dynamicRooms]);
@@ -2884,6 +2905,12 @@ function App() {
     safeLocalStorageSet(WALKTHROUGH_CONTROLS_COLLAPSED_KEY, collapsed ? 'true' : 'false', applyStorageFailure);
   };
   const roomRows = rows.filter(r => r.sectionKey === activeRoom);
+  const currentRoomCapture = roomCaptureFor(activeRoom);
+  const activeRoomLabel = rooms.find(r => r.key === activeRoom)?.label || activeRoom;
+  const isRoomOverviewExpanded = Boolean(roomOverviewExpandedByRoom[activeRoom]);
+  const isSmartPromptExpanded = Boolean(smartPromptExpandedByRoom[activeRoom]);
+  const toggleRoomOverview = () => setRoomOverviewExpandedByRoom(prev => ({ ...prev, [activeRoom]: !prev[activeRoom] }));
+  const toggleSmartPrompt = () => setSmartPromptExpandedByRoom(prev => ({ ...prev, [activeRoom]: !prev[activeRoom] }));
   const setChecklistRowsExpanded = (sectionKey, expanded) => {
     const sectionItemIds = rows.filter(r => r.sectionKey === sectionKey).map(r => r.id);
     setExpandedChecklistItems(prev => {
@@ -3130,9 +3157,38 @@ function App() {
     {(storageWarning || photoFeedback.message) && <section className="appWarning noPrint" role="alert" aria-live="assertive"><AlertTriangle size={18}/><div>{storageWarning && <strong>{storageWarning}</strong>}{photoFeedback.message && <span className={`photoFeedback ${photoFeedback.state}`}>{photoFeedback.message}</span>}</div></section>}
     {view === 'intake' && <IntakeView client={client} intake={intake} updateIntake={updateIntake} copyFeedback={copyFeedback} onCopyPreWalkthroughEmail={copyPreWalkthroughIntakeEmail} intakeFollowUpCount={intakeFollowUpRows.length} onReviewIntakeFollowUp={()=>{ setView('form'); setActiveRoom(INTAKE_FOLLOW_UP_SECTION_KEY); }} />}
     {view === 'form' && <main className="grid">
-      <aside className="roomNav noPrint"><h3>Walkthrough Sections</h3><div className="addRoomTools">{Object.values(DYNAMIC_ROOM_TYPES).map(type => <button key={type.roomType} onClick={()=>addDynamicRoom(type.roomType)}>{type.addLabel} {type.roomType}</button>)}</div>{rooms.map(r => <div key={r.key} className="sectionNavRow" draggable onDragStart={()=>setDragSectionKey(r.key)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); moveSection(dragSectionKey, r.key); setDragSectionKey('');}} onDragEnd={()=>setDragSectionKey('')}><span className="sectionDragHandle" title="Drag to reorder walkthrough flow">⋮⋮</span><button className={`sectionSelect ${activeRoom===r.key?'active':''} ${roomSummaryFor(r).hasAttention ? 'hasRoomAttention' : 'roomGood'}`} onClick={()=>setActiveRoom(r.key)}><span className="sectionName">{r.label}</span><span className="roomSummaryBadges" aria-label={`${r.label} room summary`}>{roomSummaryFor(r).badges.map(badge => <span key={badge.key} className={`roomSummaryBadge ${badge.tone}`}>{badge.label}</span>)}</span></button></div>)}<div className="hint"><Camera size={18}/> Prompt: Capture context, close-up, and detail photos. Store by room/item folder path.</div></aside>
+      <aside className="roomNav noPrint"><h3>Walkthrough Sections</h3>{rooms.map((r, index) => {
+        const groupType = r.roomType;
+        const showGroupAddButton = groupType === 'Living / Family Rooms' || groupType === 'Bedrooms' || groupType === 'Bathrooms';
+        const isLastInGroup = !showGroupAddButton || index === rooms.length - 1 || rooms[index + 1]?.roomType !== groupType;
+        return <React.Fragment key={r.key}><div className="sectionNavRow" draggable onDragStart={()=>setDragSectionKey(r.key)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); moveSection(dragSectionKey, r.key); setDragSectionKey('');}} onDragEnd={()=>setDragSectionKey('')}><span className="sectionDragHandle" title="Drag to reorder walkthrough flow">⋮⋮</span><button className={`sectionSelect ${activeRoom===r.key?'active':''} ${roomSummaryFor(r).hasAttention ? 'hasRoomAttention' : 'roomGood'}`} onClick={()=>setActiveRoom(r.key)}><span className="sectionName">{r.label}</span><span className="roomSummaryBadges" aria-label={`${r.label} room summary`}>{roomSummaryFor(r).badges.map(badge => <span key={badge.key} className={`roomSummaryBadge ${badge.tone}`}>{badge.label}</span>)}</span></button></div>{showGroupAddButton && isLastInGroup && <button type="button" className="sectionGroupAddButton" onClick={()=>addDynamicRoom(groupType)}>{groupType === 'Living / Family Rooms' ? '+ Add Living / Family Room' : groupType === 'Bedrooms' ? '+ Add Bedroom' : '+ Add Bathroom'}</button>}</React.Fragment>;
+      })}<div className="hint"><Camera size={18}/> Prompt: Capture context, close-up, and detail photos. Store by room/item folder path.</div></aside>
       <section className="formPanel">
-        <h1>{rooms.find(r=>r.key===activeRoom)?.label || activeRoom} HTC</h1><div className="roomCaptureShell"><div className="roomCaptureTop"><label>Overall Room Status<select value={roomCaptureFor(activeRoom).status} onChange={e=>updateRoomCapture(activeRoom,{status:e.target.value})}>{ROOM_STATUS_OPTIONS.map(x=><option key={x}>{x}</option>)}</select></label><button type="button" onClick={openRoomItemForm}>Add Item</button></div><span className="roomCaptureHelp">Add anything that needs tracking beyond ‘looks good.’</span>{roomItemFormOpen && <div className="roomItemForm"><div className="inputs roomItemInputs"><label>Item title<input value={roomItemDraft.title} onChange={e=>updateRoomItemDraft({title:e.target.value})} placeholder="e.g., Loose towel bar" autoFocus/></label><label>Item bucket/type<select value={roomItemDraft.bucket} onChange={e=>updateRoomItemDraft({bucket:e.target.value})}>{ROOM_ITEM_BUCKETS.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label></div><label className="discoveryCheck"><input type="checkbox" checked={roomItemDraft.isDiscovery} onChange={e=>updateRoomItemDraft({isDiscovery:e.target.checked})}/><span><strong>Discovery</strong><small>Unexpected, hidden, unusual, or out of the ordinary.</small></span></label><label className="notes">Notes<textarea value={roomItemDraft.notes} onChange={e=>updateRoomItemDraft({notes:e.target.value})} placeholder="Add room-level context, next step, or follow-up note."/></label><div className="roomItemActions"><button type="button" onClick={saveRoomItem} disabled={!roomItemDraft.title.trim()}>Save</button><button type="button" onClick={cancelRoomItemForm}>Cancel</button></div></div>}<label className="notes">Room Note / Voice Transcript<textarea value={roomCaptureFor(activeRoom).note} onChange={e=>updateRoomCapture(activeRoom,{note:e.target.value})} placeholder="Capture room-level context, voice transcript, or summary notes for this space."/></label><div className="roomPhotoBox"><div className="photoBox"><Camera size={18}/><strong>Room Overview Photos:</strong><label className="uploadInline"><Upload size={16}/> Add Room Overview Photo<input type="file" accept="image/*" multiple onChange={e=>{addRoomPhotos(activeRoom, e.target.files); e.target.value='';}}/></label><span>{photoSummary(roomCaptureFor(activeRoom).photos, { emptyText: 'No room overview photos attached yet', labels: ROOM_PHOTO_LABELS })}</span></div>{roomCaptureFor(activeRoom).photos.length > 0 && <div className="thumbGrid roomThumbGrid">{roomCaptureFor(activeRoom).photos.map(photo => { const displaySrc = photoDisplaySrc(photo); return <div className="thumbCard" key={photo.id}><div className="thumb">{displaySrc ? <img src={displaySrc} alt={`Overview for ${rooms.find(room=>room.key===activeRoom)?.label || activeRoom}`}/> : <Image size={24}/>}</div><span>Overview</span><span title={photo.name}>{photo.name}</span><span className={`photoStatusBadge ${photo.uploadStatus || PHOTO_UPLOAD_STATUS.LOCAL}`}>{photoStatusLabel(photo)}</span><span className="photoStatusText">{photoStatusMessage(photo, Boolean(driveToken))}</span><button onClick={()=>removeRoomPhoto(activeRoom, photo.id)} aria-label="Remove room overview photo"><X size={14}/></button></div>; })}</div>}</div><div className="smartRoomPrompt"><h3>Smart Room Prompt</h3><div className="smartRoomGrid">{SMART_ROOM_PROMPTS.map(group => <p key={group.group}><strong>{group.group}:</strong> {group.prompt}</p>)}</div></div><div className="roomItemsPlaceholder"><h3>Items list for this room</h3>{roomCaptureFor(activeRoom).items.length > 0 ? <ul className="roomItemList">{roomCaptureFor(activeRoom).items.map(item=><li key={item.id} className="roomItemRow"><div><strong>{item.title}</strong><span>{roomItemBucketLabel(item.bucket)}{item.isDiscovery ? ' · Discovery' : ''}</span>{item.notes && <p>{item.notes}</p>}</div><button type="button" onClick={()=>removeRoomItem(activeRoom, item.id)} aria-label={`Remove ${item.title}`}><X size={14}/> Remove</button></li>)}</ul> : <p>No room-level items added yet.</p>}{rows.filter(r=>r.sectionKey===activeRoom && includePMRRow(r)).length > 0 && <><h4>Checklist items currently flagged</h4><ul>{rows.filter(r=>r.sectionKey===activeRoom && includePMRRow(r)).slice(0,5).map(r=><li key={`placeholder-${r.id}`}>{r.item} · {r.answer.status}</li>)}</ul></>}</div></div><div className="checklistToolbar noPrint"><p className="lede">Fuller data capture: collapsed for faster field scanning. Open only the items that need detail.</p><div><button type="button" onClick={()=>setChecklistRowsExpanded(activeRoom, true)}>Expand All</button><button type="button" onClick={()=>setChecklistRowsExpanded(activeRoom, false)}>Collapse All</button></div></div>
+        <h1>{activeRoomLabel} HTC</h1>
+        <div className="roomCaptureShell">
+          <div className="roomOverviewCard">
+            <button type="button" className={`roomOverviewCardHeader ${isRoomOverviewExpanded ? 'expanded' : 'collapsed'}`} onClick={toggleRoomOverview} aria-expanded={isRoomOverviewExpanded}>
+              <div>
+                <span className="roomOverviewEyebrow">Room Overview</span>
+                <strong>{activeRoomLabel} overview</strong>
+              </div>
+              <div className="roomOverviewSummary">
+                <span className="roomOverviewSummaryItem"><strong>Status</strong><small>{currentRoomCapture.status}</small></span>
+                <span className="roomOverviewSummaryItem"><strong>Note</strong><small>{currentRoomCapture.note.trim() ? 'Yes' : 'No'}</small></span>
+                <span className="roomOverviewSummaryItem"><strong>Photos</strong><small>{currentRoomCapture.photos.length}</small></span>
+                <span className="roomOverviewSummaryItem"><strong>Items</strong><small>{currentRoomCapture.items.length}</small></span>
+              </div>
+            </button>
+            {isRoomOverviewExpanded && <div className="roomOverviewBody">
+              <label className="roomOverviewField">Overall Room Status<select value={currentRoomCapture.status} onChange={e=>updateRoomCapture(activeRoom,{status:e.target.value})}>{ROOM_STATUS_OPTIONS.map(x=><option key={x}>{x}</option>)}</select></label>
+              <label className="notes">Room Note / Voice Transcript<textarea value={currentRoomCapture.note} onChange={e=>updateRoomCapture(activeRoom,{note:e.target.value})} placeholder="Capture room-level context, voice transcript, or summary notes for this space."/></label>
+              <div className="roomPhotoBox"><div className="photoBox"><Camera size={18}/><strong>Room Overview Photos:</strong><label className="uploadInline"><Upload size={16}/> Add Room Overview Photo<input type="file" accept="image/*" multiple onChange={e=>{addRoomPhotos(activeRoom, e.target.files); e.target.value='';}}/></label><span>{photoSummary(currentRoomCapture.photos, { emptyText: 'No room overview photos attached yet', labels: ROOM_PHOTO_LABELS })}</span></div>{currentRoomCapture.photos.length > 0 && <div className="thumbGrid roomThumbGrid">{currentRoomCapture.photos.map(photo => { const displaySrc = photoDisplaySrc(photo); return <div className="thumbCard" key={photo.id}><div className="thumb">{displaySrc ? <img src={displaySrc} alt={`Overview for ${activeRoomLabel}`}/> : <Image size={24}/>}</div><span>Overview</span><span title={photo.name}>{photo.name}</span><span className={`photoStatusBadge ${photo.uploadStatus || PHOTO_UPLOAD_STATUS.LOCAL}`}>{photoStatusLabel(photo)}</span><span className="photoStatusText">{photoStatusMessage(photo, Boolean(driveToken))}</span><button onClick={()=>removeRoomPhoto(activeRoom, photo.id)} aria-label="Remove room overview photo"><X size={14}/></button></div>; })}</div>}</div>
+              <div className="roomItemsPlaceholder"><div className="roomOverviewSectionHeader"><h3>Room-level added items</h3><button type="button" onClick={openRoomItemForm}>Add Item</button></div>{roomItemFormOpen && <div className="roomItemForm"><div className="inputs roomItemInputs"><label>Item title<input value={roomItemDraft.title} onChange={e=>updateRoomItemDraft({title:e.target.value})} placeholder="e.g., Loose towel bar" autoFocus/></label><label>Item bucket/type<select value={roomItemDraft.bucket} onChange={e=>updateRoomItemDraft({bucket:e.target.value})}>{ROOM_ITEM_BUCKETS.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label></div><label className="discoveryCheck"><input type="checkbox" checked={roomItemDraft.isDiscovery} onChange={e=>updateRoomItemDraft({isDiscovery:e.target.checked})}/><span><strong>Discovery</strong><small>Unexpected, hidden, unusual, or out of the ordinary.</small></span></label><label className="notes">Notes<textarea value={roomItemDraft.notes} onChange={e=>updateRoomItemDraft({notes:e.target.value})} placeholder="Add room-level context, next step, or follow-up note."/></label><div className="roomItemActions"><button type="button" onClick={saveRoomItem} disabled={!roomItemDraft.title.trim()}>Save</button><button type="button" onClick={cancelRoomItemForm}>Cancel</button></div></div>}{currentRoomCapture.items.length > 0 ? <ul className="roomItemList">{currentRoomCapture.items.map(item=><li key={item.id} className="roomItemRow"><div><strong>{item.title}</strong><span>{roomItemBucketLabel(item.bucket)}{item.isDiscovery ? ' · Discovery' : ''}</span>{item.notes && <p>{item.notes}</p>}</div><button type="button" onClick={()=>removeRoomItem(activeRoom, item.id)} aria-label={`Remove ${item.title}`}><X size={14}/> Remove</button></li>)}</ul> : <p>No room-level items added yet.</p>}</div>
+              <div className="smartRoomPrompt"><button type="button" className={`smartRoomPromptHeader ${isSmartPromptExpanded ? 'expanded' : 'collapsed'}`} onClick={toggleSmartPrompt} aria-expanded={isSmartPromptExpanded}><h3>Smart Room Prompt</h3><span>{isSmartPromptExpanded ? 'Collapse' : 'Open'}</span></button>{isSmartPromptExpanded && <div className="smartRoomGrid">{SMART_ROOM_PROMPTS.map(group => <p key={group.group}><strong>{group.group}:</strong> {group.prompt}</p>)}</div>}</div>
+            </div>}
+          </div>
+        </div>
+        <div className="checklistToolbar noPrint"><p className="lede">Checklist line items are collapsed for faster field scanning. Expand/collapse below applies only to the detailed checklist entries.</p><div><button type="button" onClick={()=>setChecklistRowsExpanded(activeRoom, true)}>Expand All</button><button type="button" onClick={()=>setChecklistRowsExpanded(activeRoom, false)}>Collapse All</button></div></div>
         {roomRows.map(r => {
           const category = categoryForChecklistItem(r);
           const meta = categoryInfo(category);
