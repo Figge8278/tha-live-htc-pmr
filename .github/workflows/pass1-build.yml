@@ -1,0 +1,132 @@
+name: Temporary PASS 1 builder
+
+on:
+  push:
+    branches:
+      - feature/pass1-navigation-control-panel
+
+permissions:
+  contents: write
+
+jobs:
+  apply-pass1:
+    if: "!contains(github.event.head_commit.message, '[pass1-applied]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply PASS 1 source changes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          main_path = Path('src/main.jsx')
+          css_path = Path('src/style.css')
+          main = main_path.read_text()
+          css = css_path.read_text()
+
+          def replace_once(source, old, new, label):
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 match, found {count}')
+              return source.replace(old, new, 1)
+
+          release_banner = '''      <div className="releaseNote noPrint" aria-label="Current internal release note">
+              <strong>{APP_RELEASE_NOTE.label}</strong>
+              <span>{APP_RELEASE_NOTE.summary}</span>
+            </div>
+          '''
+          main = replace_once(main, release_banner, '', 'release banner')
+          old_nav = '''      <nav><button onClick={()=>setView('intake')} className={view==='intake'?'on':''}><Home size={18}/> Intake</button><button onClick={()=>setView('form')} className={view==='form'?'on':''}><ClipboardCheck size={18}/> HTC</button><button onClick={()=>setView('pmr')} className={view==='pmr'?'on':''}><FileText size={18}/> PMR</button><button onClick={()=>setView('metrics')} className={view==='metrics'?'on':''}><Clock3 size={18}/> Metrics</button></nav>'''
+          new_nav = '''      <nav><button onClick={()=>setView('intake')} className={view==='intake'?'on':''}><Home size={18}/> Intake</button><button onClick={()=>setView('form')} className={view==='form'?'on':''}><ClipboardCheck size={18}/> HTC</button><button onClick={()=>setView('pmr')} className={view==='pmr'?'on':''}><FileText size={18}/> PMR</button><button onClick={()=>setView('pass')} className={view==='pass'?'on':''}><CalendarDays size={18}/> PASS</button><button onClick={()=>setView('metrics')} className={view==='metrics'?'on':''}><Clock3 size={18}/> Metrics</button></nav>'''
+          main = replace_once(main, old_nav, new_nav, 'top navigation')
+
+          main = main.replace('Name, save, export, and output controls for this walkthrough.', 'Project setup, local work, PMR output, and records.')
+          main = main.replace('Required before final PMR packet', 'Required before PMR output')
+          intake_summary = '''        <div className="summaryItem"><span>Intake ID</span><strong title={intake.intakeId || 'Not generated yet'}>{intake.intakeId || 'Not generated yet'}</strong></div>
+          '''
+          main = replace_once(main, intake_summary, '', 'Intake ID summary')
+          main, removed_cues = re.subn(r'''\n\s*\{!controlsCollapsed && <div className="workflowCueStrip".*?</div>\}''', '', main, count=1, flags=re.S)
+          if removed_cues != 1:
+              raise SystemExit(f'workflow cues: expected 1 match, found {removed_cues}')
+
+          old_pmr_actions = '''          <div className="pmrPrintActions" aria-label="PMR homeowner deliverable actions"><button type="button" onClick={openStyledPMRPreview} disabled={!homeownerOutputReady}><FileText size={16}/> Preview PMR Report Packet</button><button type="button" className="finalPrintButton" onClick={downloadStyledPMR} disabled={!homeownerOutputReady}><Download size={16}/> Download PMR Report Packet</button><button type="button" onClick={()=>window.print()}><Printer size={16}/> Print Draft PMR</button><button type="button" onClick={printFinalPMR} disabled={!homeownerOutputReady}><Printer size={16}/> Print Final PMR</button></div>'''
+          new_pmr_actions = '''          <div className="pmrPrintActions" aria-label="PMR homeowner deliverable actions"><button type="button" onClick={()=>setView('pmr')}><FileText size={16}/> View PMR</button><button type="button" className="finalPrintButton" onClick={downloadStyledPMR} disabled={!homeownerOutputReady}><Download size={16}/> Download PMR</button><button type="button" onClick={printFinalPMR} disabled={!homeownerOutputReady}><Printer size={16}/> Print PMR</button></div>'''
+          main = replace_once(main, old_pmr_actions, new_pmr_actions, 'PMR actions')
+          main = main.replace('          {!driveConfigured && <div className="driveErrorBox" role="status"><AlertTriangle size={16}/><span>Drive is not configured. Add the OAuth Client ID in Drive Setup Help or use Download Local Emergency Backup.</span></div>}\n', '')
+          main = main.replace('          <small className="driveSetupNote">{driveWarningText}</small>\n', '')
+
+          main = main.replace('<details className="driveTroubleshooting">\n            <summary>Drive Setup Help / Troubleshooting</summary>', '<details className="driveTroubleshooting advancedControls">\n            <summary>Advanced</summary>\n            <div className="advancedSection"><h3>Drive Setup Help / Troubleshooting</h3>')
+          old_drive_close = '''            </div>
+          </details>
+        </section>'''
+          new_drive_close = '''            </div>
+            <div className="advancedDemoTools"><h3>Developer / Demo Tools</h3><p>QA-only scenarios and release notes. Real homeowner walkthroughs start from a blank local walkthrough.</p><div className="demoScenarioGrid">{DEMO_WALKTHROUGH_SCENARIOS.map(scenario => <article className="demoScenario" key={scenario.id}><div><h4>{scenario.name}</h4><p>{scenario.description}</p><ul>{scenario.checks.map(check => <li key={check}>{check}</li>)}</ul></div><button type="button" onClick={()=>loadDemoScenario(scenario)}>Load Demo</button></article>)}</div><div className="releaseNoteInline"><h3>Release Note — {APP_RELEASE_NOTE.label}</h3><p>{APP_RELEASE_NOTE.summary}</p><ul>{APP_RELEASE_NOTE.items.map(item => <li key={item}>{item}</li>)}</ul></div></div>
+            </div>
+          </details>
+        </section>'''
+          main = replace_once(main, old_drive_close, new_drive_close, 'Advanced closing block')
+          main, removed_demo = re.subn(r'''\n\s*<details className="controlGroup demoScenarioCard" aria-label="Developer / Demo Tools">.*?</details>\n\s*</div>\}''', '\n      </div>}', main, count=1, flags=re.S)
+          if removed_demo != 1:
+              raise SystemExit(f'demo controls: expected 1 match, found {removed_demo}')
+
+          main, removed_pmr_pass = re.subn(r'''\n\s*<CollapsibleBlock title="PASS Continued Care Outlook".*?\n\s*<footer className="promise">''', '\n    <footer className="promise">', main, count=1, flags=re.S)
+          if removed_pmr_pass != 1:
+              raise SystemExit(f'PMR PASS editor: expected 1 match, found {removed_pmr_pass}')
+
+          old_render = '''    {view === 'pmr' && <PMR client={client} intake={intake} pmr={pmr} counts={counts} quickHits={quickHits} passCareCandidates={passCareCandidates} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={updatePassReview} unreviewedIntakeRows={unreviewedIntakeRows} reviewedIntakeNotes={reviewedIntakeNotes} />}
+              {view === 'metrics' && <Metrics rows={rows} pmr={pmr} quickHits={quickHits} pass={pass}/>} '''
+          new_render = '''    {view === 'pmr' && <PMR client={client} intake={intake} pmr={pmr} counts={counts} quickHits={quickHits} passCareCandidates={passCareCandidates} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={updatePassReview} unreviewedIntakeRows={unreviewedIntakeRows} reviewedIntakeNotes={reviewedIntakeNotes} />}
+              {view === 'pass' && <PassWorkspace passCareCandidates={passCareCandidates} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={updatePassReview} />}
+              {view === 'metrics' && <Metrics rows={rows} pmr={pmr} quickHits={quickHits} pass={pass}/>} '''
+          main = replace_once(main, old_render, new_render, 'PASS route render')
+
+          pass_component = r'''
+function PassWorkspace({ passCareCandidates = [], passCareOutlook = [], passReview = {}, onPassReviewChange = () => {} }) {
+  const visiblePassIds = new Set(passCareOutlook.map(item => item.id));
+  return <main className="passWorkspace">
+    <header className="passWorkspaceHeader"><div><p className="eyebrow">Continued Home Care</p><h1>PASS — Precision Annual & Seasonal Services</h1><p>Adjust the selected continued-care plan here. PASS stays separate from PMR findings, urgency, and repair counts.</p></div><div className="compassCard"><CalendarDays size={38}/><span>Build the care plan<br/>one practical piece at a time.</span></div></header>
+    <section className="pmrBlock passWorkspaceIntro"><h2><CalendarDays size={20}/> Client PASS Plan</h2><p className="lede">These are editable planning items based on homeowner context, HTC observations, and routine-care rules. Changes save with the walkthrough and update the selected PASS snapshot used by PMR output.</p></section>
+    <section className="passReviewPanel passWorkspaceReview"><div className="passWorkspaceSectionHead"><div><h2>PASS Review & Planning</h2><p>{passCareCandidates.length} candidate{passCareCandidates.length === 1 ? '' : 's'} available for this client plan.</p></div><span className="sourceBadge">Internal workspace</span></div>{passCareCandidates.length ? <div className="passReviewGrid">{passCareCandidates.map(item => {
+      const review = passReview[item.id] || {};
+      const included = review.included !== false;
+      const reason = review.reason ?? item.reason;
+      const reviewedTargetWindow = review.targetWindow ?? (review.suggestedWindow ? passSuggestedWindowText(review.suggestedWindow) : undefined);
+      const targetWindow = reviewedTargetWindow ?? item.targetWindow ?? passSuggestedWindowText(item.suggestedWindow);
+      const cadence = review.cadence ?? item.cadence ?? 'As Needed';
+      const resource = review.resource ?? item.resource;
+      const followUpStatus = passPlanningStatusText(review.followUpStatus ?? item.followUpStatus);
+      const lastCompletedDate = review.lastCompletedDate ?? item.lastCompletedDate ?? '';
+      const dateSource = review.dateSource ?? item.dateSource ?? 'unknown';
+      const nextSuggestedWindow = review.nextSuggestedWindow ?? item.nextSuggestedWindow ?? '';
+      const groupingNote = review.groupingNote ?? item.groupingNote ?? '';
+      const internalNote = review.internalNote ?? item.internalNote ?? '';
+      return <article className={`passReviewCard ${included ? 'included' : 'hidden'}`} key={`workspace-review-${item.id}`}><div className="passReviewTop"><label className="includeToggle"><input type="checkbox" checked={included} onChange={e=>onPassReviewChange(item.id, { included: e.target.checked })}/><span><strong>{included ? 'Included in client plan' : 'Hidden from client plan'}</strong><small>{item.source === 'manual' ? 'Manual PASS candidate' : 'Generated continued-care item'}</small></span></label><span className="sourceBadge">{item.source === 'manual' ? 'Manual' : 'Generated'}</span></div><h4>{item.careItem}</h4><label>Homeowner-facing reason<textarea value={reason} onChange={e=>onPassReviewChange(item.id, { reason: e.target.value })}/></label><label>Last completed date, if known<input type="date" value={lastCompletedDate} onChange={e=>onPassReviewChange(item.id, { lastCompletedDate: e.target.value })}/></label><label>Source of date<select value={dateSource} onChange={e=>onPassReviewChange(item.id, { dateSource: e.target.value })}>{PASS_DATE_SOURCES.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Next suggested service date / window<input value={nextSuggestedWindow || targetWindow} onChange={e=>onPassReviewChange(item.id, { nextSuggestedWindow: e.target.value, targetWindow: e.target.value, suggestedWindow: `Suggested window: ${e.target.value}` })}/></label><label>Recommended cadence<select value={cadence} onChange={e=>onPassReviewChange(item.id, { cadence: e.target.value })}>{PASS_CADENCE.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Responsible resource / trade<select value={resource} onChange={e=>onPassReviewChange(item.id, { resource: e.target.value })}>{PASS_RESOURCES.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Follow-up status<select value={followUpStatus} onChange={e=>onPassReviewChange(item.id, { followUpStatus: e.target.value })}>{PASS_FOLLOW_UP_STATUSES.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Optional grouping note<input value={groupingNote} onChange={e=>onPassReviewChange(item.id, { groupingNote: e.target.value })} placeholder="Could be grouped with next handy visit"/></label><label className="passInternalNote">Internal THA note<textarea value={internalNote} onChange={e=>onPassReviewChange(item.id, { internalNote: e.target.value })} placeholder="Internal planning note; not shown in PMR output."/></label></article>;
+    })}</div> : <p className="lede">No PASS candidates have been created for this walkthrough yet. Routine-care rules and HTC PASS candidates will appear here when applicable.</p>}</section>
+    <section className="pmrBlock passWorkspaceSelected"><div className="passWorkspaceSectionHead"><div><h2>Selected Client Plan</h2><p>These included items feed the read-only PASS snapshot in the PMR.</p></div><span className="sourceBadge">{passCareOutlook.length} selected</span></div>{passCareOutlook.length ? <div className="passOutlookGrid">{passCareOutlook.map(item => <article className="passOutlookCard" key={`workspace-outlook-${item.id}`}><div className="findTop"><TradeIcon trade={item.rule?.trade || item.row?.answer?.trade || item.resource}/><div><h3>{item.careItem}</h3><p>{item.resource} · Care planning · {passPlanningStatusText(item.followUpStatus)}</p></div></div><div className="findGrid"><p><strong>Homeowner-facing reason:</strong><br/>{item.reason}</p><p><strong>Follow-up planning:</strong><br/>{passHomeownerFollowUpLanguage(item)}</p><p><strong>Target season / window:</strong><br/>{passSuggestedWindowText(item.targetWindow || item.suggestedWindow)}</p><p><strong>Suggested cadence:</strong><br/>{item.cadence || 'As Needed'}</p><p><strong>Responsible resource / trade:</strong><br/>{item.resource}</p></div></article>)}</div> : <p className="lede">All current PASS candidates are hidden from the client plan. Include the items that belong in the continued-care plan.</p>}{passCareCandidates.some(item => !visiblePassIds.has(item.id)) && <p className="passHiddenNote">Hidden items remain saved for THA planning and stay out of PMR output.</p>}</section>
+  </main>;
+}
+
+'''
+          main = replace_once(main, '\nfunction Metrics({rows, pmr, quickHits, pass}) {', '\n' + pass_component + 'function Metrics({rows, pmr, quickHits, pass}) {', 'PASS workspace component insertion')
+
+          css += '''\n\n/* PASS 1 — dedicated continued-care workspace and quieter control panel */
+.walkthroughControlsHeader{padding:11px 20px 6px}.walkthroughControlsHeader h2{font-size:21px}.walkthroughControlsSummary{grid-template-columns:repeat(3,minmax(120px,1fr)) auto minmax(140px,auto) minmax(150px,auto) auto;padding-bottom:10px}.walkthroughControlsBody{gap:10px;padding:12px 20px 14px}.controlGroup{padding:12px}.controlGroupTitle h3,.driveSetupHeader h3{font-size:17px}.advancedControls{margin-top:12px}.advancedControls>summary{cursor:pointer;font-weight:900;color:var(--navy);list-style:none}.advancedControls>summary::-webkit-details-marker{display:none}.advancedControls>summary:after{content:'Open';display:inline-block;margin-left:8px;border-radius:999px;background:#eef2f5;color:var(--navy);font-size:12px;padding:5px 9px}.advancedControls[open]>summary:after{content:'Collapse'}.advancedSection>h3,.advancedDemoTools>h3{margin:12px 0 8px;color:var(--navy);font-size:16px}.advancedDemoTools{margin-top:16px;padding-top:14px;border-top:1px solid #eadbc2}.advancedDemoTools>p{margin:0 0 12px;color:var(--muted);font-weight:700;line-height:1.35}.passWorkspace{max-width:1180px;margin:20px auto;padding:0 20px}.passWorkspaceHeader{display:flex;align-items:center;justify-content:space-between;gap:20px;background:#fff;border:1px solid var(--line);border-bottom:6px solid var(--gold);border-radius:28px;padding:26px;box-shadow:0 16px 34px rgba(11,54,88,.08)}.passWorkspaceHeader h1{margin:0;color:var(--navy);font-size:34px}.passWorkspaceHeader p{margin:7px 0 0;color:var(--muted);font-weight:700;line-height:1.45}.passWorkspaceHeader .eyebrow{margin:0 0 4px;color:var(--gold);font-weight:900;text-transform:uppercase;letter-spacing:.08em}.passWorkspaceIntro{margin-top:16px}.passWorkspaceSectionHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}.passWorkspaceSectionHead h2{margin:0;color:var(--navy);font-size:22px}.passWorkspaceSectionHead p{margin:4px 0 0;color:var(--muted);font-weight:700}.passWorkspaceReview{background:#f7fbfd;border-color:#d6e2e8}.passWorkspaceSelected{background:#fff}.passWorkspace .passReviewGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.passWorkspace .passReviewCard{box-shadow:0 8px 18px rgba(13,44,73,.045)}.passWorkspace .passOutlookCard{background:#fbfdfe}.passWorkspace .passHiddenNote{margin:14px 0 0}@media(max-width:1100px){.walkthroughControlsSummary{grid-template-columns:repeat(2,minmax(150px,1fr)) auto auto}.passWorkspaceHeader{align-items:flex-start;flex-direction:column}.passWorkspaceHeader .compassCard{width:100%}}@media(max-width:700px){.passWorkspace{margin:12px auto;padding:0 12px}.passWorkspaceHeader{padding:18px;border-radius:22px}.passWorkspaceHeader h1{font-size:28px}.passWorkspaceSectionHead{align-items:flex-start;flex-direction:column}.passWorkspace .passReviewGrid{grid-template-columns:1fr}}\n'''
+
+          main_path.write_text(main)
+          css_path.write_text(css)
+          PY
+      - name: Build application
+        run: |
+          npm install
+          npm run build
+      - name: Commit PASS 1 implementation
+        run: |
+          git config user.name "THA App Builder"
+          git config user.email "actions@github.com"
+          git rm .github/workflows/pass1-build.yml
+          git add src/main.jsx src/style.css
+          git commit -m "[pass1-applied] Add PASS tab and simplify walkthrough controls"
+          git push
