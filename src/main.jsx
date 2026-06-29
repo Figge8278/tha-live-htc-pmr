@@ -35,7 +35,7 @@ function CertaintyDot({label}) {
   return <span className={`certaintyDot ${actionCertaintyClass(key)}`} aria-label={key}></span>;
 }
 function HealthDot({level}) {
-  const cls = level === 'high' ? 'red' : level === 'medium' ? 'yellow' : 'green';
+  const cls = level === 'high' ? 'red' : level === 'medium' ? 'orange' : 'gold';
   return <span className={`healthDot ${cls}`} aria-label={level}></span>;
 }
 function THALogo({variant='full', className=''}) {
@@ -100,7 +100,50 @@ function CategoryLabel({category, children}) {
   return <label className={`categoryQuestion category-${meta.slug}`}>{children}<CategoryBadge category={meta.label}/></label>;
 }
 
-const STATUS = ['Good','Monitor','Needs Attention','Immediate Concern','Unknown'];
+const CONDITION_STATUS_ORDER = ['Immediate Concern','Needs Attention','Monitor','Good','Unknown'];
+
+const CONDITION_STATUS_META = {
+  'Immediate Concern': { visual: 'red', label: 'Immediate concern', rank: 0 },
+  'Needs Attention': { visual: 'orange', label: 'Needs action', rank: 1 },
+  'Monitor': { visual: 'gold', label: 'Watch / plan ahead', rank: 2 },
+  'Good': { visual: 'green', label: 'Verified / good standing', rank: 3 },
+  'Unknown': { visual: 'gray', label: 'Unknown / needs review', rank: 6 }
+};
+
+function conditionStatusMeta(status = 'Unknown') {
+  return CONDITION_STATUS_META[status] || CONDITION_STATUS_META.Unknown;
+}
+
+function conditionStatusRank(status = 'Unknown') {
+  return conditionStatusMeta(status).rank;
+}
+
+const WORKFLOW_VISUAL_ORDER = ['red','orange','gold','green','violet','blue','gray'];
+
+const WORKFLOW_STATUS_META = {
+  red: { label: 'Immediate action', rank: 0 },
+  orange: { label: 'Needs input / review', rank: 1 },
+  gold: { label: 'Watch / plan ahead', rank: 2 },
+  green: { label: 'Verified / complete', rank: 3 },
+  violet: { label: 'Planned / scheduled / deferred', rank: 4 },
+  blue: { label: 'Not applicable', rank: 5 },
+  gray: { label: 'Reference / inactive', rank: 6 }
+};
+
+const PASS_FOLLOW_UP_VISUALS = {
+  'Not Scheduled': 'orange',
+  'Verify / Establish Baseline': 'orange',
+  'Planned': 'violet',
+  'Scheduled': 'violet',
+  'Completed': 'green',
+  'Deferred': 'violet'
+};
+
+function passWorkflowMeta(status = '') {
+  return WORKFLOW_STATUS_META[PASS_FOLLOW_UP_VISUALS[status] || 'gray'];
+}
+
+const STATUS = CONDITION_STATUS_ORDER;
 const EFFORT = ['Unknown','15 min','30 min','45–60 min','1–2 hrs','Half day','Full day','Multi-day / trade scope'];
 const ACTION_CERTAINTY = ['Clear Path','Likely Path','Needs Discovery'];
 const ACTION_CERTAINTY_GUIDE = [

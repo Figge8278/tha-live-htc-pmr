@@ -27,7 +27,8 @@
 .stat span{display:flex;align-items:center;justify-content:center;gap:8px;font-weight:900}
 .certaintyDot,.healthDot{height:18px;width:18px;border-radius:50%;display:inline-block;vertical-align:middle;flex:0 0 auto;box-shadow:inset 0 -2px 0 rgba(0,0,0,.16),0 2px 8px rgba(0,0,0,.12)}
 .healthDot.red{background:#e41d25}
-.healthDot.yellow{background:#ffb703}
+.healthDot.orange{background:#e97919}
+.healthDot.gold{background:#bf8420}
 .healthDot.green{background:#52aa4b}
 .certaintyDot.clearPath{background:#38bdf8}
 .certaintyDot.likelyPath{background:#8fa7e8}
