@@ -389,3 +389,65 @@
 @media(max-width:900px){
   .statusKeyItems{display:grid;grid-template-columns:1fr}
 }
+
+/* PASS card layering */
+.passCategoryGroups{display:grid;gap:20px}
+.passCategoryGroup{border-top:1px solid #dce4e8;padding-top:16px}
+.passCategoryGroup:first-child{border-top:0;padding-top:0}
+.passCategoryHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 10px}
+.passCategoryTitle{display:flex;align-items:center;gap:8px;min-width:0}
+.passCategoryTitle h3{margin:0;color:var(--navy);font-size:16px}
+.passCategoryIcon{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:10px;background:#edf1f3;color:#53616c;flex:0 0 auto}
+.passCategoryCount{border:1px solid #d5dde1;border-radius:999px;padding:5px 9px;background:#fff;color:#53616c;font-size:12px;font-weight:900;white-space:nowrap}
+
+.passReviewCard{border-left:5px solid #84919c;gap:12px}
+.passReviewCard.workflow-red{border-color:#edc2bf;border-left-color:#e41d25;background:#fff9f8}
+.passReviewCard.workflow-orange{border-color:#efd0ad;border-left-color:#e97919;background:#fffaf5;box-shadow:0 9px 20px rgba(188,102,20,.08)}
+.passReviewCard.workflow-gold{border-left-color:#bf8420}
+.passReviewCard.workflow-green{border-left-color:#52aa4b}
+.passReviewCard.workflow-violet{border-left-color:#7856c8}
+.passReviewCard.workflow-blue{border-left-color:#2f80ed}
+.passReviewCard.workflow-gray{border-left-color:#84919c}
+
+.passReviewCardHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.passReviewTitle{min-width:0}
+.passReviewBadgeRow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:7px}
+.passReviewSubline{margin:4px 0 0;color:var(--muted);font-size:13px;font-weight:800}
+.passReviewCardToggle{flex:0 0 auto;padding:7px 10px;border-radius:10px;border:1px solid #cfdbe1;background:#fff;color:var(--navy);font-weight:900;font-size:12px}
+
+.passWorkflowBadge{display:inline-flex;align-items:center;gap:5px;border:1px solid #d5dde1;border-radius:999px;padding:4px 8px;background:#f4f6f7;color:#43515c;font-size:11px;font-weight:900;line-height:1;white-space:nowrap}
+.passWorkflowDot{width:8px;height:8px;border-radius:999px;background:#84919c;flex:0 0 auto}
+
+.passWorkflowBadge.red{border-color:#edc2bf;background:#fff9f8;color:#8f2426}
+.passWorkflowBadge.red .passWorkflowDot{background:#e41d25}
+
+.passWorkflowBadge.orange{border-color:#efd0ad;background:#fffaf5;color:#8d4b11}
+.passWorkflowBadge.orange .passWorkflowDot{background:#e97919}
+
+.passWorkflowBadge.gold{border-color:#e6d0ae;background:#fffdf8;color:#755014}
+.passWorkflowBadge.gold .passWorkflowDot{background:#bf8420}
+
+.passWorkflowBadge.green{border-color:#c8e1c3;background:#f8fcf7;color:#356f31}
+.passWorkflowBadge.green .passWorkflowDot{background:#52aa4b}
+
+.passWorkflowBadge.violet{border-color:#d7caef;background:#faf8ff;color:#5f429d}
+.passWorkflowBadge.violet .passWorkflowDot{background:#7856c8}
+
+.passWorkflowBadge.blue{border-color:#c7daf7;background:#f7fbff;color:#285d9e}
+.passWorkflowBadge.blue .passWorkflowDot{background:#2f80ed}
+
+.passWorkflowBadge.gray{border-color:#d5dde1;background:#f4f6f7;color:#53616c}
+.passWorkflowBadge.gray .passWorkflowDot{background:#84919c}
+
+.passReviewFields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.passReviewFields .wide{grid-column:1/-1}
+.passReviewFields textarea{min-height:78px}
+.passReviewFields .passInternalNote textarea{min-height:58px}
+
+@media(max-width:900px){
+  .passCategoryHeader{align-items:flex-start;flex-direction:column}
+  .passReviewCardHeader{align-items:stretch;flex-direction:column}
+  .passReviewCardToggle{width:100%}
+  .passReviewFields{grid-template-columns:1fr}
+  .passReviewFields .wide{grid-column:auto}
+}

@@ -226,7 +226,8 @@ const PASS_FOLLOW_UP_VISUALS = {
 };
 
 function passWorkflowMeta(status = '') {
-  return WORKFLOW_STATUS_META[PASS_FOLLOW_UP_VISUALS[status] || 'gray'];
+  const visual = PASS_FOLLOW_UP_VISUALS[status] || 'gray';
+  return { visual, ...WORKFLOW_STATUS_META[visual] };
 }
 
 const STATUS = CONDITION_STATUS_ORDER;
@@ -3628,23 +3629,183 @@ function PMR({client, intake, pmr, counts, quickHits, passCareOutlook = [], unre
   </main>
 }
 
+function passCandidateCategory(item = {}) {
+  const row = item.row || {};
+  const rule = item.rule || {};
+
+  return categoryForChecklistItem({
+    ...row,
+    category: row.category || rule.category || item.category || '',
+    trade: row.answer?.trade || row.trade || rule.trade || item.trade || item.resource || '',
+    item: row.item || rule.careItem || item.careItem || '',
+    prompt: row.prompt || rule.reason || item.reason || '',
+    answer: row.answer || item.answer || {}
+  });
+}
+
+function passReviewState(item = {}, passReview = {}) {
+  const review = passReview[item.id] || {};
+  const included = review.included !== false;
+  const followUpStatus = passPlanningStatusText(
+    review.followUpStatus ?? item.followUpStatus ?? 'Verify / Establish Baseline'
+  );
+  const workflow = included
+    ? passWorkflowMeta(followUpStatus)
+    : { visual: 'gray', ...WORKFLOW_STATUS_META.gray };
+
+  return { review, included, followUpStatus, workflow };
+}
+
+function PassReviewCard({ item, category, passReview, onPassReviewChange }) {
+  const { review, included, followUpStatus, workflow } = passReviewState(item, passReview);
+  const [open, setOpen] = useState(() => workflow.visual === 'orange');
+
+  const reason = review.reason ?? item.reason ?? '';
+  const targetWindow = review.targetWindow ?? item.targetWindow ?? passSuggestedWindowText(item.suggestedWindow);
+  const cadence = review.cadence ?? item.cadence ?? 'As Needed';
+  const resource = review.resource ?? item.resource;
+  const lastCompletedDate = review.lastCompletedDate ?? item.lastCompletedDate ?? '';
+  const dateSource = passDateSourceText(review.dateSource ?? item.dateSource);
+  const nextSuggestedWindow = review.nextSuggestedWindow ?? item.nextSuggestedWindow ?? '';
+  const groupingNote = review.groupingNote ?? item.groupingNote ?? '';
+  const internalNote = review.internalNote ?? item.internalNote ?? '';
+
+  return <article className={`passReviewCard ${included ? 'included' : 'hidden'} workflow-${workflow.visual}`}>
+    <div className="passReviewCardHeader">
+      <div className="passReviewTitle">
+        <div className="passReviewBadgeRow">
+          <CategoryBadge category={category}/>
+          <span className={`passWorkflowBadge ${workflow.visual}`}>
+            <span className="passWorkflowDot" aria-hidden="true"></span>
+            {workflow.label}
+          </span>
+          <span className="sourceBadge">{item.source === 'manual' ? 'Manual' : 'Generated'}</span>
+        </div>
+        <h4>{item.careItem}</h4>
+        <p className="passReviewSubline">{resource || 'Other'} · {followUpStatus}</p>
+      </div>
+
+      <button type="button" className="passReviewCardToggle" onClick={() => setOpen(value => !value)}>
+        {open ? 'Collapse' : 'Open'}
+      </button>
+    </div>
+
+    <div className="passReviewTop">
+      <label className="includeToggle">
+        <input type="checkbox" checked={included} onChange={e => onPassReviewChange(item.id, { included: e.target.checked })}/>
+        <span>
+          <strong>{included ? 'Include in PMR' : 'Hidden from export'}</strong>
+          <small>{included ? 'Shown in the homeowner-facing PASS plan.' : 'Internal reference only until re-enabled.'}</small>
+        </span>
+      </label>
+    </div>
+
+    {open && <div className="passReviewFields">
+      <label className="wide">Homeowner-facing reason
+        <textarea value={reason} onChange={e => onPassReviewChange(item.id, { reason: e.target.value })}/>
+      </label>
+
+      <label>Last completed date, if known
+        <input type="date" value={lastCompletedDate} onChange={e => onPassReviewChange(item.id, { lastCompletedDate: e.target.value })}/>
+      </label>
+
+      <label>Source of date
+        <select value={dateSource} onChange={e => onPassReviewChange(item.id, { dateSource: e.target.value })}>
+          {PASS_DATE_SOURCES.map(option => <option key={option} value={option}>{option}</option>)}
+        </select>
+      </label>
+
+      <label className="wide">Next suggested service date / window
+        <input value={nextSuggestedWindow || targetWindow} onChange={e => onPassReviewChange(item.id, {
+          nextSuggestedWindow: e.target.value,
+          targetWindow: e.target.value,
+          suggestedWindow: `Suggested window: ${e.target.value}`
+        })}/>
+      </label>
+
+      <label>Recommended cadence
+        <select value={cadence} onChange={e => onPassReviewChange(item.id, { cadence: e.target.value })}>
+          {PASS_CADENCE.map(option => <option key={option} value={option}>{option}</option>)}
+        </select>
+      </label>
+
+      <label>Responsible resource / trade
+        <select value={resource} onChange={e => onPassReviewChange(item.id, { resource: e.target.value })}>
+          {PASS_RESOURCES.map(option => <option key={option} value={option}>{option}</option>)}
+        </select>
+      </label>
+
+      <label>Follow-up status
+        <select value={followUpStatus} onChange={e => onPassReviewChange(item.id, { followUpStatus: e.target.value })}>
+          {PASS_FOLLOW_UP_STATUSES.map(option => <option key={option} value={option}>{option}</option>)}
+        </select>
+      </label>
+
+      <label className="wide">Optional grouping note
+        <input value={groupingNote} onChange={e => onPassReviewChange(item.id, { groupingNote: e.target.value })} placeholder="Could be grouped with the next Handy Services visit"/>
+      </label>
+
+      <label className="wide passInternalNote">Internal THA note
+        <textarea value={internalNote} onChange={e => onPassReviewChange(item.id, { internalNote: e.target.value })} placeholder="Internal planning note; not shown in PMR export."/>
+      </label>
+    </div>}
+  </article>;
+}
+
 function PassReviewControls({ passCareCandidates = [], passReview = {}, onPassReviewChange = () => {} }) {
-  return <CollapsibleBlock title="THA PASS Review Controls" summary={`${passCareCandidates.length} candidate${passCareCandidates.length === 1 ? '' : 's'} before homeowner export · internal notes remain hidden`} defaultOpen={true} className="passReviewPanel noPrint"><p>Manual PASS candidates stay included by default. Generated continued-care items are also included by default and can be hidden here.</p><div className="passReviewGrid">{passCareCandidates.map(item => {
-    const review = passReview[item.id] || {};
-    const included = review.included !== false;
-    const reason = review.reason ?? item.reason ?? '';
-    const reviewedTargetWindow = review.targetWindow ?? (review.suggestedWindow ? passSuggestedWindowText(review.suggestedWindow) : undefined);
-    const targetWindow = reviewedTargetWindow ?? item.targetWindow ?? passSuggestedWindowText(item.suggestedWindow);
-    const cadence = review.cadence ?? item.cadence ?? 'As Needed';
-    const resource = review.resource ?? item.resource;
-    const followUpStatus = passPlanningStatusText(review.followUpStatus ?? item.followUpStatus);
-    const lastCompletedDate = review.lastCompletedDate ?? item.lastCompletedDate ?? '';
-    const dateSource = passDateSourceText(review.dateSource ?? item.dateSource);
-    const nextSuggestedWindow = review.nextSuggestedWindow ?? item.nextSuggestedWindow ?? '';
-    const groupingNote = review.groupingNote ?? item.groupingNote ?? '';
-    const internalNote = review.internalNote ?? item.internalNote ?? '';
-    return <article className={`passReviewCard ${included ? 'included' : 'hidden'}`} key={`review-${item.id}`}><div className="passReviewTop"><label className="includeToggle"><input type="checkbox" checked={included} onChange={e=>onPassReviewChange(item.id, { included: e.target.checked })}/><span><strong>{included ? 'Include' : 'Hidden from export'}</strong><small>{item.source === 'manual' ? 'Manual PASS candidate' : 'Generated continued-care item'}</small></span></label><span className="sourceBadge">{item.source === 'manual' ? 'Manual' : 'Generated'}</span></div><h4>{item.careItem}</h4><label>Homeowner-facing reason<textarea value={reason} onChange={e=>onPassReviewChange(item.id, { reason: e.target.value })}/></label><label>Last completed date, if known<input type="date" value={lastCompletedDate} onChange={e=>onPassReviewChange(item.id, { lastCompletedDate: e.target.value })}/></label><label>Source of date<select value={dateSource} onChange={e=>onPassReviewChange(item.id, { dateSource: e.target.value })}>{PASS_DATE_SOURCES.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Next suggested service date / window<input value={nextSuggestedWindow || targetWindow} onChange={e=>onPassReviewChange(item.id, { nextSuggestedWindow: e.target.value, targetWindow: e.target.value, suggestedWindow: `Suggested window: ${e.target.value}` })}/></label><label>Recommended cadence<select value={cadence} onChange={e=>onPassReviewChange(item.id, { cadence: e.target.value })}>{PASS_CADENCE.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Responsible resource / trade<select value={resource} onChange={e=>onPassReviewChange(item.id, { resource: e.target.value })}>{PASS_RESOURCES.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Follow-up status<select value={followUpStatus} onChange={e=>onPassReviewChange(item.id, { followUpStatus: e.target.value })}>{PASS_FOLLOW_UP_STATUSES.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Optional grouping note<input value={groupingNote} onChange={e=>onPassReviewChange(item.id, { groupingNote: e.target.value })} placeholder="Could be grouped with next handyman visit"/></label><label className="passInternalNote">Internal THA note<textarea value={internalNote} onChange={e=>onPassReviewChange(item.id, { internalNote: e.target.value })} placeholder="Internal planning note; not shown in PMR export."/></label></article>;
-  })}</div></CollapsibleBlock>;
+  const groupedCandidates = useMemo(() => {
+    const classified = passCareCandidates.map(item => {
+      const state = passReviewState(item, passReview);
+      return { item, category: passCandidateCategory(item), workflow: state.workflow };
+    });
+
+    return CATEGORY_ORDER.map(category => ({
+      category,
+      items: classified
+        .filter(entry => entry.category === category)
+        .sort((a, b) => a.workflow.rank - b.workflow.rank || String(a.item.careItem || '').localeCompare(String(b.item.careItem || '')))
+    })).filter(group => group.items.length);
+  }, [passCareCandidates, passReview]);
+
+  const attentionCount = groupedCandidates.flatMap(group => group.items).filter(entry => entry.workflow.visual === 'orange').length;
+
+  return <CollapsibleBlock
+    title="THA PASS Review Controls"
+    summary={`${passCareCandidates.length} candidate${passCareCandidates.length === 1 ? '' : 's'} before homeowner export · ${attentionCount} need${attentionCount === 1 ? 's' : ''} input / review`}
+    defaultOpen={true}
+    className="passReviewPanel noPrint"
+  >
+    <p>Cards are grouped by care category. Within each category, items needing attention appear first. PASS stays editable here; PMR remains read-only for the homeowner.</p>
+
+    <div className="passCategoryGroups">
+      {groupedCandidates.map(group => {
+        const meta = categoryInfo(group.category);
+        const Icon = meta.Icon;
+
+        return <section className="passCategoryGroup" key={group.category}>
+          <header className="passCategoryHeader">
+            <div className="passCategoryTitle">
+              <span className="passCategoryIcon"><Icon size={18}/></span>
+              <h3>{group.category}</h3>
+            </div>
+            <span className="passCategoryCount">{group.items.length} item{group.items.length === 1 ? '' : 's'}</span>
+          </header>
+
+          <div className="passReviewGrid">
+            {group.items.map(({ item }) => <PassReviewCard
+              key={`review-${item.id}`}
+              item={item}
+              category={group.category}
+              passReview={passReview}
+              onPassReviewChange={onPassReviewChange}
+            />)}
+          </div>
+        </section>;
+      })}
+    </div>
+
+    {!groupedCandidates.length && <p className="lede">No PASS candidates are available for this walkthrough yet.</p>}
+  </CollapsibleBlock>;
 }
 
 function PASSWorkspace({ passCareCandidates = [], passCareOutlook = [], passReview = {}, onPassReviewChange = () => {} }) {
