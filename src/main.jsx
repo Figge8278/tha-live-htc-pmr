@@ -2207,12 +2207,31 @@ function readWalkthroughSessions() {
 }
 function initialWalkthroughState() {
   const sessions = readWalkthroughSessions();
+  const currentId = localStorage.getItem(CURRENT_WALKTHROUGH_ID_KEY) || '';
+  const currentSession = currentId && sessions[currentId]?.data && typeof sessions[currentId].data === 'object'
+    ? sessions[currentId]
+    : null;
+  const clean = cleanWalkthroughData();
+  const saved = currentSession?.data || clean;
+  const data = {
+    ...clean,
+    ...saved,
+    client: saved?.client || clean.client,
+    answers: saved?.answers || clean.answers,
+    intake: normalizeIntakeData(saved?.intake || clean.intake),
+    dynamicRooms: Array.isArray(saved?.dynamicRooms) ? saved.dynamicRooms : clean.dynamicRooms,
+    sectionOrder: Array.isArray(saved?.sectionOrder) ? saved.sectionOrder : clean.sectionOrder,
+    itemOrder: saved?.itemOrder || clean.itemOrder,
+    pinnedItems: saved?.pinnedItems || clean.pinnedItems,
+    roomCapture: saved?.roomCapture || clean.roomCapture,
+    passReview: saved?.passReview || clean.passReview
+  };
   return {
-    data: cleanWalkthroughData(),
+    data,
     sessions,
-    activeId: '',
-    selectedId: '',
-    name: 'New Blank Walkthrough'
+    activeId: currentSession ? currentId : '',
+    selectedId: currentSession ? currentId : '',
+    name: currentSession?.name || 'New Blank Walkthrough'
   };
 }
 
