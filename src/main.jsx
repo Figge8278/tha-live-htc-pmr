@@ -48,46 +48,132 @@ function displayTradeLabel(trade) {
 }
 
 
+const CATEGORY_ORDER = [
+  'Handy Services',
+  'Appliances',
+  'Electrical',
+  'Plumbing',
+  'HVAC / Mechanical',
+  'General Contractor / Remodel',
+  'Carpentry / Decks / Fences',
+  'Painting / Staining / Protective Coatings',
+  'Exterior & Site / Grounds',
+  'Safety / Life Safety',
+  'Pest',
+  'Specialty / Other'
+];
+
 const CATEGORY_META = {
+  'Handy Services': { label: 'Handy Services', slug: 'handy-services', Icon: Wrench },
+  Appliances: { label: 'Appliances', slug: 'appliances', Icon: Settings },
   Electrical: { label: 'Electrical', slug: 'electrical', Icon: Plug },
   Plumbing: { label: 'Plumbing', slug: 'plumbing', Icon: Droplets },
-  HVAC: { label: 'HVAC', slug: 'hvac', Icon: Fan },
-  Roofing: { label: 'Roofing', slug: 'roofing', Icon: Home },
-  Drainage: { label: 'Drainage', slug: 'drainage', Icon: Wind },
-  Openings: { label: 'Openings', slug: 'openings', Icon: DoorOpen },
-  Exterior: { label: 'Exterior', slug: 'exterior', Icon: TreePine },
+  'HVAC / Mechanical': { label: 'HVAC / Mechanical', slug: 'hvac-mechanical', Icon: Fan },
+  'General Contractor / Remodel': { label: 'General Contractor / Remodel', slug: 'general-contractor-remodel', Icon: HardHat },
+  'Carpentry / Decks / Fences': { label: 'Carpentry / Decks / Fences', slug: 'carpentry-decks-fences', Icon: Hammer },
+  'Painting / Staining / Protective Coatings': { label: 'Painting / Staining / Protective Coatings', slug: 'painting-staining-coatings', Icon: Paintbrush },
+  'Exterior & Site / Grounds': { label: 'Exterior & Site / Grounds', slug: 'exterior-site-grounds', Icon: TreePine },
+  'Safety / Life Safety': { label: 'Safety / Life Safety', slug: 'safety-life-safety', Icon: ShieldCheck },
   Pest: { label: 'Pest', slug: 'pest', Icon: Bug },
-  Safety: { label: 'Safety', slug: 'safety', Icon: ShieldCheck },
-  Surfaces: { label: 'Surfaces', slug: 'surfaces', Icon: Paintbrush },
-  Appliances: { label: 'Appliances', slug: 'appliances', Icon: Settings },
-  'Handy / Carpentry': { label: 'Handy / Carpentry', slug: 'handy-carpentry', Icon: Hammer },
-  'General / Misc': { label: 'General / Misc', slug: 'general-misc', Icon: ClipboardList }
+  'Specialty / Other': { label: 'Specialty / Other', slug: 'specialty-other', Icon: Search }
 };
 
-function categoryInfo(category = 'General / Misc') {
-  return CATEGORY_META[category] || CATEGORY_META['General / Misc'];
+const LEGACY_CATEGORY_MAP = {
+  Handyman: 'Handy Services',
+  Electrical: 'Electrical',
+  Plumbing: 'Plumbing',
+  HVAC: 'HVAC / Mechanical',
+  Roofing: 'Exterior & Site / Grounds',
+  Drainage: 'Exterior & Site / Grounds',
+  Openings: 'Exterior & Site / Grounds',
+  Exterior: 'Exterior & Site / Grounds',
+  Pest: 'Pest',
+  Safety: 'Safety / Life Safety',
+  Appliances: 'Appliances',
+  'Handy / Carpentry': 'Carpentry / Decks / Fences',
+  'General / Misc': 'Specialty / Other',
+  'General Contractor': 'General Contractor / Remodel',
+  Carpentry: 'Carpentry / Decks / Fences',
+  Design: 'Specialty / Other',
+  Flooring: 'Specialty / Other',
+  Landscape: 'Exterior & Site / Grounds'
+};
+
+function categoryText(item = {}) {
+  return [
+    item.category,
+    item.zone,
+    item.trade,
+    item.answer?.trade,
+    item.item,
+    item.prompt,
+    item.answer?.notes
+  ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function canonicalCategory(category = '', item = {}) {
+  const raw = String(category || '').trim();
+  const text = categoryText({ ...item, category: raw });
+  const trade = item.trade || item.answer?.trade || '';
+
+  if (/(dryer vent|dryer duct|vent cleaning|vent hose)/.test(text)) return 'Handy Services';
+  if (CATEGORY_META[raw]) return raw;
+
+  if (raw === 'Drainage' && trade === 'Handyman' && /(downspout extension|gutter extension|extension attachment|splash block)/.test(text)) {
+    return 'Handy Services';
+  }
+
+  if (raw === 'Surfaces') {
+    if (/(paint|stain|coating|finish)/.test(text)) return 'Painting / Staining / Protective Coatings';
+    if (/(trim|cabinet|carpentry|deck|fence|hinge|drawer|latch)/.test(text)) return 'Carpentry / Decks / Fences';
+    return 'Specialty / Other';
+  }
+
+  if (raw === 'Exterior' && /(paint|stain|coating|finish)/.test(text)) {
+    return 'Painting / Staining / Protective Coatings';
+  }
+
+  if (raw === 'Handy / Carpentry' && /(adjust|hardware|minor|handyman|handy service)/.test(text)) {
+    return 'Handy Services';
+  }
+
+  return LEGACY_CATEGORY_MAP[raw] || 'Specialty / Other';
+}
+
+function categoryInfo(category = 'Specialty / Other', item = {}) {
+  const canonical = canonicalCategory(category, item);
+  return CATEGORY_META[canonical] || CATEGORY_META['Specialty / Other'];
+}
+
+function categoryRank(category = '', item = {}) {
+  const canonical = canonicalCategory(category, item);
+  const rank = CATEGORY_ORDER.indexOf(canonical);
+  return rank === -1 ? CATEGORY_ORDER.length : rank;
 }
 
 function categoryForChecklistItem(item = {}) {
-  if (item.category) return item.category;
-  const zone = item.zone || '';
-  const trade = item.trade || '';
-  const text = `${zone} ${trade} ${item.item || ''}`.toLowerCase();
-  if (item.catchAll || text.includes('misc') || text.includes('sorting')) return 'General / Misc';
-  if (text.includes('electrical') || text.includes('gfci') || text.includes('outlet') || text.includes('switch')) return 'Electrical';
-  if (text.includes('plumbing') || text.includes('sink') || text.includes('drain') || text.includes('washer hose') || text.includes('water heater')) return 'Plumbing';
-  if (text.includes('hvac') || text.includes('furnace') || text.includes('a/c') || text.includes('exhaust fan')) return 'HVAC';
-  if (text.includes('roof') || text.includes('chimney') || text.includes('fireplace')) return 'Roofing';
-  if (text.includes('drainage') || text.includes('grading') || text.includes('gutter') || text.includes('downspout') || text.includes('pooling')) return 'Drainage';
-  if (text.includes('window') || text.includes('door') || text.includes('locks') || text.includes('screens') || text.includes('seals')) return 'Openings';
-  if (text.includes('exterior') || text.includes('finish') || text.includes('paint') || text.includes('stain')) return 'Exterior';
-  if (text.includes('pest') || text.includes('bug')) return 'Pest';
-  if (text.includes('safety') || text.includes('smoke') || text.includes('co detector') || text.includes('fire extinguisher') || text.includes('lint')) return 'Safety';
-  if (text.includes('surface') || text.includes('wall') || text.includes('ceiling') || text.includes('floor') || text.includes('caulk') || text.includes('grout') || text.includes('trim')) return 'Surfaces';
-  if (text.includes('appliance') || text.includes('range hood') || text.includes('dryer')) return 'Appliances';
-  if (text.includes('cabinet') || text.includes('carpentry') || text.includes('hinge') || text.includes('drawer') || text.includes('latch')) return 'Handy / Carpentry';
-  return 'General / Misc';
+  if (item.category) return canonicalCategory(item.category, item);
+
+  const text = categoryText(item);
+  const trade = item.trade || item.answer?.trade || '';
+
+  if (item.catchAll || text.includes('misc') || text.includes('sorting')) return 'Specialty / Other';
+  if (trade === 'General Contractor' || /(remodel|renovation|structural|foundation|permit|whole-home)/.test(text)) return 'General Contractor / Remodel';
+  if (/(dryer vent|dryer duct|vent cleaning|vent hose)/.test(text)) return 'Handy Services';
+  if (text.includes('appliance') || /(range hood|dryer|washer|refrigerator|dishwasher|garbage disposal)/.test(text)) return 'Appliances';
+  if (text.includes('electrical') || /(gfci|outlet|switch|panel|breaker|solar)/.test(text)) return 'Electrical';
+  if (text.includes('plumbing') || /(sink|drain|washer hose|water heater|shutoff|toilet|faucet)/.test(text)) return 'Plumbing';
+  if (text.includes('hvac') || /(furnace|a\/c|air conditioner|thermostat|exhaust fan)/.test(text)) return 'HVAC / Mechanical';
+  if (text.includes('safety') || /(smoke|co detector|fire extinguisher|life safety|lint)/.test(text)) return 'Safety / Life Safety';
+  if (text.includes('pest') || /(bug|rodent|termite|ant)/.test(text)) return 'Pest';
+  if (/(paint|stain|coating|exterior finish)/.test(text)) return 'Painting / Staining / Protective Coatings';
+  if (/(roof|chimney|fireplace|gutter|downspout|drainage|grading|pooling|window|door|screen|seal|landscape|irrigation|masonry|hardscape)/.test(text)) return 'Exterior & Site / Grounds';
+  if (trade === 'Handyman' || /(handyman|handy service|minor repair|adjustment)/.test(text)) return 'Handy Services';
+  if (/(cabinet|carpentry|hinge|drawer|latch|trim|deck|fence)/.test(text)) return 'Carpentry / Decks / Fences';
+
+  return 'Specialty / Other';
 }
+
 
 function CategoryBadge({category}) {
   const meta = categoryInfo(category);
@@ -381,7 +467,7 @@ const INTAKE_FOLLOW_UP_MAPPINGS = [
   { keys: ['roofAge','roofHistory','chimney'], category: 'Roofing', target: 'Roof / Chimney', title: 'Roofing / chimney intake follow-up', trade: 'Roof', prompt: 'Review homeowner roof/chimney history, visible roof-adjacent clues, fireplace/chimney context, and service timing if accessible.', why: 'Age and service history are useful context, but PMR findings should come from confirmed review conditions.', action: 'Note the history and add a PMR finding only when the walkthrough supports roof, flashing, leak, or chimney follow-up.' },
   { keys: ['solar'], category: 'Electrical', target: 'Electrical / Solar', title: 'Electrical / solar context follow-up', trade: 'Electrical', prompt: 'Confirm whether solar equipment is present and note visible access, labels, or homeowner context.', why: 'Solar information affects electrical context but still requires review before action is recommended.', action: 'Capture context and refer for electrical or solar-specialist review only if a confirmed concern is observed.' },
   { keys: ['windowsDoors','fogging'], category: 'Openings', target: 'Windows / Doors', title: 'Openings intake follow-up', trade: 'Handyman', prompt: 'Operate reported windows/doors where accessible and look for drafts, sticking, failed seals, locks, or hardware issues.', why: 'Homeowner-reported window and door issues often need a simple function check before prioritizing work.', action: 'Document adjustment, weatherstripping, monitoring, or trade follow-up only when the condition is confirmed.' },
-  { keys: ['paintStain','productsColors'], category: 'Exterior', target: 'Exterior / Surfaces', title: 'Exterior / surfaces intake follow-up', trade: 'Handyman', prompt: 'Review exterior finish timing, visible wear, caulk/surface condition, and any product or color label information.', why: 'Finish history is helpful for staging maintenance, but it is not automatically a PMR finding.', action: 'Use confirmed wear or missing product context to shape maintenance notes or a PMR recommendation.' },
+  { keys: ['paintStain','productsColors'], category: 'Painting / Staining / Protective Coatings', target: 'Exterior / Surfaces', title: 'Exterior / surfaces intake follow-up', trade: 'Handyman', prompt: 'Review exterior finish timing, visible wear, caulk/surface condition, and any product or color label information.', why: 'Finish history is helpful for staging maintenance, but it is not automatically a PMR finding.', action: 'Use confirmed wear or missing product context to shape maintenance notes or a PMR recommendation.' },
   { keys: ['pests'], category: 'Pest', target: 'Exterior / Interior', title: 'Pest intake follow-up', trade: 'Pest', prompt: 'Look for accessible signs related to the homeowner-reported pest history or concern.', why: 'Pest history should be separated from active evidence until field review confirms what is present.', action: 'Add a PMR finding or specialist recommendation only if active evidence or meaningful risk is observed.' },
   { keys: ['fireExtinguishers','smokeCO'], category: 'Safety', target: 'Safety Devices', title: 'Safety intake follow-up', trade: 'Safety', prompt: 'Verify extinguisher location/age and smoke/CO detector age, placement, and visible test/date information where accessible.', why: 'Safety devices are important, but intake notes should trigger review rather than automatic checklist status changes.', action: 'Recommend replacement, testing, labeling, or follow-up only when review confirms a concern or incomplete information.' },
   { keys: ['additionalConcerns'], category: 'General / Misc', target: 'General Walkthrough', title: 'General / miscellaneous intake follow-up', trade: 'Handyman', prompt: 'Use the homeowner’s additional concern as a targeted prompt during the walkthrough and capture what is actually observed.', why: 'General concerns preserve homeowner context without turning intake alone into a PMR finding.', action: 'Convert to a PMR finding only if field review confirms a specific concern that belongs in the Priority Action Plan.' }
@@ -641,14 +727,20 @@ function passCadenceFor(item = {}) {
 }
 function passResourceFor(item = {}) {
   const category = categoryForChecklistItem(item);
-  const trade = item.trade || '';
-  if (category === 'HVAC' || trade === 'HVAC') return 'HVAC';
+  const rawCategory = String(item.category || '');
+  const trade = item.trade || item.answer?.trade || '';
+  const text = categoryText(item);
+
+  if (category === 'HVAC / Mechanical' || trade === 'HVAC') return 'HVAC';
   if (category === 'Plumbing' || trade === 'Plumbing') return 'Plumbing';
-  if (category === 'Roofing' || trade === 'Roof' || trade === 'Chimney') return 'Roofing';
-  if (category === 'Drainage') return 'Gutters/Drainage';
+  if (rawCategory === 'Roofing' || trade === 'Roof' || trade === 'Chimney' || /(roof|chimney|fireplace)/.test(text)) return 'Roofing';
+  if ((category === 'Handy Services' || trade === 'Handyman') && /(downspout extension|gutter extension|extension attachment|splash block)/.test(text)) return 'Handy Services';
+  if (rawCategory === 'Drainage' || /(gutter|downspout|drainage|grading|pooling)/.test(text)) return 'Gutters/Drainage';
   if (category === 'Pest' || trade === 'Pest') return 'Pest';
-  if (category === 'Safety' || trade === 'Safety') return 'Safety';
-  if (trade === 'Handyman') return 'Handy Services';
+  if (category === 'Safety / Life Safety' || trade === 'Safety') return 'Safety';
+  if (category === 'Appliances' || trade === 'Appliance') return 'Appliance';
+  if (category === 'Handy Services' || trade === 'Handyman') return 'Handy Services';
+
   return 'Other';
 }
 
@@ -3395,7 +3487,7 @@ function IntakeView({client = {}, intake, updateIntake, copyFeedback = '', onCop
       <section className="intakeSubsection"><h3>Windows / Doors / Paint</h3><div className="intakeGrid">
         <CategoryLabel category="Openings">Drafty or hard-to-operate windows / doors<input value={intake.windowsDoors || ''} onChange={e=>updateIntake({windowsDoors:e.target.value})}/></CategoryLabel>
         <CategoryLabel category="Openings">Fogging / failed seals<input value={intake.fogging || ''} onChange={e=>updateIntake({fogging:e.target.value})}/></CategoryLabel>
-        <CategoryLabel category="Exterior">Last exterior paint / stain<input value={intake.paintStain || ''} onChange={e=>updateIntake({paintStain:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="Painting / Staining / Protective Coatings">Last exterior paint / stain<input value={intake.paintStain || ''} onChange={e=>updateIntake({paintStain:e.target.value})}/></CategoryLabel>
       </div></section>
       <section className="intakeSubsection"><h3>Safety / Pests / Fireplaces</h3><div className="intakeGrid">
         <CategoryLabel category="Pest">Pest activity or history<input value={intake.pests || ''} onChange={e=>updateIntake({pests:e.target.value})}/></CategoryLabel>
@@ -3404,7 +3496,7 @@ function IntakeView({client = {}, intake, updateIntake, copyFeedback = '', onCop
         <CategoryLabel category="Roofing">Chimney inspection / cleaning<input value={intake.chimney || ''} onChange={e=>updateIntake({chimney:e.target.value})}/></CategoryLabel>
       </div></section>
       <section className="intakeSubsection"><h3>Product info / documents / unknowns</h3><div className="intakeGrid">
-        <CategoryLabel category="Surfaces">Product / color labels to consolidate<input value={intake.productsColors || ''} onChange={e=>updateIntake({productsColors:e.target.value})}/></CategoryLabel>
+        <CategoryLabel category="Painting / Staining / Protective Coatings">Product / color labels to consolidate<input value={intake.productsColors || ''} onChange={e=>updateIntake({productsColors:e.target.value})}/></CategoryLabel>
       </div></section>
       <section className="intakeSubsection"><h3>Additional THA notes</h3><label className="notes">Other known concerns / items to pay attention to<textarea value={intake.additionalConcerns || ''} onChange={e=>updateIntake({additionalConcerns:e.target.value})}/></label></section>
     </details>
