@@ -1681,7 +1681,7 @@ function buildPmrReportHtml(payload, photoEntries = []) {
   const rows = payload.rows || [];
   const hasRequiredProjectSetup = !isMissingProjectIdentityValue(payload.client?.name) && !isMissingProjectIdentityValue(payload.client?.address) && !isMissingProjectIdentityValue(payload.client?.date);
   if (!hasRequiredProjectSetup && !pmr.length) {
-    return reportShell('PMR Report Packet', payload.client, `<section class="card hero-card"><p class="section-kicker">Setup needed</p><h2>Complete project setup before generating the PMR Report Packet</h2><p class="lede">Enter the client name, project address, and walkthrough date / visit label before previewing or downloading the homeowner-facing PMR packet.</p></section>`, payload.walkthroughName);
+    return reportShell('PMR Report Packet', payload.client, `<section class="card hero-card"><p class="section-kicker">Setup needed</p><h2>Complete project setup before generating the PMR Report Packet</h2><p class="lede">Enter the client name, project address, and walkthrough date / visit label before viewing or downloading the homeowner-facing PMR packet.</p></section>`, payload.walkthroughName);
   }
   const counts = { high: pmr.filter(r=>priority(r.answer.status)==='High').length, med: pmr.filter(r=>priority(r.answer.status)==='Medium').length, low: pmr.filter(r=>priority(r.answer.status)==='Low').length };
   const passCareOutlook = payload.passCareOutlook || buildPassCareOutlook({ intake: payload.intake, rows, passReview: payload.passReview });
@@ -2379,7 +2379,7 @@ function App() {
   const requiredProjectIdentityFields = [
     { key: 'clientName', label: 'Client Name', value: client.name, helper: 'Client name needed' },
     { key: 'projectAddress', label: 'Project Address', value: client.address, helper: 'Project address needed' },
-    { key: 'walkthroughDate', label: 'Walkthrough Date / Visit Label', value: client.date, helper: 'Required before final PMR packet' }
+    { key: 'walkthroughDate', label: 'Walkthrough Date / Visit Label', value: client.date, helper: 'Required before PMR output' }
   ];
   const missingProjectIdentityFields = requiredProjectIdentityFields.filter(field => isMissingProjectIdentityValue(field.value));
   const missingClientFieldCount = missingProjectIdentityFields.length;
@@ -2404,7 +2404,7 @@ function App() {
     { label: 'PMR review', state: pmrNeedsReview ? 'warning' : 'ready', text: pmrNeedsReview ? `${unreviewedIntakeRows.length} intake follow-up${unreviewedIntakeRows.length === 1 ? '' : 's'} not reviewed` : 'Ready for output' },
     { label: 'PASS review', state: passNeedsReview ? 'warning' : (passCareCandidates.length ? 'ready' : 'neutral'), text: passNeedsReview ? 'Needs care wording' : (passCareCandidates.length ? `${passCareCandidates.length} candidate${passCareCandidates.length === 1 ? '' : 's'} ready` : 'Optional / none') },
     { label: 'Drive package', state: driveCueState, text: driveCueText },
-    { label: 'Homeowner output', state: homeownerOutputReady ? 'ready' : 'setupMissing', text: homeownerOutputReady ? 'Preview/download ready' : 'Required before final PMR packet' }
+    { label: 'Homeowner output', state: homeownerOutputReady ? 'ready' : 'setupMissing', text: homeownerOutputReady ? 'View/download ready' : 'Required before PMR output' }
   ];
   const updateDriveClientId = (value) => {
     setDriveClientId(value);
@@ -2836,16 +2836,7 @@ function App() {
     a.click();
     URL.revokeObjectURL(url);
   };
-  const openStyledPMRPreview = () => {
-    const preview = window.open('', '_blank');
-    if (!preview) {
-      downloadStyledPMR();
-      return;
-    }
-    preview.document.open();
-    preview.document.write(buildCurrentStyledPmrHtml());
-    preview.document.close();
-  };
+  const viewPMR = () => setView('pmr');
   const copyDriveText = async (text, label) => {
     try {
       await copyTextToClipboard(text);
@@ -2872,9 +2863,9 @@ function App() {
       setDriveBusy(false);
     }
   };
-  const printFinalPMR = () => {
+  const printPMR = () => {
     if (unreviewedIntakeRows.length) {
-      window.alert(`Final PMR is blocked until ${unreviewedIntakeRows.length} Intake Follow-Up row${unreviewedIntakeRows.length === 1 ? '' : 's'} are reviewed.`);
+      window.alert(`PMR print is blocked until ${unreviewedIntakeRows.length} Intake Follow-Up row${unreviewedIntakeRows.length === 1 ? '' : 's'} are reviewed.`);
       setView('form');
       setActiveRoom(INTAKE_FOLLOW_UP_SECTION_KEY);
       return;
@@ -3027,11 +3018,7 @@ function App() {
   return <div className="app">
     <header className="topbar">
       <div className="brand"><THALogo variant="full"/><div><span>Intake → HTC → PMR → PASS</span></div></div>
-      <div className="releaseNote noPrint" aria-label="Current internal release note">
-        <strong>{APP_RELEASE_NOTE.label}</strong>
-        <span>{APP_RELEASE_NOTE.summary}</span>
-      </div>
-      <nav><button onClick={()=>setView('intake')} className={view==='intake'?'on':''}><Home size={18}/> Intake</button><button onClick={()=>setView('form')} className={view==='form'?'on':''}><ClipboardCheck size={18}/> HTC</button><button onClick={()=>setView('pmr')} className={view==='pmr'?'on':''}><FileText size={18}/> PMR</button><button onClick={()=>setView('metrics')} className={view==='metrics'?'on':''}><Clock3 size={18}/> Metrics</button></nav>
+      <nav><button onClick={()=>setView('intake')} className={view==='intake'?'on':''}><Home size={18}/> Intake</button><button onClick={()=>setView('form')} className={view==='form'?'on':''}><ClipboardCheck size={18}/> HTC</button><button onClick={()=>setView('pmr')} className={view==='pmr'?'on':''}><FileText size={18}/> PMR</button><button onClick={()=>setView('pass')} className={view==='pass'?'on':''}><CalendarDays size={18}/> PASS</button><button onClick={()=>setView('metrics')} className={view==='metrics'?'on':''}><Clock3 size={18}/> Metrics</button></nav>
     </header>
     <section className={`walkthroughControlsPanel noPrint ${controlsCollapsed ? 'collapsed' : 'expanded'} ${controlsNeedsAttention ? 'needsAttention' : ''}`} aria-label="Walkthrough Control Panel">
       <div className="walkthroughControlsHeader">
@@ -3045,8 +3032,7 @@ function App() {
         <div className="summaryItem"><span>Working Session Name</span><strong title={walkthroughName || 'Untitled Walkthrough'}>{walkthroughName || 'Untitled Walkthrough'}</strong></div>
         <div className={`summaryItem ${setupFieldState(client.name)}`}><span>Client Name</span><strong title={client.name || 'Missing'}>{client.name || 'Missing'}</strong><small>{setupFieldIcon(client.name)} {setupFieldHelp(client.name, 'Client name needed')}</small></div>
         <div className={`summaryItem ${setupFieldState(client.address)}`}><span>Project Address</span><strong title={client.address || 'Missing'}>{client.address || 'Missing'}</strong><small>{setupFieldIcon(client.address)} {setupFieldHelp(client.address, 'Project address needed')}</small></div>
-        <div className={`summaryItem ${setupFieldState(client.date)}`}><span>Walkthrough Date / Visit Label</span><strong title={client.date || 'Missing'}>{client.date || 'Missing'}</strong><small>{setupFieldIcon(client.date)} {setupFieldHelp(client.date, 'Required before final PMR packet')}</small></div>
-        <div className="summaryItem"><span>Intake ID</span><strong title={intake.intakeId || 'Not generated yet'}>{intake.intakeId || 'Not generated yet'}</strong></div>
+        <div className={`summaryItem ${setupFieldState(client.date)}`}><span>Walkthrough Date / Visit Label</span><strong title={client.date || 'Missing'}>{client.date || 'Missing'}</strong><small>{setupFieldIcon(client.date)} {setupFieldHelp(client.date, 'Required before PMR output')}</small></div>
         <span className={`saveStatus ${saveStatus.state}`} role="status" aria-live="polite"><span className="saveStatusDot" aria-hidden="true"></span>{saveStatusText(saveStatus, hasUnsavedVisiblePhotos)}</span>
         <span className={`driveSummaryPill ${driveMeta.lastError ? 'error' : (driveToken ? 'connected' : '')}`} title={driveSummaryText}>{driveSummaryText}</span>
         {controlsNeedsAttention && <span className={`controlAttentionPill ${controlsMissingFields.length ? 'setupAttention' : ''}`} role="status"><AlertTriangle size={14}/> {controlsAttentionText}</span>}
@@ -3061,7 +3047,7 @@ function App() {
           <label>Working Session Name<input value={walkthroughName} onChange={e=>setWalkthroughName(e.target.value)} placeholder="Name this working session"/></label>
           <label className={`requiredSetupField ${setupFieldState(client.name)}`}>Client Name<input value={client.name} onChange={e=>setClient({...client,name:e.target.value})} placeholder="Client name"/><small>{setupFieldHelp(client.name, 'Client name needed')}</small></label>
           <label className={`requiredSetupField ${setupFieldState(client.address)}`}>Project Address<input value={client.address} onChange={e=>setClient({...client,address:e.target.value})} placeholder="Project address"/><small>{setupFieldHelp(client.address, 'Project address needed')}</small></label>
-          <label className={`requiredSetupField ${setupFieldState(client.date)}`}>Walkthrough Date / Visit Label<input value={client.date} onChange={e=>setClient({...client,date:e.target.value})} placeholder="Walkthrough date / visit label"/><small>{setupFieldHelp(client.date, 'Required before final PMR packet')}</small></label>
+          <label className={`requiredSetupField ${setupFieldState(client.date)}`}>Walkthrough Date / Visit Label<input value={client.date} onChange={e=>setClient({...client,date:e.target.value})} placeholder="Walkthrough date / visit label"/><small>{setupFieldHelp(client.date, 'Required before PMR output')}</small></label>
         </section>
         <section className="controlGroup sessionCard localWorkCard" aria-label="Local Work">
           <div className="controlGroupTitle"><h3>1. Local Work / This Device</h3><p>Autosaves and saved sessions stay in this browser on this device unless you download or upload them.</p></div>
@@ -3075,9 +3061,9 @@ function App() {
           <div className="localBackupRestore"><p><strong>Local backup download</strong><br/><span>Downloads a JSON recovery file to this device only. It is not homeowner-facing and does not upload to Drive.</span></p><button type="button" onClick={downloadEmergencyBackup}><Download size={16}/> Download Local Emergency Backup</button></div>
         </section>
         <section className="controlGroup clientCard homeownerOutputCard" aria-label="Homeowner Output">
-          <div className="controlGroupTitle"><h3>2. Homeowner Output</h3><p>Preview or download the polished PMR Report Packet for the homeowner.</p></div>
-          <p className="driveActionHelp">“Preview” opens the homeowner-facing report in a browser tab. “Download” saves the PMR Report Packet file to this device. These buttons do not update local sessions or upload business records to Drive.</p>
-          <div className="pmrPrintActions" aria-label="PMR homeowner deliverable actions"><button type="button" onClick={openStyledPMRPreview} disabled={!homeownerOutputReady}><FileText size={16}/> Preview PMR Report Packet</button><button type="button" className="finalPrintButton" onClick={downloadStyledPMR} disabled={!homeownerOutputReady}><Download size={16}/> Download PMR Report Packet</button><button type="button" onClick={()=>window.print()}><Printer size={16}/> Print Draft PMR</button><button type="button" onClick={printFinalPMR} disabled={!homeownerOutputReady}><Printer size={16}/> Print Final PMR</button></div>
+          <div className="controlGroupTitle"><h3>2. Homeowner Output</h3><p>View, download, or print the polished PMR Report Packet for the homeowner.</p></div>
+          <p className="driveActionHelp">Use the in-app PMR view, download the styled PMR packet, or print after required review is complete.</p>
+          <div className="pmrPrintActions" aria-label="PMR homeowner deliverable actions"><button type="button" onClick={viewPMR}><FileText size={16}/> View PMR</button><button type="button" className="finalPrintButton" onClick={downloadStyledPMR} disabled={!homeownerOutputReady}><Download size={16}/> Download PMR</button><button type="button" onClick={printPMR} disabled={!homeownerOutputReady}><Printer size={16}/> Print PMR</button></div>
         </section>
         <section className="controlGroup driveStatus driveSetupPanel businessRecordsCard" aria-label="Drive / Business Records">
           <div className="driveSetupHeader">
@@ -3116,6 +3102,9 @@ function App() {
             <span className={pendingCount ? 'pendingSync on' : 'pendingSync'}>{pendingCount ? `Pending Drive Sync: ${pendingCount}` : 'Pending sync count: 0'}</span>
             <span className={pendingPhotoCount ? 'pendingSync on' : 'pendingSync'}>{pendingPhotoCount ? `Pending photos: ${pendingPhotoCount}` : 'Pending photos: 0'}</span>
           </div>
+        </section>
+        <details className="controlGroup advancedPanel" aria-label="Advanced">
+          <summary className="demoScenarioSummary"><span>Advanced</span><small>Drive troubleshooting, demo scenarios, and internal QA notes.</small></summary>
           <details className="driveTroubleshooting">
             <summary>Drive Setup Help / Troubleshooting</summary>
             <div className="driveSetupGrid">
@@ -3145,12 +3134,11 @@ function App() {
             </div>
           </details>
           <small className="driveSetupNote">{driveWarningText}</small>
-        </section>
-        <details className="controlGroup demoScenarioCard" aria-label="Developer / Demo Tools">
-          <summary className="demoScenarioSummary"><span>4. Developer / Demo Tools</span><small>Collapsed by default. Demo scenarios and release notes live here for QA only.</small></summary>
+          <div className="demoScenarioCard">
           <div className="demoScenarioIntro"><h3>Demo Scenarios</h3><p>Load these only when testing PMR/PASS export behavior. Start real homeowner walkthroughs from Local Work using a blank walkthrough.</p></div>
           <div className="demoScenarioGrid">{DEMO_WALKTHROUGH_SCENARIOS.map(scenario => <article className="demoScenario" key={scenario.id}><div><h4>{scenario.name}</h4><p>{scenario.description}</p><ul>{scenario.checks.map(check => <li key={check}>{check}</li>)}</ul></div><button type="button" onClick={()=>loadDemoScenario(scenario)}>Load Demo</button></article>)}</div>
           <div className="releaseNoteInline"><h3>Release Note — {APP_RELEASE_NOTE.label}</h3><p>{APP_RELEASE_NOTE.summary}</p><ul>{APP_RELEASE_NOTE.items.map(item => <li key={item}>{item}</li>)}</ul></div>
+          </div>
         </details>
       </div>}
     </section>
@@ -3227,7 +3215,8 @@ function App() {
         </div>})}
       </section>
     </main>}
-    {view === 'pmr' && <PMR client={client} intake={intake} pmr={pmr} counts={counts} quickHits={quickHits} passCareCandidates={passCareCandidates} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={updatePassReview} unreviewedIntakeRows={unreviewedIntakeRows} reviewedIntakeNotes={reviewedIntakeNotes} />}
+    {view === 'pmr' && <PMR client={client} intake={intake} pmr={pmr} counts={counts} quickHits={quickHits} passCareOutlook={passCareOutlook} unreviewedIntakeRows={unreviewedIntakeRows} reviewedIntakeNotes={reviewedIntakeNotes} />}
+    {view === 'pass' && <PASSWorkspace passCareCandidates={passCareCandidates} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={updatePassReview} />}
     {view === 'metrics' && <Metrics rows={rows} pmr={pmr} quickHits={quickHits} pass={pass}/>} 
   </div>
 }
@@ -3297,7 +3286,6 @@ function IntakeView({client = {}, intake, updateIntake, copyFeedback = '', onCop
       <div><span>Homeowner Quick Intake fields completed</span><strong>{homeownerCompleted}/{HOMEOWNER_QUICK_INTAKE_FIELDS.length}</strong></div>
       <div><span>THA Field Prep fields completed</span><strong>{fieldPrepCompleted}/{THA_FIELD_PREP_FIELDS.length}</strong></div>
       <div><span>Generated HTC Follow-Up count</span><strong>{intakeFollowUpCount}</strong></div>
-      <div><span>Intake ID</span><strong>{intake.intakeId || 'Not generated yet'}</strong></div>
       <div><span>Intake Status</span><strong>{intake.intakeStatus || 'Not imported'}</strong></div>
       <div className={readyForHTC ? 'ready' : 'notReady'}><span>Ready for HTC</span><strong>{readyForHTC ? 'Yes' : 'Add context'}</strong></div>
       <button type="button" className="copyIntakeEmailButton" onClick={onCopyPreWalkthroughEmail}><ClipboardCheck size={16}/> Copy Pre-Walkthrough Intake Email</button>
@@ -3392,11 +3380,11 @@ function CollapsibleBlock({ title, icon = null, summary = '', defaultOpen = fals
   </section>;
 }
 
-function PMR({client, intake, pmr, counts, quickHits, passCareOutlook = [], passCareCandidates = passCareOutlook, passReview = {}, onPassReviewChange = () => {}, unreviewedIntakeRows = [], reviewedIntakeNotes = []}) {
+function PMR({client, intake, pmr, counts, quickHits, passCareOutlook = [], unreviewedIntakeRows = [], reviewedIntakeNotes = []}) {
   const summary = intakeSummary(intake);
   const hasRequiredProjectSetup = !isMissingProjectIdentityValue(client?.name) && !isMissingProjectIdentityValue(client?.address) && !isMissingProjectIdentityValue(client?.date);
   if (!hasRequiredProjectSetup && !pmr.length) {
-    return <main className="pmr"><section className="pmrBlock frontSummary"><h1>Complete setup before generating</h1><p className="lede">Enter the client name, project address, and walkthrough date / visit label before previewing, downloading, or printing the PMR Report Packet.</p></section></main>;
+    return <main className="pmr"><section className="pmrBlock frontSummary"><h1>Complete setup before generating</h1><p className="lede">Enter the client name, project address, and walkthrough date / visit label before viewing, downloading, or printing the PMR Report Packet.</p></section></main>;
   }
   const visiblePassIds = new Set(passCareOutlook.map(item => item.id));
   const tradeItems = pmr.filter(r => !['Handyman','Safety'].includes(r.answer.trade));
@@ -3440,7 +3428,7 @@ function PMR({client, intake, pmr, counts, quickHits, passCareOutlook = [], pass
   };
   return <main className="pmr">
     <div className="pmrHeader"><div><THALogo variant="full"/><p className="eyebrow">PMR — Findings & Next Steps</p><h1>{client.address}</h1><p>{client.name} · {client.date} · Intake → HTC → PMR → PASS</p></div><div className="compassCard"><Mountain size={48}/><span>You Navigate, We Drive</span></div></div>
-    {unreviewedIntakeRows.length > 0 && <div className="pmrWarning"><AlertTriangle size={18}/><span>Draft warning: {unreviewedIntakeRows.length} Intake Follow-Up row{unreviewedIntakeRows.length === 1 ? '' : 's'} remain Not Reviewed. Use Print Final PMR only after every follow-up is reviewed.</span></div>}
+    {unreviewedIntakeRows.length > 0 && <div className="pmrWarning"><AlertTriangle size={18}/><span>Review needed: {unreviewedIntakeRows.length} Intake Follow-Up row{unreviewedIntakeRows.length === 1 ? '' : 's'} remain Not Reviewed. Print is available after every follow-up is reviewed.</span></div>}
     <section className="snapshot homeHealthSnapshot"><h2><Home size={20}/> Home Health Snapshot</h2><div className="stat high"><strong>{counts.high}</strong><span><HealthDot level="high"/> Immediate</span></div><div className="stat med"><strong>{counts.med}</strong><span><HealthDot level="medium"/> Near‑Term</span></div><div className="stat low"><strong>{counts.low}</strong><span><HealthDot level="low"/> Monitor</span></div></section>
     <section className="pmrBlock frontSummary"><h2><ClipboardList size={20}/> Plain-English Summary</h2><p className="overallSummary">{overallSummary}</p><div className="summaryTypeGrid"><div><strong>{immediateItems.length}</strong><span>Immediate / higher concern</span></div><div><strong>{handyItems.length}</strong><span>Handy Services items</span></div><div><strong>{tradeItems.length}</strong><span>Trade items</span></div><div><strong>{passCareOutlook.length}</strong><span>PASS continued care / routine care</span></div></div></section>
     <section className="pmrBlock roomIssueSummary"><h2><Home size={20}/> Room-by-Room Issue Count</h2><p className="lede">PMR counts only. PASS continued care stays separate and is not included in this chart.</p>{roomIssueCounts.length ? <div className="roomIssueChart">{roomIssueCounts.map(([room, count]) => <div className="roomIssueRow" key={room}><span>{room}</span><div className="roomIssueBar"><i style={{width: `${Math.max(8, (count / maxRoomIssueCount) * 100)}%`}}></i></div><strong>{count}</strong></div>)}</div> : <p className="lede">No PMR issues recorded by room.</p>}</section>
@@ -3463,24 +3451,33 @@ function PMR({client, intake, pmr, counts, quickHits, passCareOutlook = [], pass
       {Object.entries(passByGroup).map(([groupName, items]) => <section className="passCalendarCareGroup" key={`pass-group-${groupName}`}><h3>{groupName} <span>{items.length} item{items.length === 1 ? '' : 's'}</span></h3><div className="passCalendarTable"><div className="passCalendarHeader"><span>Care item</span><span>Recommended cadence</span><span>Last completed</span><span>Next suggested date/window</span><span>Resource/trade</span><span>Follow-up status</span></div>{items.map(item => <CalendarRow key={`calendar-${item.id}`} item={item}/>)}</div></section>)}
       <div className="passCalendarGroups"><section><h3>By resource / trade</h3>{Object.entries(passByResource).map(([resource, items]) => <p key={`resource-${resource}`}><strong>{resource}</strong><span>{items.map(item => item.careItem).join(' · ')}</span></p>)}</section><section><h3>By upcoming window</h3>{Object.entries(passByWindow).map(([windowName, items]) => <p key={`window-${windowName}`}><strong>{windowName}</strong><span>{items.map(item => item.careItem).join(' · ')}</span></p>)}</section></div>
     </CollapsibleBlock>
-    <CollapsibleBlock title="PASS Continued Care Outlook" icon={<CalendarDays/>} summary={`${passCareOutlook.length} homeowner-facing routine care item${passCareOutlook.length === 1 ? '' : 's'} · separate from PMR defects/counts`} defaultOpen={false} className="passOutlook"><p className="lede">PASS is ongoing home-care planning, not an urgent repair list. These items stay separate from PMR findings, priority counts, and defects. Hidden PASS/internal notes stay excluded from homeowner output.</p><CollapsibleBlock title="THA PASS Review Controls" summary={`${passCareCandidates.length} candidate${passCareCandidates.length === 1 ? '' : 's'} before homeowner export · internal notes remain hidden`} defaultOpen={false} className="passReviewPanel noPrint"><p>Manual PASS candidates stay included by default. Generated continued-care items are also included by default and can be hidden here.</p><div className="passReviewGrid">{passCareCandidates.map(item => {
-      const review = passReview[item.id] || {};
-      const included = review.included !== false;
-      const reason = review.reason ?? item.reason;
-      const reviewedTargetWindow = review.targetWindow ?? (review.suggestedWindow ? passSuggestedWindowText(review.suggestedWindow) : undefined);
-      const targetWindow = reviewedTargetWindow ?? item.targetWindow ?? passSuggestedWindowText(item.suggestedWindow);
-      const cadence = review.cadence ?? item.cadence ?? 'As Needed';
-      const resource = review.resource ?? item.resource;
-      const followUpStatus = passPlanningStatusText(review.followUpStatus ?? item.followUpStatus);
-      const lastCompletedDate = review.lastCompletedDate ?? item.lastCompletedDate ?? '';
-      const dateSource = passDateSourceText(review.dateSource ?? item.dateSource);
-      const nextSuggestedWindow = review.nextSuggestedWindow ?? item.nextSuggestedWindow ?? '';
-      const groupingNote = review.groupingNote ?? item.groupingNote ?? '';
-      const internalNote = review.internalNote ?? item.internalNote ?? '';
-      return <article className={`passReviewCard ${included ? 'included' : 'hidden'}`} key={`review-${item.id}`}><div className="passReviewTop"><label className="includeToggle"><input type="checkbox" checked={included} onChange={e=>onPassReviewChange(item.id, { included: e.target.checked })}/><span><strong>{included ? 'Include' : 'Hidden from export'}</strong><small>{item.source === 'manual' ? 'Manual PASS candidate' : 'Generated continued-care item'}</small></span></label><span className="sourceBadge">{item.source === 'manual' ? 'Manual' : 'Generated'}</span></div><h4>{item.careItem}</h4><label>Homeowner-facing reason<textarea value={reason} onChange={e=>onPassReviewChange(item.id, { reason: e.target.value })}/></label><label>Last completed date, if known<input type="date" value={lastCompletedDate} onChange={e=>onPassReviewChange(item.id, { lastCompletedDate: e.target.value })}/></label><label>Source of date<select value={dateSource} onChange={e=>onPassReviewChange(item.id, { dateSource: e.target.value })}>{PASS_DATE_SOURCES.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Next suggested service date / window<input value={nextSuggestedWindow || targetWindow} onChange={e=>onPassReviewChange(item.id, { nextSuggestedWindow: e.target.value, targetWindow: e.target.value, suggestedWindow: `Suggested window: ${e.target.value}` })}/></label><label>Recommended cadence<select value={cadence} onChange={e=>onPassReviewChange(item.id, { cadence: e.target.value })}>{PASS_CADENCE.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Responsible resource / trade<select value={resource} onChange={e=>onPassReviewChange(item.id, { resource: e.target.value })}>{PASS_RESOURCES.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Follow-up status<select value={followUpStatus} onChange={e=>onPassReviewChange(item.id, { followUpStatus: e.target.value })}>{PASS_FOLLOW_UP_STATUSES.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Optional grouping note<input value={groupingNote} onChange={e=>onPassReviewChange(item.id, { groupingNote: e.target.value })} placeholder="Could be grouped with next handyman visit"/></label><label className="passInternalNote">Internal THA note<textarea value={internalNote} onChange={e=>onPassReviewChange(item.id, { internalNote: e.target.value })} placeholder="Internal planning note; not shown in PMR export."/></label></article>
-    })}</div></CollapsibleBlock><div className="passOutlookGrid">{passCareOutlook.map(item=><article className="passOutlookCard" key={item.id}><div className="findTop"><TradeIcon trade={item.rule?.trade || item.row?.answer?.trade || item.resource}/><div><h3>{item.careItem}</h3><p>{item.resource} · Care planning · {passPlanningStatusText(item.followUpStatus)}</p></div></div><div className="findGrid"><p><strong>Homeowner-facing reason:</strong><br/>{item.reason}</p><p><strong>Follow-up planning:</strong><br/>{passHomeownerFollowUpLanguage(item)}</p><p><strong>Target season / window:</strong><br/>{passSuggestedWindowText(item.targetWindow || item.suggestedWindow)}</p><p><strong>Suggested cadence:</strong><br/>{item.cadence || 'As Needed'}</p><p><strong>Responsible resource / trade:</strong><br/>{item.resource}</p></div></article>)}</div>{passCareCandidates.length > 0 && passCareOutlook.length === 0 && <p className="lede">All PASS continued-care items are hidden from the homeowner export for this draft.</p>}{passCareCandidates.some(item => !visiblePassIds.has(item.id)) && <p className="passHiddenNote noPrint">Hidden PASS items stay out of PMR export and Drive package.</p>}</CollapsibleBlock>
+    <CollapsibleBlock title="PASS Continued Care Outlook" icon={<CalendarDays/>} summary={`${passCareOutlook.length} homeowner-facing routine care item${passCareOutlook.length === 1 ? '' : 's'} · separate from PMR defects/counts`} defaultOpen={false} className="passOutlook"><p className="lede">PASS is ongoing home-care planning, not an urgent repair list. These selected items stay separate from PMR findings, priority counts, and defects.</p><div className="passOutlookGrid">{passCareOutlook.map(item=><article className="passOutlookCard" key={item.id}><div className="findTop"><TradeIcon trade={item.rule?.trade || item.row?.answer?.trade || item.resource}/><div><h3>{item.careItem}</h3><p>{item.resource} · Care planning · {passPlanningStatusText(item.followUpStatus)}</p></div></div><div className="findGrid"><p><strong>Homeowner-facing reason:</strong><br/>{item.reason}</p><p><strong>Follow-up planning:</strong><br/>{passHomeownerFollowUpLanguage(item)}</p><p><strong>Target season / window:</strong><br/>{passSuggestedWindowText(item.targetWindow || item.suggestedWindow)}</p><p><strong>Suggested cadence:</strong><br/>{item.cadence || 'As Needed'}</p><p><strong>Responsible resource / trade:</strong><br/>{item.resource}</p></div></article>)}</div>{passCareOutlook.length === 0 && <p className="lede">No PASS continued-care items are selected for this PMR output.</p>}</CollapsibleBlock>
     <footer className="promise"><ShieldCheck/> You don’t hire trades — you hire The Homeowner Advocate. One point of contact. Every step. Every task.</footer>
   </main>
+}
+
+function PassReviewControls({ passCareCandidates = [], passReview = {}, onPassReviewChange = () => {} }) {
+  return <CollapsibleBlock title="THA PASS Review Controls" summary={`${passCareCandidates.length} candidate${passCareCandidates.length === 1 ? '' : 's'} before homeowner export · internal notes remain hidden`} defaultOpen={true} className="passReviewPanel noPrint"><p>Manual PASS candidates stay included by default. Generated continued-care items are also included by default and can be hidden here.</p><div className="passReviewGrid">{passCareCandidates.map(item => {
+    const review = passReview[item.id] || {};
+    const included = review.included !== false;
+    const reason = review.reason ?? item.reason ?? '';
+    const reviewedTargetWindow = review.targetWindow ?? (review.suggestedWindow ? passSuggestedWindowText(review.suggestedWindow) : undefined);
+    const targetWindow = reviewedTargetWindow ?? item.targetWindow ?? passSuggestedWindowText(item.suggestedWindow);
+    const cadence = review.cadence ?? item.cadence ?? 'As Needed';
+    const resource = review.resource ?? item.resource;
+    const followUpStatus = passPlanningStatusText(review.followUpStatus ?? item.followUpStatus);
+    const lastCompletedDate = review.lastCompletedDate ?? item.lastCompletedDate ?? '';
+    const dateSource = passDateSourceText(review.dateSource ?? item.dateSource);
+    const nextSuggestedWindow = review.nextSuggestedWindow ?? item.nextSuggestedWindow ?? '';
+    const groupingNote = review.groupingNote ?? item.groupingNote ?? '';
+    const internalNote = review.internalNote ?? item.internalNote ?? '';
+    return <article className={`passReviewCard ${included ? 'included' : 'hidden'}`} key={`review-${item.id}`}><div className="passReviewTop"><label className="includeToggle"><input type="checkbox" checked={included} onChange={e=>onPassReviewChange(item.id, { included: e.target.checked })}/><span><strong>{included ? 'Include' : 'Hidden from export'}</strong><small>{item.source === 'manual' ? 'Manual PASS candidate' : 'Generated continued-care item'}</small></span></label><span className="sourceBadge">{item.source === 'manual' ? 'Manual' : 'Generated'}</span></div><h4>{item.careItem}</h4><label>Homeowner-facing reason<textarea value={reason} onChange={e=>onPassReviewChange(item.id, { reason: e.target.value })}/></label><label>Last completed date, if known<input type="date" value={lastCompletedDate} onChange={e=>onPassReviewChange(item.id, { lastCompletedDate: e.target.value })}/></label><label>Source of date<select value={dateSource} onChange={e=>onPassReviewChange(item.id, { dateSource: e.target.value })}>{PASS_DATE_SOURCES.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Next suggested service date / window<input value={nextSuggestedWindow || targetWindow} onChange={e=>onPassReviewChange(item.id, { nextSuggestedWindow: e.target.value, targetWindow: e.target.value, suggestedWindow: `Suggested window: ${e.target.value}` })}/></label><label>Recommended cadence<select value={cadence} onChange={e=>onPassReviewChange(item.id, { cadence: e.target.value })}>{PASS_CADENCE.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Responsible resource / trade<select value={resource} onChange={e=>onPassReviewChange(item.id, { resource: e.target.value })}>{PASS_RESOURCES.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Follow-up status<select value={followUpStatus} onChange={e=>onPassReviewChange(item.id, { followUpStatus: e.target.value })}>{PASS_FOLLOW_UP_STATUSES.map(option=><option key={option} value={option}>{option}</option>)}</select></label><label>Optional grouping note<input value={groupingNote} onChange={e=>onPassReviewChange(item.id, { groupingNote: e.target.value })} placeholder="Could be grouped with next handyman visit"/></label><label className="passInternalNote">Internal THA note<textarea value={internalNote} onChange={e=>onPassReviewChange(item.id, { internalNote: e.target.value })} placeholder="Internal planning note; not shown in PMR export."/></label></article>;
+  })}</div></CollapsibleBlock>;
+}
+
+function PASSWorkspace({ passCareCandidates = [], passCareOutlook = [], passReview = {}, onPassReviewChange = () => {} }) {
+  const visiblePassIds = new Set(passCareOutlook.map(item => item.id));
+  return <main className="pmr passWorkspace"><div className="pmrHeader"><div><THALogo variant="full"/><p className="eyebrow">PASS — Internal Continued Care Workspace</p><h1>PASS Continued Care Plan</h1><p>Editable THA workspace for selecting and shaping read-only PASS content in PMR output.</p></div><div className="compassCard"><CalendarDays size={48}/><span>Internal planning</span></div></div><section className="pmrBlock frontSummary"><h2><CalendarDays size={20}/> PASS Workspace</h2><p className="lede">PASS is the internal, editable continued-care workspace. Intake and HTC remain THA working tools; the homeowner receives the polished PMR with selected, read-only PASS content.</p><div className="summaryTypeGrid"><div><strong>{passCareCandidates.length}</strong><span>PASS candidates</span></div><div><strong>{passCareOutlook.length}</strong><span>Included in PMR</span></div><div><strong>{passCareCandidates.length - passCareOutlook.length}</strong><span>Hidden from output</span></div></div></section><PassReviewControls passCareCandidates={passCareCandidates} passReview={passReview} onPassReviewChange={onPassReviewChange}/><CollapsibleBlock title="Selected PASS Continued Care Plan" icon={<CalendarDays/>} summary={`${passCareOutlook.length} selected item${passCareOutlook.length === 1 ? '' : 's'} currently included in PMR output`} defaultOpen={true} className="passOutlook"><div className="passOutlookGrid">{passCareOutlook.map(item=><article className="passOutlookCard" key={item.id}><div className="findTop"><TradeIcon trade={item.rule?.trade || item.row?.answer?.trade || item.resource}/><div><h3>{item.careItem}</h3><p>{item.resource} · Care planning · {passPlanningStatusText(item.followUpStatus)}</p></div></div><div className="findGrid"><p><strong>Homeowner-facing reason:</strong><br/>{item.reason}</p><p><strong>Follow-up planning:</strong><br/>{passHomeownerFollowUpLanguage(item)}</p><p><strong>Target season / window:</strong><br/>{passSuggestedWindowText(item.targetWindow || item.suggestedWindow)}</p><p><strong>Suggested cadence:</strong><br/>{item.cadence || 'As Needed'}</p><p><strong>Responsible resource / trade:</strong><br/>{item.resource}</p></div></article>)}</div>{passCareOutlook.length === 0 && <p className="lede">No PASS continued-care items are selected for PMR output.</p>}{passCareCandidates.some(item => !visiblePassIds.has(item.id)) && <p className="passHiddenNote noPrint">Hidden PASS items stay out of PMR export and Drive package.</p>}</CollapsibleBlock></main>;
 }
 
 function Metrics({rows, pmr, quickHits, pass}) {
