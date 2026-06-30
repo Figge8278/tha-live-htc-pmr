@@ -7,28 +7,14 @@
     const style = document.createElement('style');
     style.id = 'tha-pass-compact-controls-styles';
     style.textContent = `
-      .passWorkspace .tha-pass-client-selection[hidden]{display:none!important}
+      /* The legacy checkbox mutates the old PASS/PMR inclusion state. Keep it out of the preview until PMCP selection is native. */
+      .passWorkspace .tha-pass-client-selection{display:none!important}
       .passWorkspace .tha-pmcp-note{margin:8px 0 14px;padding:10px 12px;border-left:4px solid #287bb7;border-radius:10px;background:#f4f9fc;color:#45616f;font-size:13px;line-height:1.4}
       .passWorkspace .tha-pmcp-note strong{color:#173e57}
+      .passWorkspace .tha-pmcp-selection-hold{margin:10px 0 0;padding:9px 10px;border:1px solid #e7d6b9;border-radius:10px;background:#fffaf2;color:#715a35;font-size:12px;line-height:1.38}
+      .passWorkspace .tha-pmcp-selection-hold strong{color:#684719}
     `;
     document.head.append(style);
-  }
-
-  function reviewToggle(card) {
-    return card.querySelector('.passReviewCardToggle') ||
-      Array.from(card.querySelectorAll('button')).find(button => {
-        const text = button.textContent.trim();
-        return /^(open|collapse|view details|hide details)$/i.test(text);
-      });
-  }
-
-  function cardIsOpen(card) {
-    const toggle = reviewToggle(card);
-    if (!toggle) return false;
-    const expanded = toggle.getAttribute('aria-expanded');
-    if (expanded === 'true') return true;
-    if (expanded === 'false') return false;
-    return /collapse|hide/i.test(toggle.textContent);
   }
 
   function findSelectionControl(card) {
@@ -44,7 +30,13 @@
     const control = findSelectionControl(card);
     if (!control) return;
     control.classList.add('tha-pass-client-selection');
-    control.hidden = !cardIsOpen(card);
+    control.hidden = true;
+    if (!card.querySelector('.tha-pmcp-selection-hold')) {
+      const note = document.createElement('p');
+      note.className = 'tha-pmcp-selection-hold';
+      note.innerHTML = '<strong>PMCP selection is temporarily locked.</strong> The legacy checkbox is not a PMR finding control; it changes an older PASS inclusion state and is causing the current preview to fail. It is being removed from this preview while PMCP selection is rebuilt in the core app.';
+      card.append(note);
+    }
   }
 
   function replaceHeading(heading) {
@@ -78,13 +70,6 @@
   function run() {
     installStyles();
     document.querySelectorAll('.passWorkspace').forEach(adaptWorkspace);
-  }
-
-  if (!window.__thaPassCompactControlRefresh) {
-    window.__thaPassCompactControlRefresh = true;
-    document.addEventListener('click', event => {
-      if (event.target.closest('.passReviewCard')) window.setTimeout(run, 0);
-    }, true);
   }
 
   let queued = false;
