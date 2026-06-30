@@ -345,3 +345,13 @@
 .workflowCue.setupMissing small{color:var(--setup-orange)}
 .controlAttentionPill.setupAttention{background:var(--setup-orange-soft);color:var(--setup-orange);border-color:var(--setup-orange-line)}
 .saveLocalSessionButton{background:linear-gradient(135deg,#0f8fd8,#1ea65a);color:#fff!important;border:1px solid rgba(255,255,255,.35);box-shadow:0 10px 22px rgba(15,143,216,.24),0 2px 0 rgba(11,54,88,.18);font-size:15px;min-height:46px;padding:12px 16px}.saveLocalSessionButton:hover,.saveLocalSessionButton:focus-visible{background:linear-gradient(135deg,#0b7fc4,#178e4b);box-shadow:0 12px 26px rgba(15,143,216,.3),0 0 0 3px rgba(30,166,90,.18);outline:0}.saveLocalSessionButton svg{stroke-width:3}.deleteLocalSessionButton{justify-self:start;align-self:end;background:#edf0f5;color:#4d536a;border:1px solid #d6d9e4;box-shadow:none;font-size:13px;min-height:36px;padding:8px 11px}.deleteLocalSessionButton:hover,.deleteLocalSessionButton:focus-visible:not(:disabled){background:#e4e7ef;color:#3f4358;outline:2px solid rgba(77,83,106,.18);outline-offset:2px}.deleteLocalSessionButton svg{stroke-width:2.4}
+.passReviewCard.pending{border-style:dashed;background:#fffdf8}
+.passReviewCard details{display:flex;flex-direction:column;gap:10px}
+.passReviewCard summary{cursor:pointer;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;color:var(--navy);font-weight:900;list-style:none}
+.passReviewCard summary::-webkit-details-marker{display:none}
+.passReviewCard summary small{display:block;color:var(--muted);font-weight:800;margin-top:3px}
+.passReviewCard details[open] summary{padding-bottom:10px;border-bottom:1px solid #e6edf1;margin-bottom:10px}
+.passSourceEvidence{border:1px solid #e6edf1;background:#f9fcfd;border-radius:14px;padding:10px;color:var(--navy);font-weight:800}
+.passSourceEvidence p{margin:6px 0 0;color:var(--muted);font-weight:700;line-height:1.35}
+.notThisYearButton{align-self:flex-start;background:#f5f6f7;color:#5b6670;border-color:#d5dde3}
+.passErrorBoundary{border-color:#efc3bc!important;background:#fff7f5!important}
