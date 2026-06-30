@@ -25,10 +25,17 @@
       .homeownerLane .intakeQuestion.tha-quick-card textarea{resize:vertical;min-height:96px}
       .homeownerLane .structuredIntakeQuestion.tha-quick-card .structuredPromptGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
       .homeownerLane .structuredIntakeQuestion.tha-quick-card .structuredPromptField{padding:10px;border:1px solid #dbe6eb;border-radius:12px;background:#fbfdfe}
-      .homeownerLane .tha-quick-intake-note{margin:0 0 10px;padding:10px 12px;border:1px solid #d7e4e9;border-radius:12px;background:#f7fbfd;color:#5e717c;font-size:13px;font-weight:700;line-height:1.4}
       .tha-intake-bulk-controls{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin:0 0 12px}
-      .tha-intake-bulk-controls button{border:1px solid #c8d8e1;border-radius:10px;background:#fff;color:#163f58;padding:7px 10px;font-size:12px;font-weight:900}
-      .tha-intake-bulk-controls button:hover{border-color:#8cabbc;background:#f5fafc}
+      .tha-intake-bulk-controls button,.intakeImportHeader .tha-import-toggle{border:1px solid #c8d8e1;border-radius:10px;background:#fff;color:#163f58;padding:7px 10px;font-size:12px;font-weight:900}
+      .tha-intake-bulk-controls button:hover,.intakeImportHeader .tha-import-toggle:hover{border-color:#8cabbc;background:#f5fafc}
+      .cleanFieldPrep .intakeSubsection h3{position:relative}
+      .tha-prep-completion{margin-left:auto;border-radius:999px;padding:5px 8px;font-size:11px;font-weight:900;white-space:nowrap}
+      .tha-prep-completion.needsContext{background:#fff1e5;color:#a75113;border:1px solid #f0c79e}
+      .tha-prep-completion.contextComplete{background:#eaf7e9;color:#2f6a2b;border:1px solid #b8dfb4}
+      .intakeImportPanel.tha-import-collapsed>:not(.intakeImportHeader){display:none!important}
+      .intakeImportPanel .intakeImportHeader{align-items:flex-start}
+      .intakeImportPanel .intakeImportHeader .tha-import-toggle{margin-left:auto;flex:0 0 auto}
+      .intakeImportPanel .intakeImportHeader .lede{max-width:680px}
       .passWorkspace .passReviewCard h4,.passWorkspace .tha-clean-output-card .findTop h3,.passWorkspace .tha-output-card .findTop h3{color:#5b4674!important}
       .passWorkspace .passReviewCard h4::before,.passWorkspace .tha-clean-output-card .findTop h3:before,.passWorkspace .tha-output-card .findTop h3:before{background:#745a91!important}
       @media(max-width:900px){
@@ -36,6 +43,8 @@
         .homeownerLane .tha-quick-header{align-items:flex-start}
         .tha-intake-bulk-controls{justify-content:stretch}
         .tha-intake-bulk-controls button{flex:1}
+        .tha-prep-completion{margin-left:0}
+        .intakeImportPanel .intakeImportHeader .tha-import-toggle{width:100%;margin-left:0}
       }
     `;
     document.head.append(style);
@@ -55,8 +64,7 @@
 
   function subline(question) {
     const fields = question.querySelectorAll('textarea,input,select').length;
-    if (fields > 1) return `${fields} related response areas — open when ready`;
-    return 'Optional homeowner context — open when ready';
+    return fields > 1 ? `${fields} related response areas` : 'Optional homeowner context';
   }
 
   function setQuickCardOpen(question, open) {
@@ -141,34 +149,96 @@
     grid.before(controls);
   }
 
+  function countContextFields(section) {
+    const fields = Array.from(section.querySelectorAll('.intakeGrid input,.intakeGrid textarea,.intakeGrid select'));
+    const filled = fields.filter(field => String(field.value || '').trim()).length;
+    return { filled, total: fields.length };
+  }
+
+  function refreshFieldPrepCompletion(section) {
+    const heading = section.querySelector(':scope > h3');
+    const toggle = heading?.querySelector('.tha-clean-prep-toggle');
+    if (!heading || !toggle) return;
+    const { filled, total } = countContextFields(section);
+    let badge = heading.querySelector('.tha-prep-completion');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'tha-prep-completion';
+      toggle.before(badge);
+    }
+    const complete = total > 0 && filled === total;
+    badge.className = `tha-prep-completion ${complete ? 'contextComplete' : 'needsContext'}`;
+    badge.textContent = complete ? `Context complete · ${filled}/${total}` : `Context to add · ${filled}/${total}`;
+    badge.title = 'This indicates intake context captured, not HTC verification or a PMR finding.';
+  }
+
   function addFieldPrepControls(lane) {
-    if (lane.querySelector(':scope > .tha-field-prep-controls')) return;
-    const anchor = lane.querySelector('.tha-field-prep-guide') || lane.querySelector('.lede') || lane.querySelector('summary');
-    const controls = makeBulkControls(
-      'THA Field Prep',
-      () => lane.querySelectorAll('.intakeSubsection').forEach(section => setFieldPrepSectionOpen(section, true)),
-      () => lane.querySelectorAll('.intakeSubsection').forEach(section => setFieldPrepSectionOpen(section, false))
-    );
-    controls.classList.add('tha-field-prep-controls');
-    anchor?.after(controls);
+    if (!lane.querySelector(':scope > .tha-field-prep-controls')) {
+      const anchor = lane.querySelector('.tha-field-prep-guide') || lane.querySelector('.lede') || lane.querySelector('summary');
+      const controls = makeBulkControls(
+        'THA Field Prep',
+        () => lane.querySelectorAll('.intakeSubsection').forEach(section => setFieldPrepSectionOpen(section, true)),
+        () => lane.querySelectorAll('.intakeSubsection').forEach(section => setFieldPrepSectionOpen(section, false))
+      );
+      controls.classList.add('tha-field-prep-controls');
+      anchor?.after(controls);
+    }
+    lane.querySelectorAll('.intakeSubsection').forEach(refreshFieldPrepCompletion);
+  }
+
+  function prepareImportPanel(panel) {
+    const header = panel.querySelector('.intakeImportHeader');
+    if (!header) return;
+    const title = header.querySelector('h2');
+    const lede = header.querySelector('.lede');
+    if (title) title.textContent = 'Import a Completed Intake';
+    if (lede) lede.textContent = 'Paste or upload a completed homeowner intake, review the mapped answers, then add them to this walkthrough. THA Field Prep stays unchanged.';
+    panel.querySelectorAll('.importActions button').forEach(button => {
+      if (/preview intake import/i.test(button.textContent)) button.textContent = 'Review imported answers';
+      if (/apply to current walkthrough/i.test(button.textContent)) button.textContent = 'Add reviewed answers to walkthrough';
+    });
+    if (header.querySelector('.tha-import-toggle')) return;
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'tha-import-toggle';
+    let open = false;
+    panel.classList.add('tha-import-collapsed');
+    toggle.textContent = 'Expand import';
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.addEventListener('click', () => {
+      open = !open;
+      panel.classList.toggle('tha-import-collapsed', !open);
+      toggle.textContent = open ? 'Collapse import' : 'Expand import';
+      toggle.setAttribute('aria-expanded', String(open));
+    });
+    header.append(toggle);
   }
 
   function organizeQuickIntake() {
+    document.querySelectorAll('.homeownerLane .tha-quick-intake-note').forEach(note => note.remove());
     document.querySelectorAll('.homeownerLane .quickIntakeGrid > .intakeQuestion').forEach(buildQuickCard);
-    document.querySelectorAll('.homeownerLane .quickIntakeGrid').forEach(grid => {
-      if (!grid.previousElementSibling?.classList.contains('tha-quick-intake-note')) {
-        const note = document.createElement('p');
-        note.className = 'tha-quick-intake-note';
-        note.textContent = 'Open only the question you want to answer, or open them all for a complete review. Your responses remain homeowner-provided context until THA verifies them during the HTC walkthrough.';
-        grid.before(note);
-      }
-      addQuickIntakeControls(grid);
-    });
+    document.querySelectorAll('.homeownerLane .quickIntakeGrid').forEach(addQuickIntakeControls);
     document.querySelectorAll('details.intakeLane:not(.homeownerLane)').forEach(addFieldPrepControls);
+    document.querySelectorAll('.intakeImportPanel').forEach(prepareImportPanel);
+  }
+
+  function installLiveFieldPrepCounts() {
+    if (window.__thaFieldPrepCompletionCounts) return;
+    window.__thaFieldPrepCompletionCounts = true;
+    document.addEventListener('input', event => {
+      const section = event.target.closest('.cleanFieldPrep .intakeSubsection');
+      if (section) refreshFieldPrepCompletion(section);
+    });
+    document.addEventListener('change', event => {
+      const section = event.target.closest('.cleanFieldPrep .intakeSubsection');
+      if (section) refreshFieldPrepCompletion(section);
+    });
   }
 
   function run() {
     installStyles();
+    installLiveFieldPrepCounts();
     organizeQuickIntake();
   }
 
