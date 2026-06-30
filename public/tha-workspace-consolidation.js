@@ -30,8 +30,11 @@
 
       /* Business records stay available without occupying the page. */
       .walkthroughControlsPanel .businessRecordsCard.tha-records-collapsed>:not(.driveSetupHeader){display:none!important}
-      .walkthroughControlsPanel .businessRecordsCard .driveSetupHeader{display:flex!important;align-items:center!important;gap:12px!important}
-      .walkthroughControlsPanel .tha-records-toggle{margin-left:auto;border:1px solid #c8d8e1;border-radius:10px;background:#fff;color:#163f58;padding:7px 10px;font-size:12px;font-weight:900;white-space:nowrap}
+      .walkthroughControlsPanel .businessRecordsCard .driveSetupHeader{display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:wrap!important}
+      .walkthroughControlsPanel .tha-records-toggle,.walkthroughControlsPanel .tha-drive-save-quick{border:1px solid #c8d8e1;border-radius:10px;background:#fff;color:#163f58;padding:7px 10px;font-size:12px;font-weight:900;white-space:nowrap}
+      .walkthroughControlsPanel .tha-records-toggle{margin-left:auto}
+      .walkthroughControlsPanel .tha-drive-save-quick{border-color:#9ec9a4;background:#f4fbf4;color:#285d30}
+      .walkthroughControlsPanel .tha-drive-save-quick:hover{background:#e8f6e9;border-color:#70aa78}
 
       /* Homeowner deliverables live on the PMR page, not in the setup panel. */
       .pmr .tha-pmr-deliverable-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 18px;padding:10px 12px;border:1px solid #d5e0e6;border-radius:12px;background:#f7fbfd}
@@ -40,7 +43,7 @@
       .pmr .tha-pmr-deliverable-actions button:disabled{opacity:.48;cursor:not-allowed}
       @media(max-width:900px){
         .walkthroughControlsPanel .walkthroughControlsBody{grid-template-columns:1fr!important;grid-template-areas:"setup" "workSession" "intakeImport" "businessRecords" "advanced"!important}
-        .walkthroughControlsPanel .tha-records-toggle{width:100%;margin-left:0}
+        .walkthroughControlsPanel .tha-records-toggle,.walkthroughControlsPanel .tha-drive-save-quick{width:100%;margin-left:0}
         .walkthroughControlsPanel .businessRecordsCard .driveSetupHeader{align-items:flex-start!important;flex-wrap:wrap}
         .pmr .tha-pmr-deliverable-actions{justify-content:stretch}
         .pmr .tha-pmr-deliverable-actions strong{width:100%;margin-right:0}
@@ -73,8 +76,53 @@
     if (!title || title.querySelector('.tha-autosave-note')) return;
     const note = document.createElement('p');
     note.className = 'tha-autosave-note';
-    note.innerHTML = '<strong>Autosave:</strong> this device only. To save a business copy to Google Drive, open 4. Business Records & Drive, connect Drive, then select Save Drive Package to Drive.';
+    note.innerHTML = '<strong>Autosave:</strong> this device only. Drive is a separate business-record save.';
     title.append(note);
+  }
+
+  function originalDriveSaveButton(records) {
+    return Array.from(records?.querySelectorAll('button') || []).find(button => /save drive package to drive/i.test(button.textContent));
+  }
+
+  function originalDriveConnectButton(records) {
+    return Array.from(records?.querySelectorAll('button') || []).find(button => /connect google drive/i.test(button.textContent));
+  }
+
+  function openRecordPanel(records, toggle) {
+    if (!records?.classList.contains('tha-records-collapsed')) return;
+    records.classList.remove('tha-records-collapsed');
+    if (toggle) {
+      toggle.textContent = 'Collapse records';
+      toggle.setAttribute('aria-expanded', 'true');
+    }
+  }
+
+  function addDriveSaveQuickAction(records, recordsHeader, toggle) {
+    if (!records || !recordsHeader) return;
+    let quick = recordsHeader.querySelector('.tha-drive-save-quick');
+    if (!quick) {
+      quick = document.createElement('button');
+      quick.type = 'button';
+      quick.className = 'tha-drive-save-quick';
+      quick.textContent = 'Save Drive Package to Drive';
+      quick.addEventListener('click', () => {
+        openRecordPanel(records, toggle);
+        window.setTimeout(() => {
+          const save = originalDriveSaveButton(records);
+          if (save && !save.disabled) {
+            save.click();
+            return;
+          }
+          const connect = originalDriveConnectButton(records);
+          connect?.focus();
+        }, 0);
+      });
+      recordsHeader.append(quick);
+    }
+    const source = originalDriveSaveButton(records);
+    quick.title = source?.disabled
+      ? 'Connect Google Drive first. This opens the Drive panel and takes you to the connection step.'
+      : 'Save the current business record package to Google Drive.';
   }
 
   function simplifyControls() {
@@ -111,9 +159,10 @@
       const recordsTitle = recordsHeader?.querySelector('h3');
       const recordsCopy = recordsHeader?.querySelector('p');
       if (recordsTitle) recordsTitle.textContent = '4. Business Records & Drive';
-      if (recordsCopy) recordsCopy.textContent = 'Internal archive, editable copies, photos, and recovery backup. Autosave stays local; open this panel to connect Drive and save a Drive package.';
-      if (records && !records.querySelector('.tha-records-toggle')) {
-        const toggle = document.createElement('button');
+      if (recordsCopy) recordsCopy.textContent = 'Connect Drive and save the current business package here. Autosave remains local to this browser.';
+      let toggle = recordsHeader?.querySelector('.tha-records-toggle');
+      if (records && recordsHeader && !toggle) {
+        toggle = document.createElement('button');
         toggle.type = 'button';
         toggle.className = 'tha-records-toggle';
         toggle.textContent = 'Open records';
@@ -125,8 +174,9 @@
           toggle.textContent = opening ? 'Collapse records' : 'Open records';
           toggle.setAttribute('aria-expanded', String(opening));
         });
-        recordsHeader?.append(toggle);
+        recordsHeader.append(toggle);
       }
+      addDriveSaveQuickAction(records, recordsHeader, toggle);
     });
   }
 
