@@ -4,13 +4,15 @@
     const style = document.createElement('style');
     style.id = 'tha-intake-status-rails-styles';
     style.textContent = `
-      .homeownerLane .tha-quick-card,.cleanFieldPrep .intakeSubsection{position:relative!important}
-      .tha-intake-status-rail{position:absolute;left:-17px;top:24px;width:9px;height:9px;border-radius:50%;background:#e97919;box-shadow:0 0 0 3px rgba(233,121,25,.12);z-index:2}
-      .tha-intake-status-rail.isBlue{background:#287bb7;box-shadow:0 0 0 3px rgba(40,123,183,.12)}
-      .cleanFieldPrep .tha-intake-status-rail{top:27px}
+      .tha-intake-status-dot{display:inline-block;flex:0 0 auto;width:9px;height:9px;margin-right:2px;border-radius:50%;background:#e97919;box-shadow:0 0 0 3px rgba(233,121,25,.12)}
+      .tha-intake-status-dot.isBlue{background:#287bb7;box-shadow:0 0 0 3px rgba(40,123,183,.12)}
+      .homeownerLane .tha-quick-header{position:relative}
+      .homeownerLane .tha-quick-header .tha-intake-status-dot{align-self:center;margin-right:8px}
+      .cleanFieldPrep .intakeSubsection h3 .tha-intake-status-dot{margin-left:-17px;margin-right:5px}
       .tha-prep-completion{display:none!important}
       @media(max-width:900px){
-        .tha-intake-status-rail{left:-10px;width:8px;height:8px}
+        .cleanFieldPrep .intakeSubsection h3 .tha-intake-status-dot{margin-left:-10px}
+        .tha-intake-status-dot{width:8px;height:8px}
       }
     `;
     document.head.append(style);
@@ -21,27 +23,35 @@
       .filter(field => !field.disabled && field.type !== 'hidden');
   }
 
-  function isComplete(container) {
-    const fields = fieldsFor(container);
-    return Boolean(fields.length) && fields.every(field => String(field.value || '').trim());
+  function hasAnAnswer(container) {
+    return fieldsFor(container).some(field => String(field.value || '').trim());
   }
 
-  function setRail(container) {
-    let rail = container.querySelector(':scope > .tha-intake-status-rail');
-    if (!rail) {
-      rail = document.createElement('span');
-      rail.className = 'tha-intake-status-rail';
-      rail.setAttribute('aria-hidden', 'true');
-      container.prepend(rail);
+  function headerFor(container, mode) {
+    if (mode === 'quick') return container.querySelector(':scope > .tha-quick-header');
+    return container.querySelector(':scope > h3');
+  }
+
+  function setDot(container, mode) {
+    const header = headerFor(container, mode);
+    if (!header) return;
+    let dot = header.querySelector(':scope > .tha-intake-status-dot');
+    if (!dot) {
+      dot = document.createElement('span');
+      dot.className = 'tha-intake-status-dot';
+      dot.setAttribute('aria-hidden', 'true');
+      header.prepend(dot);
     }
-    const complete = isComplete(container);
-    rail.classList.toggle('isBlue', complete);
-    rail.title = complete ? 'Context captured — no more intake questions in this section.' : 'Context still needed — ask or confirm remaining intake questions.';
+    const answered = hasAnAnswer(container);
+    dot.classList.toggle('isBlue', answered);
+    dot.title = answered
+      ? 'Answer recorded — this intake section has been addressed.'
+      : 'No answer recorded yet — this intake section still needs attention.';
   }
 
   function refreshAll() {
-    document.querySelectorAll('.homeownerLane .tha-quick-card').forEach(setRail);
-    document.querySelectorAll('.cleanFieldPrep .intakeSubsection').forEach(setRail);
+    document.querySelectorAll('.homeownerLane .tha-quick-card').forEach(card => setDot(card, 'quick'));
+    document.querySelectorAll('.cleanFieldPrep .intakeSubsection').forEach(section => setDot(section, 'fieldPrep'));
   }
 
   function installLiveUpdates() {
@@ -49,9 +59,9 @@
     window.__thaIntakeStatusRails = true;
     const refreshClosest = event => {
       const quick = event.target.closest('.homeownerLane .tha-quick-card');
-      if (quick) setRail(quick);
+      if (quick) setDot(quick, 'quick');
       const prep = event.target.closest('.cleanFieldPrep .intakeSubsection');
-      if (prep) setRail(prep);
+      if (prep) setDot(prep, 'fieldPrep');
     };
     document.addEventListener('input', refreshClosest);
     document.addEventListener('change', refreshClosest);
