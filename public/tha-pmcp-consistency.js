@@ -8,10 +8,6 @@
     return String(node?.textContent || '').replace(/\s+/g, ' ').trim();
   }
 
-  function unique(items) {
-    return [...new Set(items.filter(Boolean))];
-  }
-
   function categoryForCard(card) {
     return text(card.querySelector('.categoryBadge')) || 'Other care';
   }
@@ -56,7 +52,7 @@
     try {
       sessionStorage.setItem(PLAN_CACHE_KEY, JSON.stringify(items));
     } catch (_) {
-      // The app's own native PMCP decisions remain authoritative. This cache only preserves the read-only visual map while switching tabs.
+      // Native PMCP decisions remain authoritative. This only preserves the read-only visual map while switching tabs.
     }
   }
 
@@ -79,34 +75,46 @@
 
   function planLine(item) {
     const line = document.createElement('article');
-    line.className = `tha-care-plan-line${item.selected ? ' is-selected' : ''}`;
+    line.className = `passReviewCard ${item.selected ? 'pmcp-selected' : (item.declined ? 'pmcp-declined' : 'pmcp-pending')}`;
+    const top = document.createElement('div');
+    top.className = 'passReviewCardHeader';
     const copy = document.createElement('div');
-    const title = document.createElement('strong');
+    copy.className = 'passReviewTitle';
+    const title = document.createElement('h4');
     title.textContent = item.title;
-    const meta = document.createElement('small');
+    const meta = document.createElement('p');
+    meta.className = 'passReviewSubline';
     meta.textContent = item.selected ? `Active care plan · ${item.source}` : `Available upkeep · ${item.source}`;
     copy.append(title, meta);
-    line.append(copy);
+    top.append(copy);
+    line.append(top);
     return line;
   }
 
   function planGroup(name, items, { open = false } = {}) {
     const selected = items.filter(item => item.selected).length;
     const group = document.createElement('section');
-    group.className = `tha-care-plan-group${selected ? ' has-selected' : ''}`;
+    group.className = `passCategoryGroup ${selected ? 'hasPmcpSelected' : ''}`;
     const header = document.createElement('header');
+    header.className = 'passCategoryHeader';
+    const titleWrap = document.createElement('div');
+    titleWrap.className = 'passCategoryTitle';
+    const icon = document.createElement('span');
+    icon.className = 'passCategoryIcon';
+    icon.textContent = selected ? '✓' : '•';
     const title = document.createElement('h3');
     title.textContent = name;
+    titleWrap.append(icon, title);
     const count = document.createElement('span');
-    count.className = 'tha-care-plan-count';
+    count.className = 'passCategoryCount';
     count.textContent = `${items.length} possibilities · ${selected} selected`;
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'tha-disclosure-button';
+    button.className = 'secondaryBtn';
     button.textContent = open ? 'Close' : 'Open';
     button.setAttribute('aria-expanded', String(open));
     const body = document.createElement('div');
-    body.className = 'tha-care-plan-group-body';
+    body.className = 'passReviewGrid';
     body.hidden = !open;
     items.forEach(item => body.append(planLine(item)));
     button.addEventListener('click', () => {
@@ -115,7 +123,7 @@
       button.textContent = nextOpen ? 'Close' : 'Open';
       button.setAttribute('aria-expanded', String(nextOpen));
     });
-    header.append(title, count, button);
+    header.append(titleWrap, count, button);
     group.append(header, body);
     return group;
   }
@@ -123,7 +131,7 @@
   function planSection(items, { pmr = false } = {}) {
     const selected = items.filter(item => item.selected).length;
     const section = document.createElement('section');
-    section.className = `pmrBlock tha-care-plan${pmr ? ' tha-pmr-care-plan' : ''}`;
+    section.className = 'pmrBlock';
     section.dataset.thaCarePlan = 'true';
     const heading = document.createElement('h2');
     heading.textContent = 'Preventative Maintenance Care Plan';
@@ -133,8 +141,8 @@
       ? 'Supported home-care opportunities are shown by trade. Green identifies the care items the homeowner has chosen to keep active.'
       : 'This is the live, read-only plan representation. All supported possibilities remain visible; green identifies active selected care.';
     const stats = document.createElement('div');
-    stats.className = 'tha-care-plan-stats';
-    stats.innerHTML = `<span><strong>${items.length}</strong> Supported possibilities</span><span><strong>${selected}</strong> Active selected care</span><span><strong>${Math.max(items.length - selected, 0)}</strong> Still available</span>`;
+    stats.className = 'summaryTypeGrid';
+    stats.innerHTML = `<div><strong>${items.length}</strong><span>Supported possibilities</span></div><div><strong>${selected}</strong><span>Active selected care</span></div><div><strong>${Math.max(items.length - selected, 0)}</strong><span>Still available</span></div>`;
     section.append(heading, lede, stats);
     const groups = groupItems(items);
     Object.entries(groups).forEach(([name, grouped]) => section.append(planGroup(name, grouped, { open: pmr || grouped.some(item => item.selected) })));
@@ -165,12 +173,11 @@
     const section = planSection(items, { pmr: true });
     if (existing) existing.after(section);
     else pmr.append(section);
-
     if (!pmr.querySelector('.tha-baseline-upkeep')) {
       const noFindings = /No PMR findings recorded|No immediate PMR findings were identified/i.test(text(pmr));
       if (noFindings) {
         const baseline = document.createElement('section');
-        baseline.className = 'pmrBlock tha-baseline-upkeep';
+        baseline.className = 'pmrBlock frontSummary tha-baseline-upkeep';
         baseline.innerHTML = '<h2>Baseline Home Care / Upkeep To-Dos</h2><p class="lede">No repair concerns were identified in the reviewed areas. The care-plan opportunities below are practical preventive upkeep items supported by this walkthrough, not defects and not part of the PMR priority counts.</p>';
         section.before(baseline);
       }
@@ -183,6 +190,11 @@
       const source = card.querySelector('.sourceBadge');
       const evidence = text(card.querySelector('.passSourceEvidence'));
       if (source && /intake/i.test(evidence) && /htc/i.test(evidence)) source.textContent = 'Intake + HTC';
+      const controls = card.querySelector('.passReviewTop');
+      const fields = card.querySelector('.passReviewFields');
+      if (!controls) return;
+      controls.hidden = !fields;
+      if (fields && controls.previousElementSibling !== fields) fields.after(controls);
     });
   }
 
@@ -194,9 +206,7 @@
       ['Collapse', 'Close'],
       ['Hide Controls', 'Close setup & records'],
       ['Open Controls', 'Open setup & records'],
-      ['Open setup & records', 'Open setup & records'],
-      ['Collapse records', 'Close records'],
-      ['Open records', 'Open records']
+      ['Collapse records', 'Close records']
     ]);
     document.querySelectorAll('button').forEach(button => {
       const label = text(button);
@@ -242,7 +252,7 @@
       lines.slice(1).forEach(child => body.append(child));
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'tha-disclosure-button tha-room-overview-toggle';
+      button.className = 'secondaryBtn';
       button.textContent = 'Close overview';
       button.setAttribute('aria-expanded', 'true');
       button.addEventListener('click', () => {
