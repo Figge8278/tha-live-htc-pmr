@@ -10,19 +10,21 @@
       .homeownerLane .tha-quick-title strong,.homeownerLane .tha-quick-title small{display:block!important;width:100%!important;text-align:left!important;justify-self:start!important}
       .homeownerLane .tha-quick-action{margin-left:auto!important}
 
-      /* Keep top setup compact: details belong inside the appropriate panel. */
+      /* Walkthrough setup follows the operating sequence: 1/2 across, 3/4 beneath. */
       .walkthroughControlsPanel .walkthroughControlsSummary,.walkthroughControlsPanel .workflowCueStrip{display:none!important}
       .walkthroughControlsPanel.collapsed .walkthroughControlsSummary{display:flex!important;justify-content:flex-end!important;padding:0!important;background:transparent!important;border:0!important;min-height:0!important}
       .walkthroughControlsPanel.collapsed .walkthroughControlsSummary>*:not(.openControlsButton){display:none!important}
       .walkthroughControlsPanel.collapsed .openControlsButton{display:inline-flex!important;align-items:center;justify-content:center}
       .walkthroughControlsPanel .homeownerOutputCard{display:none!important}
+      .walkthroughControlsPanel .walkthroughControlsBody{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-areas:"setup intakeImport" "workSession businessRecords" "advanced advanced"!important;align-items:start!important;gap:16px!important}
+      .walkthroughControlsPanel .tha-walkthrough-setup-card{grid-area:setup!important}
+      .walkthroughControlsPanel .intakeImportPanel.tha-import-in-controls{grid-area:intakeImport!important;margin:0!important;align-self:start!important}
+      .walkthroughControlsPanel .localWorkCard{grid-area:workSession!important}
+      .walkthroughControlsPanel .businessRecordsCard{grid-area:businessRecords!important}
+      .walkthroughControlsPanel .advancedPanel{grid-area:advanced!important}
       .walkthroughControlsPanel .localWorkCard .controlGroupTitle h3,.walkthroughControlsPanel .businessRecordsCard h3{margin-bottom:2px}
-      .walkthroughControlsPanel .intakeImportLaunchCard{order:2}
-      .walkthroughControlsPanel .localWorkCard{order:3}
-      .walkthroughControlsPanel .businessRecordsCard{order:4}
-      .walkthroughControlsPanel .intakeImportLaunchCard .controlGroupTitle{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-      .walkthroughControlsPanel .intakeImportLaunchCard .controlGroupTitle p{margin:3px 0 0}
-      .walkthroughControlsPanel .tha-open-intake-import{border:1px solid #c8d8e1;border-radius:10px;background:#fff;color:#163f58;padding:8px 10px;font-size:12px;font-weight:900;white-space:nowrap}
+      .walkthroughControlsPanel .intakeImportPanel.tha-import-in-controls .intakeImportHeader{margin-bottom:0!important}
+      .walkthroughControlsPanel .intakeImportPanel.tha-import-in-controls h2{font-size:inherit!important}
 
       /* Business records stay available without occupying the page. */
       .walkthroughControlsPanel .businessRecordsCard.tha-records-collapsed>:not(.driveSetupHeader){display:none!important}
@@ -35,9 +37,9 @@
       .pmr .tha-pmr-deliverable-actions button{display:inline-flex;align-items:center;gap:6px;border:1px solid #aebfca;border-radius:10px;background:#fff;color:#153e59;padding:8px 10px;font-size:12px;font-weight:900}
       .pmr .tha-pmr-deliverable-actions button:disabled{opacity:.48;cursor:not-allowed}
       @media(max-width:900px){
-        .walkthroughControlsPanel .tha-records-toggle,.walkthroughControlsPanel .tha-open-intake-import{width:100%;margin-left:0}
+        .walkthroughControlsPanel .walkthroughControlsBody{grid-template-columns:1fr!important;grid-template-areas:"setup" "intakeImport" "workSession" "businessRecords" "advanced"!important}
+        .walkthroughControlsPanel .tha-records-toggle{width:100%;margin-left:0}
         .walkthroughControlsPanel .businessRecordsCard .driveSetupHeader{align-items:flex-start!important;flex-wrap:wrap}
-        .walkthroughControlsPanel .intakeImportLaunchCard .controlGroupTitle{align-items:flex-start;flex-wrap:wrap}
         .pmr .tha-pmr-deliverable-actions{justify-content:stretch}
         .pmr .tha-pmr-deliverable-actions strong{width:100%;margin-right:0}
         .pmr .tha-pmr-deliverable-actions button{flex:1;justify-content:center}
@@ -52,41 +54,17 @@
     });
   }
 
-  function openIntakeImport() {
-    const intakeButton = Array.from(document.querySelectorAll('.topbar nav button')).find(button => /\bintake\b/i.test(button.textContent));
-    intakeButton?.click();
-    window.setTimeout(() => {
-      const panel = document.querySelector('.intakeImportPanel');
-      if (!panel) return;
-      const toggle = panel.querySelector('.tha-import-toggle');
-      if (toggle && /expand/i.test(toggle.textContent)) toggle.click();
-      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 120);
-  }
-
-  function addImportLaunchCard(panel) {
-    const body = panel.querySelector('.walkthroughControlsBody');
-    if (!body || body.querySelector('.intakeImportLaunchCard')) return;
-    const card = document.createElement('section');
-    card.className = 'controlGroup sessionCard intakeImportLaunchCard';
-    card.setAttribute('aria-label', 'Import Completed Intake');
-    const title = document.createElement('div');
-    title.className = 'controlGroupTitle';
-    const copy = document.createElement('div');
-    const heading = document.createElement('h3');
-    heading.textContent = '2. Import a Completed Intake';
-    const description = document.createElement('p');
-    description.textContent = 'Bring in a homeowner-completed intake, review its mapped answers, then apply it to this walkthrough.';
-    copy.append(heading, description);
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'tha-open-intake-import';
-    button.textContent = 'Open intake import';
-    button.addEventListener('click', openIntakeImport);
-    title.append(copy, button);
-    card.append(title);
-    const firstAfterSetup = body.querySelector('.localWorkCard') || body.firstElementChild?.nextElementSibling;
-    body.insertBefore(card, firstAfterSetup || null);
+  function arrangeImportPanel(panel, body, setup) {
+    const importPanel = document.querySelector('.intakeImportPanel');
+    if (!importPanel || !body) return;
+    importPanel.classList.add('tha-import-in-controls');
+    const heading = importPanel.querySelector('.intakeImportHeader h2');
+    if (heading) heading.textContent = '2. Import a Completed Intake';
+    const existingLaunch = body.querySelector('.intakeImportLaunchCard');
+    existingLaunch?.remove();
+    if (importPanel.parentElement !== body || importPanel.previousElementSibling !== setup) {
+      body.insertBefore(importPanel, setup?.nextElementSibling || body.firstChild);
+    }
   }
 
   function simplifyControls() {
@@ -109,7 +87,11 @@
       renameHeading(panel, 'Work Session', '3. Work Session');
       renameHeading(panel, '3. Drive / Business Records', '4. Business Records & Drive');
       renameHeading(panel, 'Business Records & Drive', '4. Business Records & Drive');
-      addImportLaunchCard(panel);
+
+      const body = panel.querySelector('.walkthroughControlsBody');
+      const setup = body?.querySelector('.sessionCard:not(.localWorkCard):not(.intakeImportLaunchCard)');
+      setup?.classList.add('tha-walkthrough-setup-card');
+      arrangeImportPanel(panel, body, setup);
 
       const records = panel.querySelector('.businessRecordsCard');
       const recordsHeader = records?.querySelector('.driveSetupHeader');
