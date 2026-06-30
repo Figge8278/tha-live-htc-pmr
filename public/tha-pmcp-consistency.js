@@ -1,13 +1,14 @@
 (() => {
-  const CACHE = 'tha-pmcp-care-plan-view-v1';
+  const CACHE = 'tha-pmcp-care-plan-view-v2';
   const clean = node => String(node?.textContent || '').replace(/\s+/g, ' ').trim();
+  const sourceCards = () => Array.from(document.querySelectorAll('.passWorkspace .passReviewCard')).filter(card => !card.closest('[data-tha-care-plan="true"]'));
   const title = card => {
     const h = card.querySelector('h4');
     const value = clean(h) === 'Furnace filter check / replacement' ? 'Furnace filter replacement' : clean(h);
     if (h && h.textContent !== value) h.textContent = value;
     return value || 'Continued care item';
   };
-  const items = () => Array.from(document.querySelectorAll('.passWorkspace .passReviewCard')).map(card => ({
+  const items = () => sourceCards().map(card => ({
     title: title(card), category: clean(card.querySelector('.categoryBadge')) || 'Other care', source: clean(card.querySelector('.sourceBadge')) || 'Supported',
     selected: card.classList.contains('pmcp-selected') || Boolean(card.querySelector('input[type="checkbox"]')?.checked),
     declined: card.classList.contains('pmcp-declined')
@@ -69,7 +70,7 @@
   }
 
   function builder() {
-    document.querySelectorAll('.passWorkspace .passReviewCard').forEach(card => {
+    sourceCards().forEach(card => {
       const evidence = clean(card.querySelector('.passSourceEvidence'));
       const source = card.querySelector('.sourceBadge');
       if (source && /intake/i.test(evidence) && /htc/i.test(evidence)) source.textContent = 'Intake + HTC';
