@@ -1,10 +1,15 @@
 (() => {
+  const PMCP_BUILDER = 'Preventative Maintenance Care Plan Builder';
+  const PMCP_PRODUCT = 'Preventative Maintenance Care Plan';
+
   function installStyles() {
     if (document.getElementById('tha-pass-compact-controls-styles')) return;
     const style = document.createElement('style');
     style.id = 'tha-pass-compact-controls-styles';
     style.textContent = `
       .passWorkspace .tha-pass-client-selection[hidden]{display:none!important}
+      .passWorkspace .tha-pmcp-note{margin:8px 0 14px;padding:10px 12px;border-left:4px solid #287bb7;border-radius:10px;background:#f4f9fc;color:#45616f;font-size:13px;line-height:1.4}
+      .passWorkspace .tha-pmcp-note strong{color:#173e57}
     `;
     document.head.append(style);
   }
@@ -42,11 +47,35 @@
     control.hidden = !cardIsOpen(card);
   }
 
+  function replaceHeading(heading) {
+    const text = heading.textContent.trim();
+    if (text === 'PASS Review Controls' || text === 'THA PASS Planning' || text === 'PASS Care Plan Builder' || text === PMCP_BUILDER) {
+      heading.textContent = PMCP_BUILDER;
+      heading.dataset.thaPmcpBuilder = 'true';
+      return 'builder';
+    }
+    if (/^(Selected PASS Continued Care Plan|Client PASS Care Plan|Continued Care Plan|PASS Continued Care Outlook|Preventative Maintenance Care Plan)$/i.test(text)) {
+      heading.textContent = PMCP_PRODUCT;
+      heading.dataset.thaPmcpProduct = 'true';
+      return 'product';
+    }
+    return '';
+  }
+
+  function addPmcpNote(workspace) {
+    const builder = Array.from(workspace.querySelectorAll('h1,h2,h3')).find(heading => heading.textContent.trim() === PMCP_BUILDER);
+    if (!builder) return;
+    const container = builder.closest('.passReviewPanel, .passReviewSection, section, div') || builder.parentElement;
+    if (!container || container.querySelector('.tha-pmcp-note')) return;
+    const note = document.createElement('p');
+    note.className = 'tha-pmcp-note';
+    note.innerHTML = '<strong>PASS → PMCP:</strong> PASS is The Homeowner Advocate’s framework for turning selected upkeep priorities into a homeowner’s Preventative Maintenance Care Plan (PMCP). The PMCP is the care-plan product created through this builder.';
+    builder.after(note);
+  }
+
   function adaptWorkspace(workspace) {
-    Array.from(workspace.querySelectorAll('h1,h2,h3')).forEach(heading => {
-      const text = heading.textContent.trim();
-      if (text === 'PASS Review Controls' || text === 'THA PASS Planning') heading.textContent = 'PASS Care Plan Builder';
-    });
+    workspace.querySelectorAll('h1,h2,h3').forEach(replaceHeading);
+    addPmcpNote(workspace);
     workspace.querySelectorAll('.passReviewCard').forEach(adaptCard);
   }
 
