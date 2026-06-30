@@ -8,10 +8,11 @@
       .tha-intake-status-dot.isBlue{background:#287bb7;box-shadow:0 0 0 3px rgba(40,123,183,.12)}
       .homeownerLane .tha-quick-header{position:relative}
       .homeownerLane .tha-quick-header .tha-intake-status-dot{align-self:center;margin-right:8px}
-      .cleanFieldPrep .intakeSubsection h3 .tha-intake-status-dot{margin-left:-17px;margin-right:5px}
+      .cleanFieldPrep .intakeSubsection h3{padding-left:14px!important;padding-right:14px!important}
+      .cleanFieldPrep .intakeSubsection h3 .tha-intake-status-dot{margin-left:0!important;margin-right:8px!important}
       .tha-prep-completion{display:none!important}
       @media(max-width:900px){
-        .cleanFieldPrep .intakeSubsection h3 .tha-intake-status-dot{margin-left:-10px}
+        .cleanFieldPrep .intakeSubsection h3{padding-left:10px!important;padding-right:10px!important}
         .tha-intake-status-dot{width:8px;height:8px}
       }
     `;
