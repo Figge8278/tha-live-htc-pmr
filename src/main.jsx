@@ -8,11 +8,11 @@ const ICONS = {
 };
 const APP_RELEASE_NOTE = {
   label: 'PMR + PASS milestone',
-  summary: 'Internal release: supports PMR findings, PASS Continued Care Outlook, editable/hideable PASS review, demo scenarios, and homeowner-safe export cleanup.',
+  summary: 'Internal release: supports PMR findings, PASS Continued Care Outlook, native PMCP selection, demo scenarios, and homeowner-safe export cleanup.',
   items: [
     'PMR findings',
     'PASS Continued Care Outlook',
-    'Editable/hideable PASS review',
+    'PMCP selection review',
     'Demo scenarios',
     'Homeowner-safe export cleanup'
   ]
@@ -763,24 +763,47 @@ function passIntakeValueForRule(intake = {}, rule = {}) {
   const values = (rule.intakeKeys || []).map(key => ({ key, value: passIntakeValueByKey(intake, key) })).filter(item => item.value);
   return values[0] || null;
 }
-function passIntakeBasis(intake = {}, rule = {}) {
+function passIntakeEvidence(intake = {}, rule = {}) {
   const item = passIntakeValueForRule(intake, rule);
-  if (!item) return 'Unknown service history';
-  const value = item.value;
-  const unknownish = /unknown|not sure|unsure|last .*unknown|history unknown|date unknown|age unknown|verify|ask/i.test(value);
-  if (unknownish) return `Unknown service history: ${intakeFieldLabel(item.key)} — ${value}`;
-  return `Homeowner-reported service history: ${intakeFieldLabel(item.key)} — ${value}`;
+  if (!item) return null;
+  return { source: 'Intake', label: intakeFieldLabel(item.key), value: item.value };
+}
+function passIntakeBasis(intake = {}, rule = {}) {
+  const item = passIntakeEvidence(intake, rule);
+  if (!item) return '';
+  const unknownish = /unknown|not sure|unsure|last .*unknown|history unknown|date unknown|age unknown|verify|ask/i.test(item.value);
+  if (unknownish) return `Unknown service history: ${item.label} — ${item.value}`;
+  return `Homeowner-reported service history: ${item.label} — ${item.value}`;
+}
+function passHtcEvidenceRows(rows = [], rule = {}) {
+  return rows.filter(row => {
+    const text = `${row.roomName || row.room || ''} ${row.zone || ''} ${row.item || ''} ${row.prompt || ''} ${row.answer?.notes || ''}`;
+    return passTextMatchesRule(text, rule) && row.answer?.passCandidate;
+  });
 }
 function passRoutineObservationBasis(rows = [], rule = {}) {
-  const matches = rows.filter(row => {
-    const text = `${row.roomName || row.room || ''} ${row.zone || ''} ${row.item || ''} ${row.prompt || ''} ${row.answer?.notes || ''}`;
-    return passTextMatchesRule(text, rule) && (row.pass || row.answer?.passCandidate || row.answer?.status === 'Good' || row.answer?.status === 'Unknown');
-  }).slice(0, 2);
+  const matches = passHtcEvidenceRows(rows, rule).slice(0, 2);
   if (!matches.length) return '';
-  return `HTC routine-care observation: ${matches.map(row => row.item).join('; ')}`;
+  return `HTC PASS Candidate: ${matches.map(row => `${row.roomName || row.room || 'HTC'} / ${row.zone || row.section || 'Checklist'} / ${row.item}`).join('; ')}`;
+}
+function passSourceLabel({ intakeEvidence, htcRows = [], source } = {}) {
+  if (source === 'manual') return 'HTC';
+  if (intakeEvidence && htcRows.length) return 'Intake + HTC';
+  if (intakeEvidence) return 'Intake';
+  if (htcRows.length) return 'HTC';
+  return 'Supported';
+}
+function pmcpDecisionForReview(review = {}) {
+  return ['pending', 'selected', 'declined'].includes(review.pmcpDecision) ? review.pmcpDecision : 'pending';
+}
+function normalizePassReviewData(passReview = {}) {
+  return Object.fromEntries(Object.entries(passReview || {}).map(([id, review = {}]) => {
+    const { included, ...rest } = review || {};
+    return [id, { ...rest, pmcpDecision: pmcpDecisionForReview(rest) }];
+  }));
 }
 function passManualBasis(row = {}) {
-  return ['Manually marked PASS continued-care candidate', row.roomName || row.room, row.item].filter(Boolean).join(' · ');
+  return ['HTC PASS Candidate', row.roomName || row.room, row.zone || row.section, row.item].filter(Boolean).join(' · ');
 }
 function passDateSourceText(source = 'unknown') {
   const normalized = String(source || '').trim();
@@ -918,6 +941,7 @@ function passManualCareRow(row = {}, review = {}) {
     internalNote: row.answer?.passNote || '',
     groupingNote: row.answer?.passGroupingNote || '',
     basis: passManualBasis(row),
+    sourceEvidence: { label: 'HTC', htcRows: [row] },
     row
   };
   return {
@@ -932,6 +956,9 @@ function buildPassCareOutlook({ intake = {}, rows = [], passReview = {} } = {}) 
     return passManualCareRow(row, passReview?.[manualId] || {});
   });
   const generatedRows = PASS_CARE_RULES.map(rule => {
+    const intakeEvidence = passIntakeEvidence(intake, rule);
+    const htcRows = passHtcEvidenceRows(normalizedRows, rule);
+    if (!intakeEvidence && !htcRows.length) return null;
     const basis = [passIntakeBasis(intake, rule), passRoutineObservationBasis(normalizedRows, rule), `Common care cadence: ${rule.cadence}`].filter(Boolean).join(' · ');
     const base = {
       id: `generated-pass-${rule.id}`,
@@ -947,12 +974,14 @@ function buildPassCareOutlook({ intake = {}, rows = [], passReview = {} } = {}) 
       internalNote: '',
       groupingNote: rule.groupingNote || '',
       basis,
+      sourceEvidence: { label: passSourceLabel({ intakeEvidence, htcRows }), intakeEvidence, htcRows },
       rule
     };
     const calendarFields = buildPassCalendarFields({ rule, intake, rows: normalizedRows, item: base, review: passReview?.[base.id] || {} });
     return { ...base, ...calendarFields, suggestedWindow: `Suggested window: ${calendarFields.nextSuggestedWindow}` };
-  });
-  return [...manualRows, ...generatedRows];
+  }).filter(Boolean);
+  const generatedMatchedRows = new Set(generatedRows.flatMap(item => item.sourceEvidence?.htcRows || []).map(row => row.id));
+  return [...manualRows.filter(item => !generatedMatchedRows.has(item.row?.id)), ...generatedRows];
 }
 function passSuggestedWindowText(value = '') {
   return String(value || '').replace(/^Suggested window:\s*/i, '').trim();
@@ -965,7 +994,7 @@ function applyPassReview(passItems = [], passReview = {}, { includeHidden = fals
       const targetWindow = reviewedTargetWindow ?? item.targetWindow ?? passSuggestedWindowText(item.suggestedWindow);
       return {
         ...item,
-        included: review.included !== false,
+        pmcpDecision: pmcpDecisionForReview(review),
         reason: review.reason ?? item.reason,
         targetWindow,
         suggestedWindow: targetWindow ? `Suggested window: ${targetWindow}` : (review.suggestedWindow ?? item.suggestedWindow),
@@ -975,7 +1004,7 @@ function applyPassReview(passItems = [], passReview = {}, { includeHidden = fals
         internalNote: review.internalNote ?? item.internalNote ?? ''
       };
     })
-    .filter(item => includeHidden || item.included !== false);
+    .filter(item => includeHidden || item.pmcpDecision === 'selected');
 }
 
 const library = [
@@ -1820,7 +1849,7 @@ function buildPmrReportHtml(payload, photoEntries = []) {
     return reportShell('PMR Report Packet', payload.client, `<section class="card hero-card"><p class="section-kicker">Setup needed</p><h2>Complete project setup before generating the PMR Report Packet</h2><p class="lede">Enter the client name, project address, and walkthrough date / visit label before viewing or downloading the homeowner-facing PMR packet.</p></section>`, payload.walkthroughName);
   }
   const counts = { high: pmr.filter(r=>priority(r.answer.status)==='High').length, med: pmr.filter(r=>priority(r.answer.status)==='Medium').length, low: pmr.filter(r=>priority(r.answer.status)==='Low').length };
-  const passCareOutlook = payload.passCareOutlook || buildPassCareOutlook({ intake: payload.intake, rows, passReview: payload.passReview });
+  const passCareOutlook = payload.passCareOutlook || applyPassReview(buildPassCareOutlook({ intake: payload.intake, rows, passReview: normalizePassReviewData(payload.passReview) }), normalizePassReviewData(payload.passReview));
   const reviewedIntakeNotes = rows.filter(r => isIntakeFollowUp(r) && r.intakeField !== 'additionalConcerns' && r.answer.reviewStatus && r.answer.reviewStatus !== 'Not Reviewed' && r.answer.reviewStatus !== INTAKE_PMR_REVIEW_STATUS);
   const immediateItems = pmr.filter(r => r.answer.status === 'Immediate Concern');
   const handyItems = pmr.filter(r => r.answer.trade === 'Handyman');
@@ -2235,7 +2264,7 @@ const DEMO_WALKTHROUGH_SCENARIOS = [
         Mechanical: { status: 'Routine Care / PASS', note: 'No equipment defect. Routine filter/service cadence remains in PASS.', photos: [], items: [] }
       },
       passReview: {
-        'generated-pass-chimney-fireplace-service': { included: false },
+        'generated-pass-chimney-fireplace-service': { pmcpDecision: 'pending' },
         'generated-pass-furnace-filter-rhythm': {
           reason: 'Demo-edited reason: maintain the clean filter habit documented during the walkthrough.',
           suggestedWindow: 'Suggested window: Check again at the next 90-day filter reminder.',
@@ -2281,7 +2310,7 @@ const DEMO_WALKTHROUGH_SCENARIOS = [
           suggestedWindow: 'Suggested window: At the next routine plumbing visit or annual home-care review.',
           resource: 'Plumbing'
         },
-        'generated-pass-smoke-co-extinguisher-check': { included: false }
+        'generated-pass-smoke-co-extinguisher-check': { pmcpDecision: 'pending' }
       }
     }
   },
@@ -2321,8 +2350,8 @@ const DEMO_WALKTHROUGH_SCENARIOS = [
         Safety: { status: 'Routine Care / PASS', note: 'Safety device annual review is PASS only.', photos: [], items: [] }
       },
       passReview: {
-        'generated-pass-gutters-drainage-review': { included: false },
-        'manual-pass-11': { included: false },
+        'generated-pass-gutters-drainage-review': { pmcpDecision: 'pending' },
+        'manual-pass-11': { pmcpDecision: 'pending' },
         'manual-pass-4': {
           reason: 'Demo-edited reason: once the lint restriction is corrected, keep dryer vent cleaning as a recurring fire-safety care item.',
           suggestedWindow: 'Suggested window: Recheck every fall after the current vent cleaning is complete.',
@@ -2374,7 +2403,7 @@ function App() {
   const [itemOrderState, setItemOrderState] = useState(initialState.data.itemOrder);
   const [pinnedItems, setPinnedItems] = useState(initialState.data.pinnedItems);
   const [roomCapture, setRoomCapture] = useState(initialState.data.roomCapture);
-  const [passReview, setPassReview] = useState(initialState.data.passReview || {});
+  const [passReview, setPassReview] = useState(() => normalizePassReviewData(initialState.data.passReview || {}));
   const [roomItemFormOpen, setRoomItemFormOpen] = useState(false);
   const [roomItemDraft, setRoomItemDraft] = useState(EMPTY_ROOM_ITEM_DRAFT);
   const [dragSectionKey, setDragSectionKey] = useState('');
@@ -2421,6 +2450,13 @@ function App() {
   useEffect(()=>{
     safeLocalStorageSet(WALKTHROUGH_CONTROLS_COLLAPSED_KEY, controlsCollapsed ? 'true' : 'false', applyStorageFailure);
   }, [controlsCollapsed]);
+  useEffect(() => {
+    const handler = (event) => {
+      if (event.detail === 'pmr' || event.detail === 'pass') setView(event.detail);
+    };
+    window.addEventListener('tha:set-view', handler);
+    return () => window.removeEventListener('tha:set-view', handler);
+  }, []);
   const baseSections = useMemo(() => {
     const list = [];
     sectionOrder.forEach(groupKey => {
@@ -2528,7 +2564,7 @@ function App() {
   const pmrNeedsReview = unreviewedIntakeRows.length > 0;
   const passNeedsReview = passCareCandidates.some(item => {
     const review = passReview[item.id] || {};
-    return review.included !== false && !((review.reason ?? item.reason) || '').trim();
+    return pmcpDecisionForReview(review) === 'pending' && !((review.reason ?? item.reason) || '').trim();
   });
   const homeownerOutputReady = !missingClientFieldCount && !pmrNeedsReview;
   const driveCueState = driveMeta.lastError ? 'warning' : (driveMeta.lastSaved || driveToken ? 'ready' : 'neutral');
@@ -2614,7 +2650,7 @@ function App() {
   };
   const update = (id, patch) => setAnswers(prev => ({...prev, [id]: {...normalizeAnswer(prev[id], itemById[id]), ...patch}}));
   const updateIntake = (patch) => setIntake(prev => normalizeIntakeData({...prev, ...patch}));
-  const updatePassReview = (id, patch) => setPassReview(prev => ({...prev, [id]: {...(prev[id] || {}), ...patch}}));
+  const updatePassReview = (id, patch) => setPassReview(prev => normalizePassReviewData({...prev, [id]: {...(prev[id] || {}), ...patch}}));
   const copyPreWalkthroughIntakeEmail = async () => {
     const intakeId = intake.intakeId || generateIntakeId();
     try {
@@ -2823,7 +2859,7 @@ function App() {
     itemOrder: itemOrderState,
     pinnedItems,
     roomCapture,
-    passReview
+    passReview: normalizePassReviewData(passReview)
   });
   const persistCurrentWalkthroughSession = () => {
     const id = activeWalkthroughId || `walkthrough-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -2872,7 +2908,7 @@ function App() {
     setItemOrderState(data?.itemOrder || clean.itemOrder);
     setPinnedItems(data?.pinnedItems || clean.pinnedItems);
     setRoomCapture(data?.roomCapture || clean.roomCapture);
-    setPassReview(data?.passReview || clean.passReview);
+    setPassReview(normalizePassReviewData(data?.passReview || clean.passReview));
     setRoomItemFormOpen(false);
     setRoomItemDraft(EMPTY_ROOM_ITEM_DRAFT);
     setExpandedChecklistItems({});
@@ -3645,20 +3681,30 @@ function passCandidateCategory(item = {}) {
 
 function passReviewState(item = {}, passReview = {}) {
   const review = passReview[item.id] || {};
-  const included = review.included !== false;
+  const pmcpDecision = pmcpDecisionForReview(review);
   const followUpStatus = passPlanningStatusText(
     review.followUpStatus ?? item.followUpStatus ?? 'Verify / Establish Baseline'
   );
-  const workflow = included
-    ? passWorkflowMeta(followUpStatus)
-    : { visual: 'gray', ...WORKFLOW_STATUS_META.gray };
+  const workflow = pmcpDecision === 'pending'
+    ? { visual: 'orange', label: 'Pending PMCP decision', rank: 1 }
+    : { visual: 'blue', label: pmcpDecision === 'selected' ? 'Selected for PMCP' : 'Care possibility noted', rank: pmcpDecision === 'selected' ? 2 : 3 };
 
-  return { review, included, followUpStatus, workflow };
+  return { review, pmcpDecision, selected: pmcpDecision === 'selected', followUpStatus, workflow };
+}
+
+function PassSourceEvidence({ item }) {
+  const evidence = item.sourceEvidence || {};
+  const htcRows = evidence.htcRows || (item.row ? [item.row] : []);
+  return <div className="passSourceEvidence">
+    <p><strong>Source evidence:</strong> {evidence.label || passSourceLabel({ source: item.source, intakeEvidence: evidence.intakeEvidence, htcRows })}</p>
+    {evidence.intakeEvidence && <p><strong>Intake:</strong> {evidence.intakeEvidence.label} — {evidence.intakeEvidence.value}</p>}
+    {htcRows.map(row => <p key={`evidence-${item.id}-${row.id}`}><strong>HTC:</strong> {row.roomName || row.room || 'HTC'} / {row.zone || row.section || 'Checklist'} / {row.item}</p>)}
+  </div>;
 }
 
 function PassReviewCard({ item, category, passReview, onPassReviewChange }) {
-  const { review, included, followUpStatus, workflow } = passReviewState(item, passReview);
-  const [open, setOpen] = useState(() => workflow.visual === 'orange');
+  const { review, pmcpDecision, selected, followUpStatus, workflow } = passReviewState(item, passReview);
+  const [open, setOpen] = useState(false);
 
   const reason = review.reason ?? item.reason ?? '';
   const targetWindow = review.targetWindow ?? item.targetWindow ?? passSuggestedWindowText(item.suggestedWindow);
@@ -3667,87 +3713,38 @@ function PassReviewCard({ item, category, passReview, onPassReviewChange }) {
   const lastCompletedDate = review.lastCompletedDate ?? item.lastCompletedDate ?? '';
   const dateSource = passDateSourceText(review.dateSource ?? item.dateSource);
   const nextSuggestedWindow = review.nextSuggestedWindow ?? item.nextSuggestedWindow ?? '';
-  const groupingNote = review.groupingNote ?? item.groupingNote ?? '';
   const internalNote = review.internalNote ?? item.internalNote ?? '';
 
-  return <article className={`passReviewCard ${included ? 'included' : 'hidden'} workflow-${workflow.visual}`}>
+  return <article className={`passReviewCard pmcp-${pmcpDecision} workflow-${workflow.visual} ${selected ? 'pmcp-selected' : ''}`}>
     <div className="passReviewCardHeader">
       <div className="passReviewTitle">
         <div className="passReviewBadgeRow">
           <CategoryBadge category={category}/>
-          <span className={`passWorkflowBadge ${workflow.visual}`}>
-            <span className="passWorkflowDot" aria-hidden="true"></span>
-            {workflow.label}
-          </span>
-          <span className="sourceBadge">{item.source === 'manual' ? 'Manual' : 'Generated'}</span>
+          <span className={`passWorkflowBadge ${workflow.visual}`}><span className="passWorkflowDot" aria-hidden="true"></span>{workflow.label}</span>
+          <span className="sourceBadge">{item.sourceEvidence?.label || (item.source === 'manual' ? 'HTC' : 'Supported')}</span>
         </div>
         <h4>{item.careItem}</h4>
         <p className="passReviewSubline">{resource || 'Other'} · {followUpStatus}</p>
       </div>
-
-      <button type="button" className="passReviewCardToggle" onClick={() => setOpen(value => !value)}>
-        {open ? 'Collapse' : 'Open'}
-      </button>
+      <button type="button" className="passReviewCardToggle" onClick={() => setOpen(value => !value)}>{open ? 'Collapse' : 'Open'}</button>
     </div>
-
     <div className="passReviewTop">
       <label className="includeToggle">
-        <input type="checkbox" checked={included} onChange={e => onPassReviewChange(item.id, { included: e.target.checked })}/>
-        <span>
-          <strong>{included ? 'Include in PMR' : 'Hidden from export'}</strong>
-          <small>{included ? 'Shown in the homeowner-facing PASS plan.' : 'Internal reference only until re-enabled.'}</small>
-        </span>
+        <input type="checkbox" checked={selected} onChange={e => onPassReviewChange(item.id, { pmcpDecision: e.target.checked ? 'selected' : 'pending' })}/>
+        <span><strong>Add to this homeowner’s Preventative Maintenance Care Plan</strong><small>Selected items appear in formal PMR and Drive/export PMCP output.</small></span>
       </label>
+      <button type="button" className="secondaryBtn" onClick={() => onPassReviewChange(item.id, { pmcpDecision: 'declined' })}>Not this year</button>
     </div>
-
     {open && <div className="passReviewFields">
-      <label className="wide">Homeowner-facing reason
-        <textarea value={reason} onChange={e => onPassReviewChange(item.id, { reason: e.target.value })}/>
-      </label>
-
-      <label>Last completed date, if known
-        <input type="date" value={lastCompletedDate} onChange={e => onPassReviewChange(item.id, { lastCompletedDate: e.target.value })}/>
-      </label>
-
-      <label>Source of date
-        <select value={dateSource} onChange={e => onPassReviewChange(item.id, { dateSource: e.target.value })}>
-          {PASS_DATE_SOURCES.map(option => <option key={option} value={option}>{option}</option>)}
-        </select>
-      </label>
-
-      <label className="wide">Next suggested service date / window
-        <input value={nextSuggestedWindow || targetWindow} onChange={e => onPassReviewChange(item.id, {
-          nextSuggestedWindow: e.target.value,
-          targetWindow: e.target.value,
-          suggestedWindow: `Suggested window: ${e.target.value}`
-        })}/>
-      </label>
-
-      <label>Recommended cadence
-        <select value={cadence} onChange={e => onPassReviewChange(item.id, { cadence: e.target.value })}>
-          {PASS_CADENCE.map(option => <option key={option} value={option}>{option}</option>)}
-        </select>
-      </label>
-
-      <label>Responsible resource / trade
-        <select value={resource} onChange={e => onPassReviewChange(item.id, { resource: e.target.value })}>
-          {PASS_RESOURCES.map(option => <option key={option} value={option}>{option}</option>)}
-        </select>
-      </label>
-
-      <label>Follow-up status
-        <select value={followUpStatus} onChange={e => onPassReviewChange(item.id, { followUpStatus: e.target.value })}>
-          {PASS_FOLLOW_UP_STATUSES.map(option => <option key={option} value={option}>{option}</option>)}
-        </select>
-      </label>
-
-      <label className="wide">Optional grouping note
-        <input value={groupingNote} onChange={e => onPassReviewChange(item.id, { groupingNote: e.target.value })} placeholder="Could be grouped with the next Handy Services visit"/>
-      </label>
-
-      <label className="wide passInternalNote">Internal THA note
-        <textarea value={internalNote} onChange={e => onPassReviewChange(item.id, { internalNote: e.target.value })} placeholder="Internal planning note; not shown in PMR export."/>
-      </label>
+      <div className="wide"><PassSourceEvidence item={item}/></div>
+      <label className="wide">Reason<textarea value={reason} onChange={e => onPassReviewChange(item.id, { reason: e.target.value })}/></label>
+      <label className="wide">Target window<input value={nextSuggestedWindow || targetWindow} onChange={e => onPassReviewChange(item.id, { nextSuggestedWindow: e.target.value, targetWindow: e.target.value, suggestedWindow: `Suggested window: ${e.target.value}` })}/></label>
+      <label>Cadence<select value={cadence} onChange={e => onPassReviewChange(item.id, { cadence: e.target.value })}>{PASS_CADENCE.map(option => <option key={option}>{option}</option>)}</select></label>
+      <label>Resource/trade<select value={resource} onChange={e => onPassReviewChange(item.id, { resource: e.target.value })}>{PASS_RESOURCES.map(option => <option key={option}>{option}</option>)}</select></label>
+      <label>Follow-up status<select value={followUpStatus} onChange={e => onPassReviewChange(item.id, { followUpStatus: e.target.value })}>{PASS_FOLLOW_UP_STATUSES.map(option => <option key={option}>{option}</option>)}</select></label>
+      <label>Last completed date, if known<input type="date" value={lastCompletedDate} onChange={e => onPassReviewChange(item.id, { lastCompletedDate: e.target.value })}/></label>
+      <label>Source of date<select value={dateSource} onChange={e => onPassReviewChange(item.id, { dateSource: e.target.value })}>{PASS_DATE_SOURCES.map(option => <option key={option} value={option}>{option}</option>)}</select></label>
+      <label className="wide passInternalNote">Internal THA note<textarea value={internalNote} onChange={e => onPassReviewChange(item.id, { internalNote: e.target.value })} placeholder="Internal planning note; not shown in PMR export."/></label>
     </div>}
   </article>;
 }
@@ -3758,59 +3755,27 @@ function PassReviewControls({ passCareCandidates = [], passReview = {}, onPassRe
       const state = passReviewState(item, passReview);
       return { item, category: passCandidateCategory(item), workflow: state.workflow };
     });
-
-    return CATEGORY_ORDER.map(category => ({
-      category,
-      items: classified
-        .filter(entry => entry.category === category)
-        .sort((a, b) => a.workflow.rank - b.workflow.rank || String(a.item.careItem || '').localeCompare(String(b.item.careItem || '')))
-    })).filter(group => group.items.length);
+    return CATEGORY_ORDER.map(category => ({ category, items: classified.filter(entry => entry.category === category).sort((a, b) => a.workflow.rank - b.workflow.rank || String(a.item.careItem || '').localeCompare(String(b.item.careItem || ''))) })).filter(group => group.items.length);
   }, [passCareCandidates, passReview]);
-
-  const attentionCount = groupedCandidates.flatMap(group => group.items).filter(entry => entry.workflow.visual === 'orange').length;
-
-  return <CollapsibleBlock
-    title="THA PASS Review Controls"
-    summary={`${passCareCandidates.length} candidate${passCareCandidates.length === 1 ? '' : 's'} before homeowner export · ${attentionCount} need${attentionCount === 1 ? 's' : ''} input / review`}
-    defaultOpen={true}
-    className="passReviewPanel noPrint"
-  >
-    <p>Cards are grouped by care category. Within each category, items needing attention appear first. PASS stays editable here; PMR remains read-only for the homeowner.</p>
-
-    <div className="passCategoryGroups">
-      {groupedCandidates.map(group => {
-        const meta = categoryInfo(group.category);
-        const Icon = meta.Icon;
-
-        return <section className="passCategoryGroup" key={group.category}>
-          <header className="passCategoryHeader">
-            <div className="passCategoryTitle">
-              <span className="passCategoryIcon"><Icon size={18}/></span>
-              <h3>{group.category}</h3>
-            </div>
-            <span className="passCategoryCount">{group.items.length} item{group.items.length === 1 ? '' : 's'}</span>
-          </header>
-
-          <div className="passReviewGrid">
-            {group.items.map(({ item }) => <PassReviewCard
-              key={`review-${item.id}`}
-              item={item}
-              category={group.category}
-              passReview={passReview}
-              onPassReviewChange={onPassReviewChange}
-            />)}
-          </div>
-        </section>;
-      })}
-    </div>
-
-    {!groupedCandidates.length && <p className="lede">No PASS candidates are available for this walkthrough yet.</p>}
+  const pendingCount = groupedCandidates.flatMap(group => group.items).filter(entry => entry.workflow.visual === 'orange').length;
+  return <CollapsibleBlock title="Preventative Maintenance Care Plan Builder" summary={`${passCareCandidates.length} supported care possibilit${passCareCandidates.length === 1 ? 'y' : 'ies'} · ${pendingCount} pending`} defaultOpen={true} className="passReviewPanel noPrint">
+    <p><strong>PASS → PMCP:</strong> PASS is The Homeowner Advocate’s framework for turning selected upkeep priorities into a homeowner’s Preventative Maintenance Care Plan (PMCP). The PMCP is the care-plan product created through this builder.</p>
+    <div className="passCategoryGroups">{groupedCandidates.map(group => { const meta = categoryInfo(group.category); const Icon = meta.Icon; const selectedCount = group.items.filter(({ item }) => passReviewState(item, passReview).selected).length; return <section className={`passCategoryGroup ${selectedCount ? 'hasPmcpSelected' : ''}`} key={group.category}><header className="passCategoryHeader"><div className="passCategoryTitle"><span className="passCategoryIcon"><Icon size={18}/></span><h3>{group.category}</h3></div><span className="passCategoryCount">{group.items.length} possibilities · {selectedCount} selected</span></header><div className="passReviewGrid">{group.items.map(({ item }) => <PassReviewCard key={`review-${item.id}`} item={item} category={group.category} passReview={passReview} onPassReviewChange={onPassReviewChange}/>)}</div></section>; })}</div>
+    {!groupedCandidates.length && <p className="lede">No supported PMCP care possibilities are available yet. Add a PASS-relevant Intake answer or mark an HTC row as PASS Candidate.</p>}
   </CollapsibleBlock>;
 }
 
 function PASSWorkspace({ passCareCandidates = [], passCareOutlook = [], passReview = {}, onPassReviewChange = () => {} }) {
-  const visiblePassIds = new Set(passCareOutlook.map(item => item.id));
-  return <main className="pmr passWorkspace"><div className="pmrHeader"><div><THALogo variant="full"/><p className="eyebrow">PASS — Internal Continued Care Workspace</p><h1>PASS Continued Care Plan</h1><p>Editable THA workspace for selecting and shaping read-only PASS content in PMR output.</p></div><div className="compassCard"><CalendarDays size={48}/><span>Internal planning</span></div></div><StatusKey mode="workflow" title="PASS workflow status" /><section className="pmrBlock frontSummary"><h2><CalendarDays size={20}/> PASS Workspace</h2><p className="lede">PASS is the internal, editable continued-care workspace. Intake and HTC remain THA working tools; the homeowner receives the polished PMR with selected, read-only PASS content.</p><div className="summaryTypeGrid"><div><strong>{passCareCandidates.length}</strong><span>PASS candidates</span></div><div><strong>{passCareOutlook.length}</strong><span>Included in PMR</span></div><div><strong>{passCareCandidates.length - passCareOutlook.length}</strong><span>Hidden from output</span></div></div></section><PassReviewControls passCareCandidates={passCareCandidates} passReview={passReview} onPassReviewChange={onPassReviewChange}/><CollapsibleBlock title="Selected PASS Continued Care Plan" icon={<CalendarDays/>} summary={`${passCareOutlook.length} selected item${passCareOutlook.length === 1 ? '' : 's'} currently included in PMR output`} defaultOpen={true} className="passOutlook"><div className="passOutlookGrid">{passCareOutlook.map(item=><article className="passOutlookCard" key={item.id}><div className="findTop"><TradeIcon trade={item.rule?.trade || item.row?.answer?.trade || item.resource}/><div><h3>{item.careItem}</h3><p>{item.resource} · Care planning · {passPlanningStatusText(item.followUpStatus)}</p></div></div><div className="findGrid"><p><strong>Homeowner-facing reason:</strong><br/>{item.reason}</p><p><strong>Follow-up planning:</strong><br/>{passHomeownerFollowUpLanguage(item)}</p><p><strong>Target season / window:</strong><br/>{passSuggestedWindowText(item.targetWindow || item.suggestedWindow)}</p><p><strong>Suggested cadence:</strong><br/>{item.cadence || 'As Needed'}</p><p><strong>Responsible resource / trade:</strong><br/>{item.resource}</p></div></article>)}</div>{passCareOutlook.length === 0 && <p className="lede">No PASS continued-care items are selected for PMR output.</p>}{passCareCandidates.some(item => !visiblePassIds.has(item.id)) && <p className="passHiddenNote noPrint">Hidden PASS items stay out of PMR export and Drive package.</p>}</CollapsibleBlock></main>;
+  return <PassErrorBoundary onReturnToPmr={() => window.dispatchEvent(new CustomEvent('tha:set-view', { detail: 'pmr' }))}><main className="pmr passWorkspace"><div className="pmrHeader"><div><THALogo variant="full"/><p className="eyebrow">PASS — Preventative Maintenance Care Plan</p><h1>Preventative Maintenance Care Plan Builder</h1><p>PASS → PMCP: PASS is The Homeowner Advocate’s framework for turning selected upkeep priorities into a homeowner’s Preventative Maintenance Care Plan (PMCP). The PMCP is the care-plan product created through this builder.</p></div><div className="compassCard"><CalendarDays size={48}/><span>PMCP builder</span></div></div><StatusKey mode="workflow" title="PASS workflow status" /><section className="pmrBlock frontSummary"><h2><CalendarDays size={20}/> In-app Preventative Maintenance Care Plan</h2><p className="lede">All supported care possibilities stay visible here. Only selected items are included in formal PMR and Drive/export PMCP output.</p><div className="summaryTypeGrid"><div><strong>{passCareCandidates.length}</strong><span>Supported possibilities</span></div><div><strong>{passCareOutlook.length}</strong><span>Selected for PMCP</span></div><div><strong>{passCareCandidates.length - passCareOutlook.length}</strong><span>Still available</span></div></div></section><PassReviewControls passCareCandidates={passCareCandidates} passReview={passReview} onPassReviewChange={onPassReviewChange}/></main></PassErrorBoundary>;
+}
+
+class PassErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (!this.state.hasError) return this.props.children;
+    return <main className="pmr passWorkspace"><section className="pmrBlock frontSummary"><h1>PASS could not load</h1><p className="lede">The PMCP builder hit a display error. You can retry PASS or return to the PMR while your walkthrough remains saved locally.</p><div className="buttonRow"><button onClick={() => this.setState({ hasError: false })}>Try PASS Again</button><button className="secondaryBtn" onClick={this.props.onReturnToPmr}>Return to PMR</button></div></section></main>;
+  }
 }
 
 function Metrics({rows, pmr, quickHits, pass}) {
