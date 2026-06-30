@@ -16,7 +16,7 @@
     const style = document.createElement('style');
     style.id = 'tha-htc-coverage-rails-styles';
     style.textContent = `
-      /* Orange = room still needs a walkthrough decision. Blue = at least one item has been documented. */
+      /* Orange = room still needs a walkthrough decision. Blue = something has been documented. */
       .roomNav .sectionSelect.tha-htc-pending{background:#fff4e8!important;border-color:#f0c998!important;color:#6f461f!important}
       .roomNav .sectionSelect.tha-htc-covered{background:#eef7fc!important;border-color:#b7d9ea!important;box-shadow:inset 5px 0 0 #287bb7!important;color:#173e57!important}
       .roomNav .sectionSelect.tha-htc-covered.active{box-shadow:inset 5px 0 0 #287bb7,0 0 0 2px rgba(40,123,183,.16)!important}
@@ -24,9 +24,11 @@
       .roomNav .sectionGroupAddButton:hover{background:#e5f4e6!important;border-color:#83ba89!important}
       .formPanel .checklistItemCard.tha-htc-notated{box-shadow:inset 5px 0 0 #287bb7,0 2px 9px rgba(30,103,150,.06)!important}
       .formPanel .checklistItemCard.tha-htc-notated .checklistSummaryRow{background:linear-gradient(90deg,#f4fbff 0%,#fff 34%)!important}
+      .formPanel .roomOverviewCard.tha-htc-notated{box-shadow:inset 5px 0 0 #287bb7,0 2px 9px rgba(30,103,150,.06)!important}
+      .formPanel .roomOverviewCard.tha-htc-notated .roomOverviewCardHeader{background:linear-gradient(90deg,#f4fbff 0%,#fff 42%)!important}
       @media(max-width:900px){
         .roomNav .sectionSelect.tha-htc-covered{box-shadow:inset 4px 0 0 #287bb7!important}
-        .formPanel .checklistItemCard.tha-htc-notated{box-shadow:inset 4px 0 0 #287bb7,0 2px 9px rgba(30,103,150,.06)!important}
+        .formPanel .checklistItemCard.tha-htc-notated,.formPanel .roomOverviewCard.tha-htc-notated{box-shadow:inset 4px 0 0 #287bb7,0 2px 9px rgba(30,103,150,.06)!important}
       }
     `;
     document.head.append(style);
@@ -50,19 +52,38 @@
     return Array.from(card.querySelectorAll('.summaryFlag')).some(flag => !flag.classList.contains('quiet'));
   }
 
+  function overviewHasActualNotation(card) {
+    if (!card) return false;
+    if (card.querySelector('.roomOverviewBody > .notes textarea')?.value?.trim()) return true;
+    if (card.querySelector('.roomItemList .roomItemRow')) return true;
+    if (card.querySelector('.roomThumbGrid .thumbCard')) return true;
+    const status = card.querySelector('.roomOverviewField select')?.value;
+    if (status && status !== 'Looking Good') return true;
+    const summary = Array.from(card.querySelectorAll('.roomOverviewSummaryItem')).map(item => item.textContent.replace(/\s+/g, ' ').trim()).join(' | ');
+    return /Note\s+Yes|Photos\s+[1-9]|Items\s+[1-9]/i.test(summary);
+  }
+
   function roomHasCoverage(roomName) {
     const coverage = readCoverage();
     return Boolean(coverage[roomName] && Object.keys(coverage[roomName]).length);
   }
 
-  function markCard(card) {
+  function markRoom(key) {
     const room = activeRoomName();
-    const key = itemKey(card);
     if (!room || !key) return;
     const coverage = readCoverage();
     coverage[room] = { ...(coverage[room] || {}), [key]: true };
     writeCoverage(coverage);
     refresh();
+  }
+
+  function markCard(card) {
+    const key = itemKey(card);
+    if (key) markRoom(key);
+  }
+
+  function markOverview() {
+    markRoom('__room_overview__');
   }
 
   function refreshCurrentRoomCards() {
@@ -73,6 +94,8 @@
       const notated = Boolean(stored[key] || cardHasActualNotation(card));
       card.classList.toggle('tha-htc-notated', notated);
     });
+    const overview = document.querySelector('.formPanel .roomOverviewCard');
+    if (overview) overview.classList.toggle('tha-htc-notated', Boolean(stored.__room_overview__ || overviewHasActualNotation(overview)));
   }
 
   function refreshRoomNav() {
@@ -82,7 +105,7 @@
       button.classList.toggle('tha-htc-covered', covered);
       button.classList.toggle('tha-htc-pending', !covered);
       button.title = covered
-        ? 'At least one walkthrough item has been documented in this room.'
+        ? 'At least one room overview or checklist item has been documented in this room.'
         : 'This room still needs a walkthrough decision or should be marked not applicable.';
     });
   }
@@ -97,14 +120,28 @@
     window.__thaHtcCoverageRails = true;
     const documentItem = event => {
       const card = event.target.closest('.formPanel .checklistItemCard');
-      if (card) markCard(card);
+      if (card) {
+        markCard(card);
+        return;
+      }
+      const overview = event.target.closest('.formPanel .roomOverviewCard');
+      if (!overview) return;
+      const isRoomNote = event.target.matches('.roomOverviewBody > .notes textarea');
+      const isRoomStatus = event.target.matches('.roomOverviewField select');
+      const isRoomPhoto = event.target.matches('input[type="file"]');
+      if (isRoomNote || isRoomStatus || isRoomPhoto) markOverview();
     };
     document.addEventListener('input', documentItem);
     document.addEventListener('change', documentItem);
     document.addEventListener('click', event => {
-      if (/new blank local walkthrough/i.test(event.target.closest('button')?.textContent || '')) {
+      const action = event.target.closest('button');
+      if (/new blank local walkthrough/i.test(action?.textContent || '')) {
         try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
         window.setTimeout(refresh, 0);
+        return;
+      }
+      if (action?.closest('.roomOverviewCard') && /^save$/i.test(action.textContent.trim())) {
+        window.setTimeout(markOverview, 0);
       }
     });
   }
