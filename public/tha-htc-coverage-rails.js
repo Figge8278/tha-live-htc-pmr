@@ -1,3 +1,5 @@
+import './tha-pmcp-consistency.js';
+
 (() => {
   const STORAGE_KEY = 'tha-htc-room-coverage-v1';
 
