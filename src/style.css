@@ -451,3 +451,16 @@
   .passReviewFields{grid-template-columns:1fr}
   .passReviewFields .wide{grid-column:auto}
 }
+
+.passCategoryGroup.hasPmcpSelected .passCategoryIcon{background:#f1fbef;color:#356f31;border:1px solid #c8e1c3}
+.passReviewCard{position:relative;overflow:hidden}
+.passReviewCard.pmcp-pending{border-left-color:#e97919;background:#fffaf5}
+.passReviewCard.pmcp-selected,.passReviewCard.pmcp-declined{border-left-color:#2f80ed;background:#f7fbff}
+.passReviewCard.pmcp-selected::after{content:"";position:absolute;top:0;right:0;width:6px;height:100%;background:#52aa4b}
+.passReviewCard.pmcp-declined::after{content:none}
+.passReviewTop{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.passReviewTop .secondaryBtn,.buttonRow .secondaryBtn{border:1px solid #cfdbe1;background:#fff;color:var(--navy);border-radius:10px;padding:9px 12px;font-weight:900}
+.passSourceEvidence{border:1px solid #dce4e8;border-radius:12px;background:#fbfdfe;padding:10px 12px;display:grid;gap:4px}
+.passSourceEvidence p{margin:0;color:#43515c;font-size:13px}
+.buttonRow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+@media(max-width:900px){.passReviewTop{align-items:stretch;flex-direction:column}.passReviewTop .secondaryBtn{width:100%}}
