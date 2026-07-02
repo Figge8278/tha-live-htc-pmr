@@ -772,7 +772,7 @@ function passCareTopicForRow(row = {}) {
   const text = `${row.roomName || row.room || ''} ${row.zone || row.section || ''} ${row.item || ''} ${row.prompt || ''} ${row.answer?.notes || ''}`;
   const match = PASS_CARE_RULES.find(rule => passTextMatchesRule(text, rule));
   if (match) {
-    return { careTopicId: match.id, careTopic: match.careItem };
+    return { careTopicId: `generated-pass-${match.id}`, careTopic: match.careItem };
   }
   return { careTopicId: `manual-pass-topic-${row.id}`, careTopic: row.item || 'Manual PMCP topic' };
 }
@@ -818,7 +818,40 @@ function passSourceLabel({ intakeEvidence, htcRows = [], source } = {}) {
   if (intakeEvidence && htcRows.length) return 'Intake + HTC';
   if (intakeEvidence) return 'Intake';
   if (htcRows.length) return 'HTC';
-  return 'Supported';
+  return 'Catalog only';
+}
+function buildPassCatalogItem(rule = {}, intake = {}, rows = [], passReview = {}, passCareOutlook = []) {
+  const intakeEvidence = passIntakeEvidence(intake, rule);
+  const htcRows = passHtcEvidenceRows(rows, rule);
+  const itemId = `generated-pass-${rule.id}`;
+  const matchedSelection = passCareOutlook.find(item => item.id === itemId || item.careTopicId === rule.id || item.rule?.id === rule.id);
+  const review = passReview[itemId] || passReview[rule.id] || passReview[matchedSelection?.id || ''] || {};
+  const pmcpDecision = pmcpDecisionForReview(review);
+  const sourceLabel = passSourceLabel({ intakeEvidence, htcRows });
+  const item = {
+    id: itemId,
+    source: 'catalog',
+    careItem: rule.careItem,
+    category: rule.category,
+    careTopic: rule.category,
+    careTopicId: rule.id,
+    reason: rule.reason,
+    targetWindow: rule.suggestedWindow,
+    suggestedWindow: `Suggested window: ${rule.suggestedWindow}`,
+    cadence: rule.cadence,
+    cadenceMonths: rule.cadenceMonths,
+    resource: rule.resource,
+    followUpStatus: PASS_FOLLOW_UP_STATUSES[0],
+    internalNote: '',
+    groupingNote: rule.groupingNote || '',
+    basis: [passIntakeBasis(intake, rule), passRoutineObservationBasis(rows, rule), `Common care cadence: ${rule.cadence}`].filter(Boolean).join(' · '),
+    sourceEvidence: { label: sourceLabel, intakeEvidence, htcRows },
+    rule,
+    pmcpDecision,
+    selected: pmcpDecision === 'selected'
+  };
+  const calendarFields = buildPassCalendarFields({ rule, intake, rows, item, review });
+  return { ...item, ...calendarFields, selected: pmcpDecision === 'selected' };
 }
 function pmcpDecisionForReview(review = {}) {
   return ['pending', 'selected', 'declined'].includes(review.pmcpDecision) ? review.pmcpDecision : 'pending';
@@ -3658,7 +3691,7 @@ function App() {
       </section>
     </main>}
     {view === 'pmr' && <PMR client={client} intake={intake} rows={rows} pmr={pmr} counts={counts} quickHits={quickHits} passCareCandidates={passCareCandidates} passReview={passReview} passCareOutlook={passCareOutlook} unreviewedIntakeRows={unreviewedIntakeRows} reviewedIntakeNotes={reviewedIntakeNotes} roomCapture={roomCapture} sections={sections} />}
-    {view === 'pass' && <PASSWorkspace passCareCandidates={passCareCandidates} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={updatePassReview} />}
+    {view === 'pass' && <PASSWorkspace intake={intake} rows={rows} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={updatePassReview} />}
     {view === 'metrics' && <Metrics rows={rows} pmr={pmr} quickHits={quickHits} pass={pass}/>} 
   </div>
 }
@@ -3924,7 +3957,7 @@ function PMR({client, intake, rows = [], pmr, counts, quickHits, passCareCandida
     <section className="pmrBlock baselineCare"><h2>Baseline Home Care / Upkeep To-Dos</h2><p className="lede">No repair concern is implied by this section. These are baseline reminders and practical upkeep opportunities. The list becomes more tailored as Intake, HTC, PMCP Builder, and THA Action-Items are completed.</p>{Object.entries(baselineByGroup).length ? Object.entries(baselineByGroup).map(([groupName, items]) => <section className="passCalendarCareGroup" key={`baseline-${groupName}`}><h3>{groupName}</h3><div className="passCalendarTable">{items.map(item => <article className="passCalendarRow baseline" key={item.id}><div><strong>{item.title}</strong><small>{item.guidance}</small>{item.evidence.length > 0 && <small>Evidence: {item.evidence.join(' · ')}</small>}</div><span>Routine</span><span>Baseline</span><span className="nextWindow">{item.group}</span><span>{item.evidence.length ? 'Supported by intake/HTC context' : 'General homeowner care baseline'}</span><span><em className="passStatusChip baseline">Not a repair finding</em></span></article>)}</div></section>) : <p className="lede">No baseline topics generated.</p>}</section>
     <section className="pmrBlock passOutlook"><h2><ClipboardList size={20}/> Home-Specific Care Supported by Intake and/or HTC</h2><p className="lede">These care topics are supported by intake and/or walkthrough evidence and remain separate from repair findings and PMR priority counts.</p>{baselineModel.homeSpecificCare.length ? <div className="passOutlookGrid">{baselineModel.homeSpecificCare.map(item => <article className="passOutlookCard" key={`supported-care-${item.id}`}><div className="findTop"><TradeIcon trade="Handyman"/><div><h3>{item.careItem}</h3><p>{item.sourceLabel} · Intake/HTC supported care</p></div></div><div className="findGrid"><p><strong>Homeowner-facing reason:</strong><br/>{item.reason || 'Supported by intake and/or HTC context.'}</p><p><strong>Category:</strong><br/>Home-specific care supported by Intake and/or HTC</p></div></article>)}</div> : <p className="lede">No additional intake/HTC-supported care topics are pending outside PMCP selected items.</p>}</section>
     {(actionItems.length > 0 || roomActionItems.length > 0) && <section className="pmrBlock workOrderSummary"><h2><ClipboardList size={20}/> THA Action-Items / Near-Term Follow-Up</h2><p className="lede">These THA action-items stay separate from ordinary repair findings. Purple supersedes green in rails while PMCP selections remain active underneath.</p><div className="findingTypeList"><article><h3>Detailed HTC line items</h3>{actionItems.length ? actionItems.map(r => <p key={`workorder-${r.id}`}>{r.roomName || r.room} — {r.item} · {displayTradeLabel(r.answer.trade)} · {r.answer.thaActionType || 'Research'}{includePMRRow(r) ? ` · ${pmrReportLabel(r.answer)}` : ''}</p>) : <p>No detailed line-item action-items recorded.</p>}</article><article><h3>Room overview action-items</h3>{roomActionItems.length ? roomActionItems.map(item => <p key={item.id}>{item.roomName} — {item.item} · {item.actionType}{item.note ? ` · ${item.note}` : ''}</p>) : <p>No room-overview action-items recorded.</p>}</article></div></section>}
-    <PassPlanSummary passCareCandidates={passCareCandidates} passReview={passReview} />
+    <PassPlanSummary passCareOutlook={passCareOutlook} passReview={passReview} />
     <section className="pmrBlock roomIssueSummary"><h2><Home size={20}/> Room-by-Room Issue Count</h2><p className="lede">PMR counts only. PASS continued care stays separate and is not included in this chart.</p>{roomIssueCounts.length ? <div className="roomIssueChart">{roomIssueCounts.map(([room, count]) => <div className="roomIssueRow" key={room}><span>{room}</span><div className="roomIssueBar"><i style={{width: `${Math.max(8, (count / maxRoomIssueCount) * 100)}%`}}></i></div><strong>{count}</strong></div>)}</div> : <p className="lede">No repair issues recorded by room.</p>}</section>
     <section className="pmrBlock findingTypeSummary"><h2><AlertTriangle size={20}/> Summary by Finding Type</h2><div className="findingTypeList"><article><h3>Immediate / higher concern items</h3>{immediateItems.length ? immediateItems.map(r => <p key={`immediate-${r.id}`}>{r.roomName || r.room} — {r.item}</p>) : <p>No immediate higher-concern items recorded.</p>}</article><article><h3>Handy Services items</h3>{handyItems.length ? handyItems.map(r => <p key={`handy-${r.id}`}>{r.roomName || r.room} — {r.item}</p>) : <p>No Handy Services PMR items recorded.</p>}</article><article><h3>Trade items</h3>{tradeItems.length ? tradeItems.map(r => <p key={`trade-summary-${r.id}`}>{displayTradeLabel(r.answer.trade)}: {r.roomName || r.room} — {r.item}</p>) : <p>No trade PMR items recorded.</p>}</article><article><h3>PASS continued care / routine care</h3>{passCareOutlook.length ? passCareOutlook.map(item => <p key={`pass-summary-${item.id}`}>{item.careItem} · {item.resource}</p>) : <p>No homeowner-facing PASS continued-care items included.</p>}</article></div></section>
     <section className="pmrBlock compactFindings"><h2><AlertTriangle/> Room-by-Room Action List</h2><p className="lede">Same PMR findings grouped by room for homeowner review. Longer observations, rationale, photos, and notes are in the Detail Appendix below.</p>{pmr.length ? <div className="packetActionGroups">{Object.entries(roomGroups).map(([room, items]) => <section className="packetActionGroup" key={`room-${room}`}><h3>{room} <span>{items.length} PMR item{items.length === 1 ? '' : 's'}</span></h3>{items.map(row => <VisualActionRow key={`room-row-${row.id}`} row={row} context={room}/>)}</section>)}</div> : <p className="lede">No repair findings recorded.</p>}</section>
@@ -3937,7 +3970,7 @@ function PMR({client, intake, rows = [], pmr, counts, quickHits, passCareCandida
         <div className="findGrid"><p><strong>What we saw:</strong><br/>{r.answer.notes || 'No additional notes recorded yet.'}</p><p><strong>Why it matters:</strong><br/>{r.why}</p><p><strong>Action certainty:</strong><br/>{certainty.title}: {certainty.body}</p><p><strong>Timing:</strong><br/>{timingFor(r, r.answer.status)} · Homeowner pace: {r.answer.pref}</p><p><strong>Photos:</strong><br/>{photoSummary(r.answer.photos)}</p><p><strong>Notes:</strong><br/>Approx. time: {r.answer.effort} · Intake context: {intakeInfluence(r, intake)}</p></div>
       </article>
     })}</CollapsibleBlock>
-    <CollapsibleBlock title="Homeowner Goals & Intake Context" icon={<Home size={20}/>} summary="Homeowner-provided context only; internal THA field-prep notes are excluded" defaultOpen={false} className="intakeSummary"><div className="findGrid"><p><strong>Primary priorities:</strong><br/>{summary.priorities}</p><p><strong>Preferred pace:</strong><br/>{summary.pace}</p><p><strong>Budget mindset:</strong><br/>{summary.budget}</p><p><strong>Decision style:</strong><br/>{summary.decision}</p><p><strong>Homeowner notes:</strong><br/>{summary.notes}</p><p><strong>Priority areas:</strong><br/>{intake.priorityAreas || 'No priority areas recorded.'}</p><p><strong>Known issues / recurring symptoms:</strong><br/>{structuredIntakeAnswerValue(intake, 'knownIssues', 'symptoms') || 'No homeowner-provided recurring symptoms recorded.'}</p><p><strong>Recent repairs / records:</strong><br/>{structuredIntakeAnswerValue(intake, 'recentRepairs', 'completed') || intake.helpfulRecords || 'No homeowner-provided repair or records context recorded.'}</p><p><strong>Access notes:</strong><br/>{structuredIntakeAnswerValue(intake, 'accessNotes', 'access') || 'No homeowner-provided access notes recorded.'}</p><p><strong>Do-not-overlook items:</strong><br/>{intake.doNotOverlook || 'No do-not-overlook items recorded.'}</p><p><strong>Workflow:</strong><br/>Intake captures context. HTC verifies and triages. PMR documents findings and next steps. PASS tracks routine continued care and stays separate from PMR counts.</p></div></CollapsibleBlock>
+    <CollapsibleBlock title="Homeowner Goals & Intake Context" icon={<Home size={20}/>} summary="Homeowner-provided context only; internal THA field-prep notes are excluded" defaultOpen={false} className="intakeSummary"><div className="findGrid"><p><strong>Primary priorities:</strong><br/>{summary.priorities}</p><p><strong>Preferred pace:</strong><br/>{summary.pace}</p><p><strong>Budget mindset:</strong><br/>{summary.budget}</p><p><strong>Decision style:</strong><br/>{summary.decision}</p><p><strong>Homeowner notes:</strong><br/>{summary.notes}</p><p><strong>Priority areas:</strong><br/>{reportValue(intake.priorityAreas, 'No priority areas recorded.')}</p><p><strong>Known issues / recurring symptoms:</strong><br/>{reportValue(structuredIntakeAnswerValue(intake, 'knownIssues', 'symptoms'), 'No homeowner-provided recurring symptoms recorded.')}</p><p><strong>Recent repairs / records:</strong><br/>{reportValue(structuredIntakeAnswerValue(intake, 'recentRepairs', 'completed') || intake.helpfulRecords, 'No homeowner-provided repair or records context recorded.')}</p><p><strong>Access notes:</strong><br/>{reportValue(structuredIntakeAnswerValue(intake, 'accessNotes', 'access'), 'No homeowner-provided access notes recorded.')}</p><p><strong>Do-not-overlook items:</strong><br/>{reportValue(intake.doNotOverlook, 'No do-not-overlook items recorded.')}</p><p><strong>Workflow:</strong><br/>Intake captures context. HTC verifies and triages. PMR documents findings and next steps. PASS tracks routine continued care and stays separate from PMR counts.</p></div></CollapsibleBlock>
     <CollapsibleBlock title="Planning Guides" icon={<ClipboardList size={20}/>} summary="Action certainty and time/investment reference" defaultOpen={false} className="guideSupportBlock"><section className="guideGrid"><div className="guideCard actionCertaintyGuide"><h2><ClipboardList size={20}/> Action Certainty Guide</h2>{ACTION_CERTAINTY_GUIDE.map(item => <p key={item.label} className={`actionGuideItem ${actionCertaintyClass(item.label)}`}><CertaintyDot label={item.label}/> <strong>{item.label}</strong><br/><span>{item.body}</span></p>)}</div><div className="guideCard timeGuideCard"><h2><Clock3 size={20}/> Time / Investment Guide</h2>{PMR_TIME_INVESTMENT_GUIDE.map(item => <p key={item.key} className={`timeGuideItem ${item.key}`}><span className="timeGuideIcon" aria-hidden="true">{item.icon}</span><strong>{item.label}</strong><span>{item.display.replace(item.label, '')}</span></p>)}</div></section></CollapsibleBlock>
     <CollapsibleBlock title="PASS Maintenance Calendar" icon={<CalendarDays/>} summary={`${passCareOutlook.length} recurring care item${passCareOutlook.length === 1 ? '' : 's'} · required even with zero PMR findings`} defaultOpen={true} className="passCalendar">
       <p className="lede passCalendarIntro">{passCalendarIntroCopy(pmr.length)}</p>
@@ -4047,27 +4080,29 @@ function PassReviewCard({ item, category, passReview, onPassReviewChange }) {
   </article>;
 }
 
-function PassReviewControls({ passCareCandidates = [], passReview = {}, onPassReviewChange = () => {} }) {
+function PassReviewControls({ intake = {}, rows = [], passCareOutlook = [], passReview = {}, onPassReviewChange = () => {} }) {
   const groupedCandidates = useMemo(() => {
-    const classified = passCareCandidates.map(item => {
-      const state = passReviewState(item, passReview);
-      return { item, category: passCandidateCategory(item), workflow: state.workflow };
-    });
-    return CATEGORY_ORDER.map(category => ({ category, items: classified.filter(entry => entry.category === category).sort((a, b) => a.workflow.rank - b.workflow.rank || String(a.item.careItem || '').localeCompare(String(b.item.careItem || ''))) })).filter(group => group.items.length);
-  }, [passCareCandidates, passReview]);
-  const pendingCount = groupedCandidates.flatMap(group => group.items).filter(entry => entry.workflow.visual === 'orange').length;
-  return <CollapsibleBlock title="Preventative Maintenance Care Plan Builder" summary={`${passCareCandidates.length} supported care possibilit${passCareCandidates.length === 1 ? 'y' : 'ies'} · ${pendingCount} pending`} defaultOpen={true} className="passReviewPanel noPrint">
-    <p><strong>PASS → PMCP:</strong> PASS is The Homeowner Advocate’s framework for turning selected upkeep priorities into a homeowner’s Preventative Maintenance Care Plan (PMCP). The PMCP is the care-plan product created through this builder.</p>
-    <div className="passCategoryGroups">{groupedCandidates.map(group => { const meta = categoryInfo(group.category); const Icon = meta.Icon; const selectedCount = group.items.filter(({ item }) => passReviewState(item, passReview).selected).length; return <section className={`passCategoryGroup ${selectedCount ? 'hasPmcpSelected' : ''}`} key={group.category}><header className="passCategoryHeader"><div className="passCategoryTitle"><span className="passCategoryIcon"><Icon size={18}/></span><h3>{group.category}</h3></div><span className="passCategoryCount">{group.items.length} possibilities · {selectedCount} selected</span></header><div className="passReviewGrid">{group.items.map(({ item }) => <PassReviewCard key={`review-${item.id}`} item={item} category={group.category} passReview={passReview} onPassReviewChange={onPassReviewChange}/>)}</div></section>; })}</div>
-    {!groupedCandidates.length && <p className="lede">No supported PMCP care possibilities are available yet. Add a PASS-relevant Intake answer or use Add to PMCP Builder on an HTC row.</p>}
+    const catalogItems = PASS_CARE_RULES.map(rule => buildPassCatalogItem(rule, intake, rows, passReview, passCareOutlook));
+    return CATEGORY_ORDER.map(category => ({
+      category,
+      items: catalogItems.filter(entry => entry.category === category).sort((a, b) => (passReviewState(a, passReview).workflow.rank - passReviewState(b, passReview).workflow.rank) || String(a.careItem || '').localeCompare(String(b.careItem || '')))
+    })).filter(group => group.items.length);
+  }, [intake, rows, passReview, passCareOutlook]);
+  const allCatalogItems = groupedCandidates.flatMap(group => group.items);
+  const supportedCount = allCatalogItems.filter(item => item.sourceEvidence?.label !== 'Catalog only').length;
+  const selectedCount = allCatalogItems.filter(item => passReviewState(item, passReview).selected).length;
+  return <CollapsibleBlock title="Preventative Maintenance Care Plan Builder" summary={`${PASS_CARE_RULES.length} catalog items · ${supportedCount} supported · ${selectedCount} selected`} defaultOpen={true} className="passReviewPanel noPrint">
+    <p><strong>PASS → PMCP:</strong> PASS is The Homeowner Advocate’s framework for turning a full preventative-maintenance catalog into a homeowner’s Preventative Maintenance Care Plan (PMCP). Intake and HTC only enrich, highlight, or activate catalog items; they do not hide unrelated topics.</p>
+    <div className="passCategoryGroups">{groupedCandidates.map(group => { const meta = categoryInfo(group.category); const Icon = meta.Icon; const selectedCount = group.items.filter(item => passReviewState(item, passReview).selected).length; return <section className={`passCategoryGroup ${selectedCount ? 'hasPmcpSelected' : ''}`} key={group.category}><header className="passCategoryHeader"><div className="passCategoryTitle"><span className="passCategoryIcon"><Icon size={18}/></span><h3>{group.category}</h3></div><span className="passCategoryCount">{group.items.length} possibilities · {selectedCount} selected</span></header><div className="passReviewGrid">{group.items.map(item => <PassReviewCard key={`review-${item.id}`} item={item} category={group.category} passReview={passReview} onPassReviewChange={onPassReviewChange}/>)}</div></section>; })}</div>
+    {!groupedCandidates.length && <p className="lede">No PASS catalog items are available yet.</p>}
   </CollapsibleBlock>;
 }
 
-function PassPlanSummary({ passCareCandidates = [], passReview = {} }) {
+function PassPlanSummary({ passCareOutlook = [], passReview = {} }) {
   const groupedCandidates = useMemo(() => {
-    const classified = passCareCandidates.map(item => ({ item, category: passCandidateCategory(item), state: passReviewState(item, passReview) }));
+    const classified = passCareOutlook.map(item => ({ item, category: passCandidateCategory(item), state: passReviewState(item, passReview) }));
     return CATEGORY_ORDER.map(category => ({ category, items: classified.filter(entry => entry.category === category) })).filter(group => group.items.length);
-  }, [passCareCandidates, passReview]);
+  }, [passCareOutlook, passReview]);
 
   const [openCategories, setOpenCategories] = useState(() => new Set(groupedCandidates.map(group => group.category)));
 
@@ -4082,7 +4117,7 @@ function PassPlanSummary({ passCareCandidates = [], passReview = {} }) {
     return next;
   });
 
-  return <section className="pmrBlock passOutlook passPlanSummary"><h2><ClipboardList size={20}/> Preventative Maintenance Care Plan</h2><p className="lede">This read-only plan shows every supported PASS care possibility grouped by category. Selected items are marked for inclusion in the Preventative Maintenance Care Plan; all other possibilities remain visible without edit controls.</p>
+  return <section className="pmrBlock passOutlook passPlanSummary"><h2><ClipboardList size={20}/> Preventative Maintenance Care Plan</h2><p className="lede">This read-only plan shows the items actually placed or formalized for the homeowner. It stays separate from the full PASS builder catalog.</p>
     {groupedCandidates.length ? groupedCandidates.map(group => {
       const selectedCount = group.items.filter(({ state }) => state.selected).length;
       const isOpen = openCategories.has(group.category);
@@ -4098,12 +4133,15 @@ function PassPlanSummary({ passCareCandidates = [], passReview = {} }) {
             {state.selected && <div className="passPlanItemSelectedMarker" aria-label="Selected"></div>}
           </article>)}</div>}
       </section>;
-    }) : <p className="lede">No supported care possibilities are available yet.</p>}
+    }) : <p className="lede">No PMCP items have been formalized yet.</p>}
   </section>;
 }
 
-function PASSWorkspace({ passCareCandidates = [], passCareOutlook = [], passReview = {}, onPassReviewChange = () => {} }) {
-  return <PassErrorBoundary onReturnToPmr={() => window.dispatchEvent(new CustomEvent('tha:set-view', { detail: 'pmr' }))}><main className="pmr passWorkspace"><div className="pmrHeader"><div><THALogo variant="full"/><p className="eyebrow">PASS — Preventative Maintenance Care Plan</p><h1>Preventative Maintenance Care Plan Builder</h1><p>PASS → PMCP: PASS is The Homeowner Advocate’s framework for turning selected upkeep priorities into a homeowner’s Preventative Maintenance Care Plan (PMCP). The PMCP is the care-plan product created through this builder.</p></div><div className="compassCard"><CalendarDays size={48}/><span>PMCP builder</span></div></div><StatusKey mode="workflow" title="PASS workflow status" /><section className="pmrBlock frontSummary"><h2><CalendarDays size={20}/> In-app Preventative Maintenance Care Plan</h2><p className="lede">All supported care possibilities stay visible here. Only selected items are included in formal PMR and Drive/export PMCP output.</p><div className="summaryTypeGrid"><div><strong>{passCareCandidates.length}</strong><span>Supported possibilities</span></div><div><strong>{passCareOutlook.length}</strong><span>Selected for PMCP</span></div><div><strong>{passCareCandidates.length - passCareOutlook.length}</strong><span>Still available</span></div></div></section><PassReviewControls passCareCandidates={passCareCandidates} passReview={passReview} onPassReviewChange={onPassReviewChange}/><PassPlanSummary passCareCandidates={passCareCandidates} passReview={passReview}/></main></PassErrorBoundary>;
+function PASSWorkspace({ intake = {}, rows = [], passCareOutlook = [], passReview = {}, onPassReviewChange = () => {} }) {
+  const catalogCount = PASS_CARE_RULES.length;
+  const selectedCount = passCareOutlook.length;
+  const supportedCount = PASS_CARE_RULES.filter(rule => buildPassCatalogItem(rule, intake, rows, passReview, passCareOutlook).sourceEvidence?.label !== 'Catalog only').length;
+  return <PassErrorBoundary onReturnToPmr={() => window.dispatchEvent(new CustomEvent('tha:set-view', { detail: 'pmr' }))}><main className="pmr passWorkspace"><div className="pmrHeader"><div><THALogo variant="full"/><p className="eyebrow">PASS — Preventative Maintenance Care Plan</p><h1>Preventative Maintenance Care Plan Builder</h1><p>PASS → PMCP: PASS is The Homeowner Advocate’s framework for turning a full preventative-maintenance catalog into a homeowner’s Preventative Maintenance Care Plan (PMCP). Intake and HTC enrich the catalog, while selected items become formal PMCP output.</p></div><div className="compassCard"><CalendarDays size={48}/><span>PMCP builder</span></div></div><StatusKey mode="workflow" title="PASS workflow status" /><section className="pmrBlock frontSummary"><h2><CalendarDays size={20}/> In-app Preventative Maintenance Care Plan</h2><p className="lede">The full catalog stays visible here. Intake and HTC highlight entries, while only selected items are included in formal PMR and Drive/export PMCP output.</p><div className="summaryTypeGrid"><div><strong>{catalogCount}</strong><span>Catalog items</span></div><div><strong>{supportedCount}</strong><span>Supported right now</span></div><div><strong>{selectedCount}</strong><span>Selected for PMCP</span></div></div></section><PassReviewControls intake={intake} rows={rows} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={onPassReviewChange}/><PassPlanSummary passCareOutlook={passCareOutlook} passReview={passReview}/></main></PassErrorBoundary>;
 }
 
 class PassErrorBoundary extends React.Component {
