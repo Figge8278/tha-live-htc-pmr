@@ -3766,7 +3766,7 @@ function IntakeView({client = {}, intake, updateIntake, copyFeedback = '', onCop
   const fieldPrepCompleted = completedIntakeFieldCount(intake, THA_FIELD_PREP_FIELDS);
   const readyForHTC = homeownerCompleted >= 2 || fieldPrepCompleted >= 3;
   return <main className="intakePage">
-    <div className="pmrHeader"><div><p className="eyebrow">Homeowner Quick Intake → THA Field Prep → HTC Follow-Up → PMR</p><h1>Intake — Homeowner Context & Field Prep</h1><p>Intake captures homeowner-reported context before the walkthrough. HTC verifies conditions in the field. PMR findings are only created after review.</p></div><div className="compass">◈</div></div>
+    <div className="pmrHeader"><div><p className="eyebrow">Homeowner Quick Intake → THA Field Prep → HTC Walkthrough → PMR</p><h1>Intake — Homeowner Context & Field Prep</h1><p>Intake captures homeowner-reported context before the walkthrough. HTC verifies conditions in the field. PMR findings are only created after review.</p></div><div className="compass">◈</div></div>
     <section className="intakeStatusSummary" aria-label="Intake status summary">
       <div><span>Homeowner Quick Intake fields completed</span><strong>{homeownerCompleted}/{HOMEOWNER_QUICK_INTAKE_FIELDS.length}</strong></div>
       <div><span>THA Field Prep fields completed</span><strong>{fieldPrepCompleted}/{THA_FIELD_PREP_FIELDS.length}</strong></div>
@@ -3787,7 +3787,7 @@ function IntakeView({client = {}, intake, updateIntake, copyFeedback = '', onCop
       </div>
     </details>
     <details className="pmrBlock intakeLane" open>
-      <summary><span>THA Internal Intake / Field Prep</span><small>Detailed system context to guide HTC. Homeowner-reported answers become follow-up prompts only after field verification.</small></summary>
+      <summary><span>THA Internal Intake / Field Prep</span><small>Detailed system context that supports the walkthrough. Intake context does not create HTC findings or PMR items.</small></summary>
       <p className="lede">Use these fields to prepare the walkthrough without turning intake notes into findings. Verify during HTC before PMR inclusion.</p>
       <section className="intakeSubsection"><h3>Electrical</h3><div className="intakeGrid">
         <CategoryLabel category="Electrical">Electrical panel location<input value={intake.electricalPanel || ''} onChange={e=>updateIntake({electricalPanel:e.target.value})}/></CategoryLabel>
