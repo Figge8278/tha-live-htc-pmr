@@ -733,7 +733,7 @@ function isIntakeFollowUp(row = {}) {
   return row.source === INTAKE_FOLLOW_UP_SOURCE || row.intakeOnly;
 }
 function includePMRRow(row) {
-  if (isIntakeFollowUp(row)) return includePMR(row.answer) && row.answer.reviewStatus === INTAKE_PMR_REVIEW_STATUS;
+  if (isIntakeFollowUp(row)) return false;
   return includePMR(row.answer);
 }
 function passCadenceFor(item = {}) {
@@ -2078,7 +2078,6 @@ function buildPmrReportHtml(payload, photoEntries = []) {
     return reportShell('PMR Report Packet', payload.client, `<section class="card hero-card"><p class="section-kicker">Setup needed</p><h2>Draft PMR Preview</h2><p class="lede">Complete client name, property address, and walkthrough date to finalize this report.</p></section>`, payload.walkthroughName);
   }
   const counts = { high: pmr.filter(r=>priority(r.answer.status)==='High').length, med: pmr.filter(r=>priority(r.answer.status)==='Medium').length, low: pmr.filter(r=>priority(r.answer.status)==='Low').length };
-  const reviewedIntakeNotes = rows.filter(r => isIntakeFollowUp(r) && r.intakeField !== 'additionalConcerns' && r.answer.reviewStatus && r.answer.reviewStatus !== 'Not Reviewed' && r.answer.reviewStatus !== INTAKE_PMR_REVIEW_STATUS);
   const immediateItems = pmr.filter(r => r.answer.status === 'Immediate Concern');
   const handyItems = pmr.filter(r => r.answer.trade === 'Handyman');
   const tradeItems = pmr.filter(r => !['Handyman','Safety'].includes(r.answer.trade));
@@ -2111,7 +2110,6 @@ function buildPmrReportHtml(payload, photoEntries = []) {
   };
   const roomSections = Object.entries(roomGroups).map(([room, items]) => `<section class="subsection"><h3>${htmlEscape(room)} <span>${items.length} PMR item${items.length === 1 ? '' : 's'}</span></h3><div class="packet-lines">${items.map(r => visualLine(r, { prefix: room, showRoomChip: false })).join('')}</div></section>`).join('') || '<p><span class="not-recorded">No repair findings recorded by room.</span></p>';
   const tradeSections = Object.entries(tradeGroups).map(([trade, items]) => `<section class="subsection"><h3>${htmlEscape(trade)} <span>${items.length} item${items.length === 1 ? '' : 's'}</span></h3><div class="packet-lines">${items.map(r => visualLine(r)).join('')}</div></section>`).join('') || '<p><span class="not-recorded">No repair findings recorded by trade.</span></p>';
-  const intakeList = reviewedIntakeNotes.map(r=>`<li><strong>${htmlEscape(r.roomName || r.room)} — ${htmlEscape(r.item)}</strong><span>${htmlEscape(r.answer.reviewStatus)} · ${htmlEscape(r.intakeFieldLabel)}: ${reportValue(r.intakeValue)}</span></li>`).join('') || '<li><strong>No reviewed intake follow-up notes recorded.</strong><span>Intake context did not add separate follow-up notes for this PMR export.</span></li>';
   const roomChart = roomIssueCounts.length ? `<div class="room-chart">${roomIssueCounts.map(([room, count]) => `<div class="room-bar"><span>${htmlEscape(room)}</span><i><b style="width:${Math.max(8, (count / maxRoomIssueCount) * 100)}%"></b></i><strong>${count}</strong></div>`).join('')}</div>` : '<p><span class="not-recorded">No repair issues recorded by room.</span></p>';
   const passLines = passCareOutlook.length ? `<div class="packet-lines">${passCareOutlook.map(passVisualLineHtml).join('')}</div>` : '<p><span class="not-recorded">No PASS continued-care items selected for this packet.</span></p>';
   const passCalendarGroups = Object.entries(groupPassCalendar(passCareOutlook, passCareGroup));
@@ -2133,7 +2131,6 @@ function buildPmrReportHtml(payload, photoEntries = []) {
     <section class="card packet-section pass-card"><p class="section-kicker">Section 6 · Required · Separate from PMR counts</p><h2>PASS Maintenance Calendar</h2><p class="lede pass-intro">${htmlEscape(passCalendarIntroCopy(pmr.length))}</p><div class="pass-calendar-legend"><span>📅 Suggested upkeep window</span><span>Neutral = Verify / Establish Baseline</span><span>Ready = known date + next window</span><span>PMR count impact: 0</span></div>${passCalendarSections}<div class="detail-grid"><div class="detail"><span class="field-label">Grouped by resource/trade</span>${passResourceGroups || '<span class="not-recorded">No resource grouping available.</span>'}</div><div class="detail"><span class="field-label">Grouped by upcoming window</span>${passWindowGroups || '<span class="not-recorded">No window grouping available.</span>'}</div></div></section>
     <section class="card packet-section pass-card"><p class="section-kicker">Section 7 · Separate from PMR counts</p><h2>PASS Continued Care Plan</h2><p class="lede">PASS is routine continued care only. These items are not PMR defects, priority counts, or urgent repair directives.</p>${passLines}</section>
     <section class="card packet-section"><p class="section-kicker">Section 8</p><h2>Detail Appendix</h2><p class="lede">Expanded notes are here so the top of the packet stays useful without losing what was seen, why it matters, action certainty, timing, and photo references.</p>${detailRows}</section>
-    ${reviewedIntakeNotes.length ? `<section class="card packet-section"><h2>Reviewed Intake Follow-Up Context</h2><p class="lede">Included as homeowner context only. Intake alone does not create a PMR finding.</p><ul class="next-step-list">${intakeList}</ul></section>` : ''}
     <section class="card packet-section"><h2>Visual System Guide</h2><div class="legend-grid"><p><span class="line-stripe sample"></span><strong>Left color stripe</strong><br/>Trade / resource grouping</p><p><span class="status-dot urgent"></span><strong>Stoplight dot</strong><br/>Urgency / status</p><p><span class="chip time-chip">Time</span><strong>Time chip</strong><br/>Likely effort or care window</p><p><span class="chip certainty-chip clearPath">Clear Path</span><strong>Certainty chip</strong><br/>Clear Path / Likely Path / Needs Discovery</p></div></section>
     ${buildPhotoIndexSection(photoEntries, { embedded: true })}`;
   return reportShell('PMR Report Packet', payload.client, body, payload.walkthroughName);
@@ -2742,9 +2739,6 @@ function App() {
     if (!sections.some(section => section.key === activeRoom)) setActiveRoom(sections[0]?.key || '');
   }, [sections, activeRoom]);
   const pmr = rows.filter(includePMRRow);
-  const intakeReviewRows = [];
-  const unreviewedIntakeRows = [];
-  const reviewedIntakeNotes = [];
   const counts = { high: pmr.filter(r=>priority(r.answer.status)==='High').length, med: pmr.filter(r=>priority(r.answer.status)==='Medium').length, low: pmr.filter(r=>priority(r.answer.status)==='Low').length };
   const quickHits = pmr.filter(r => ['Handyman','Safety'].includes(r.answer.trade) && ['15 min','30 min','45–60 min','1–2 hrs'].includes(r.answer.effort));
   const pass = rows.filter(r => r.answer.addToPmcpBuilder);
@@ -2792,12 +2786,11 @@ function App() {
   const readyForHTC = homeownerCompletedForCues >= 2 || fieldPrepCompletedForCues >= 3;
   const answeredHtcRows = rows.filter(row => row.answer.status !== 'Not Checked' || row.answer.notes.trim() || row.answer.photos.length).length;
   const htcProgressText = rows.length ? `${answeredHtcRows}/${rows.length} items touched` : 'No HTC items loaded';
-  const pmrNeedsReview = false;
   const passNeedsReview = passCareCandidates.some(item => {
     const review = passReview[item.id] || {};
     return pmcpDecisionForReview(review) === 'pending' && !((review.reason ?? item.reason) || '').trim();
   });
-  const homeownerOutputReady = !missingClientFieldCount && !pmrNeedsReview;
+  const homeownerOutputReady = !missingClientFieldCount;
   const driveCueState = driveMeta.lastError ? 'warning' : (driveMeta.lastSaved || driveToken ? 'ready' : 'neutral');
   const driveCueText = driveMeta.lastError ? 'Needs review' : (driveMeta.lastSaved ? 'Package saved' : (driveToken ? 'Connected' : 'Optional Drive upload'));
   const workflowCues = [
@@ -3681,7 +3674,7 @@ function App() {
         </div>})}
       </section>
     </main>}
-    {view === 'pmr' && <PMR client={client} intake={intake} rows={rows} pmr={pmr} counts={counts} quickHits={quickHits} passCareCandidates={passCareCandidates} passReview={passReview} passCareOutlook={passCareOutlook} unreviewedIntakeRows={unreviewedIntakeRows} reviewedIntakeNotes={reviewedIntakeNotes} roomCapture={roomCapture} sections={sections} />}
+    {view === 'pmr' && <PMR client={client} intake={intake} rows={rows} pmr={pmr} counts={counts} quickHits={quickHits} passCareCandidates={passCareCandidates} passReview={passReview} passCareOutlook={passCareOutlook} roomCapture={roomCapture} sections={sections} />}
     {view === 'pass' && <PASSWorkspace intake={intake} rows={rows} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={updatePassReview} />}
     {view === 'metrics' && <Metrics rows={rows} pmr={pmr} quickHits={quickHits} pass={pass}/>} 
   </div>
@@ -3881,7 +3874,7 @@ function StatusKey({ mode = 'condition', title = '' }) {
   </section>;
 }
 
-function PMR({client, intake, rows = [], pmr, counts, quickHits, passCareCandidates = [], passReview = {}, passCareOutlook = [], unreviewedIntakeRows = [], reviewedIntakeNotes = [], roomCapture = {}, sections = []}) {
+function PMR({client, intake, rows = [], pmr, counts, quickHits, passCareCandidates = [], passReview = {}, passCareOutlook = [], roomCapture = {}, sections = []}) {
   const summary = intakeSummary(intake);
   const hasRequiredProjectSetup = !isMissingProjectIdentityValue(client?.name) && !isMissingProjectIdentityValue(client?.address) && !isMissingProjectIdentityValue(client?.date);
   const baselineModel = buildBaselineCareModel({ intake, rows, passCareCandidates, passCareOutlook });
@@ -3951,7 +3944,6 @@ function PMR({client, intake, rows = [], pmr, counts, quickHits, passCareCandida
     <section className="pmrBlock findingTypeSummary"><h2><AlertTriangle size={20}/> Summary by Finding Type</h2><div className="findingTypeList"><article><h3>Immediate / higher concern items</h3>{immediateItems.length ? immediateItems.map(r => <p key={`immediate-${r.id}`}>{r.roomName || r.room} — {r.item}</p>) : <p>No immediate higher-concern items recorded.</p>}</article><article><h3>Handy Services items</h3>{handyItems.length ? handyItems.map(r => <p key={`handy-${r.id}`}>{r.roomName || r.room} — {r.item}</p>) : <p>No Handy Services PMR items recorded.</p>}</article><article><h3>Trade items</h3>{tradeItems.length ? tradeItems.map(r => <p key={`trade-summary-${r.id}`}>{displayTradeLabel(r.answer.trade)}: {r.roomName || r.room} — {r.item}</p>) : <p>No trade PMR items recorded.</p>}</article><article><h3>PASS continued care / routine care</h3>{passCareOutlook.length ? passCareOutlook.map(item => <p key={`pass-summary-${item.id}`}>{item.careItem} · {item.resource}</p>) : <p>No homeowner-facing PASS continued-care items included.</p>}</article></div></section>
     <section className="pmrBlock compactFindings"><h2><AlertTriangle/> Room-by-Room Action List</h2><p className="lede">Same PMR findings grouped by room for homeowner review. Longer observations, rationale, photos, and notes are in the Detail Appendix below.</p>{pmr.length ? <div className="packetActionGroups">{Object.entries(roomGroups).map(([room, items]) => <section className="packetActionGroup" key={`room-${room}`}><h3>{room} <span>{items.length} PMR item{items.length === 1 ? '' : 's'}</span></h3>{items.map(row => <VisualActionRow key={`room-row-${row.id}`} row={row} context={room}/>)}</section>)}</div> : <p className="lede">No repair findings recorded.</p>}</section>
     <section className="pmrBlock compactFindings"><h2><Wrench/> Trade-by-Trade Action List</h2><p className="lede">Same PMR findings grouped by likely resource so a homeowner can hand a focused list to a plumber, electrician, handyman, or specialist. PASS continued-care items are not included in these PMR counts.</p>{pmr.length ? <div className="packetActionGroups">{Object.entries(tradeGroups).map(([trade, items]) => <section className="packetActionGroup" key={`trade-${trade}`}><h3>{trade} <span>{items.length} item{items.length === 1 ? '' : 's'}</span></h3>{items.map(row => <VisualActionRow key={`trade-row-${row.id}`} row={row} context={trade}/>)}</section>)}</div> : <p className="lede">No repair findings recorded by trade.</p>}</section>
-    {reviewedIntakeNotes.length > 0 && <CollapsibleBlock title="Intake Follow-Up Notes" summary={`${reviewedIntakeNotes.length} reviewed intake note${reviewedIntakeNotes.length === 1 ? '' : 's'} · context only, not PMR findings`} defaultOpen={false} className="intakeFollowUpBlock"><ul className="checkList">{reviewedIntakeNotes.map(r=><li key={`note-${r.id}`}><span className="sourceBadge">Intake Follow-Up</span><span><strong>{r.roomName || r.room} — {r.item}</strong><br/><small>{r.answer.reviewStatus} · {r.intakeFieldLabel}: {r.intakeValue}</small></span></li>)}</ul></CollapsibleBlock>}
     <CollapsibleBlock title="Detail Appendix" icon={<FileText size={20}/>} summary={`${pmr.length} expanded PMR detail${pmr.length === 1 ? '' : 's'} · what we saw, why it matters, certainty, timing, and photos`} defaultOpen={false} className="detailAppendix">{pmr.map(r => {
       const certainty = actionCertaintyCopy(r);
       return <article className="finding appendixFinding" key={`appendix-${r.id}`}>
