@@ -3507,6 +3507,7 @@ function App() {
           <p className="sectionHelperText">This working walkthrough is automatically saved in this browser's local storage. “Save Local Session” updates the saved session list below; it does not create a homeowner report or upload anything to Drive.</p>
           <label>Saved local sessions<select value={selectedWalkthroughId} onChange={e=>openSavedWalkthrough(e.target.value)}><option value="">Choose saved local session</option>{savedSessionList.map(session=><option key={session.id} value={session.id}>{session.name || 'Untitled Walkthrough'}{session.updatedAt ? ` · ${new Date(session.updatedAt).toLocaleString()}` : ''}</option>)}</select></label>
           <button type="button" className="deleteLocalSessionButton" onClick={deleteSavedWalkthrough} disabled={!selectedWalkthroughId || !savedSessions[selectedWalkthroughId]}><Trash2 size={16}/> Delete Selected Local Session</button>
+          <HomeownerIntakeImportPanel client={client} intake={intake} updateIntake={updateIntake} />
           <div className="localBackupRestore"><p><strong>Local backup download</strong><br/><span>Downloads a JSON recovery file to this device only. It is not homeowner-facing and does not upload to Drive.</span></p><button type="button" onClick={downloadEmergencyBackup}><Download size={16}/> Download Local Emergency Backup</button></div>
         </section>
         <section className="controlGroup clientCard homeownerOutputCard" aria-label="Homeowner Output">
@@ -3697,13 +3698,10 @@ function StructuredIntakeQuestion({ group, intake, updateIntake }) {
   </div>;
 }
 
-function IntakeView({client = {}, intake, updateIntake, copyFeedback = '', onCopyPreWalkthroughEmail, intakeFollowUpCount = 0}) {
+function HomeownerIntakeImportPanel({client = {}, intake, updateIntake}) {
   const [importText, setImportText] = useState('');
   const [importPreview, setImportPreview] = useState(null);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
-  const homeownerCompleted = completedIntakeFieldCount(intake, HOMEOWNER_QUICK_INTAKE_FIELDS);
-  const fieldPrepCompleted = completedIntakeFieldCount(intake, THA_FIELD_PREP_FIELDS);
-  const readyForHTC = homeownerCompleted >= 2 || fieldPrepCompleted >= 3;
   const parsedUpdates = importPreview ? flattenedImportUpdates(importPreview.mapped) : [];
   const previewRows = parsedUpdates.map(row => {
     const currentValue = row.fieldKey ? structuredIntakeAnswerValue(intake, row.key, row.fieldKey) : intake[row.key];
@@ -3739,6 +3737,34 @@ function IntakeView({client = {}, intake, updateIntake, copyFeedback = '', onCop
     setImportText(await file.text());
     setImportPreview(null);
   };
+  return <details className="pmrBlock intakeImportPanel homeownerImportDetails">
+      <summary><span>Import homeowner intake into this walkthrough</span></summary>
+      <p className="lede">Paste or upload a completed homeowner response, preview recognized answers, then apply them to this working walkthrough. This imports homeowner context only; it does not create HTC findings or Field Prep notes.</p>
+      <div className="intakeImportHeader"><div><h2>Import Intake Response</h2><p className="lede">Paste the homeowner reply, preview mapped answers, then apply them to blank Homeowner Quick Intake fields. THA Internal Intake / Field Prep fields are preserved.</p></div><label className="uploadInline txtUpload"><Upload size={16}/> Upload .txt<input type="file" accept=".txt,text/plain" onChange={e=>{loadTxtFile(e.target.files?.[0]); e.target.value='';}}/></label></div>
+      <label className="notes intakeQuestion"><span>Paste homeowner response</span><textarea value={importText} onChange={e=>{setImportText(e.target.value); setImportPreview(null);}} placeholder="Paste the homeowner's completed structured intake reply here." /></label>
+      <div className="importActions"><button type="button" onClick={previewImport} disabled={!importText.trim()}>Preview Intake Import</button><button type="button" onClick={applyImport} disabled={!importPreview || !previewRows.some(row=>row.willApply)}>Apply to Current Walkthrough</button>{conflictingRows.length > 0 && <label className="overwriteToggle"><input type="checkbox" checked={confirmOverwrite} onChange={e=>setConfirmOverwrite(e.target.checked)}/><span>Confirm overwrite of {conflictingRows.length} existing populated field{conflictingRows.length === 1 ? '' : 's'}</span></label>}</div>
+      {importPreview && <div className="importPreview">
+        <h3>Import Preview</h3>
+        {(intakeIdMismatch || addressMismatch) && <div className="driveErrorBox" role="alert"><AlertTriangle size={16}/><span>{intakeIdMismatch ? 'Imported Intake ID does not match this walkthrough. ' : ''}{addressMismatch ? 'Imported Project Address does not appear to match this walkthrough.' : ''}</span></div>}
+        <div className="previewMetaGrid">
+          <div><span>Detected Intake ID</span><strong>{importPreview.detected.intakeId || 'Not detected'}</strong></div>
+          <div><span>Detected Client Name</span><strong>{importPreview.detected.clientName || 'Not detected'}</strong></div>
+          <div><span>Detected Project Address</span><strong>{importPreview.detected.projectAddress || 'Not detected'}</strong></div>
+          <div><span>Detected Walkthrough Date</span><strong>{importPreview.detected.walkthroughDate || 'Not detected'}</strong></div>
+        </div>
+        <h4>Mapped Answers</h4>
+        {previewRows.length ? <div className="mappedAnswerList">{previewRows.map(row => <div key={`${row.key}-${row.fieldKey || 'value'}`} className={row.hasExisting ? 'mappedAnswer conflict' : 'mappedAnswer'}><span>{row.label}</span><strong>{row.value}</strong>{row.hasExisting && <small>Existing value kept unless overwrite is confirmed: {row.currentValue}</small>}<em>{row.willApply ? 'Will apply' : 'Will skip'}</em></div>)}</div> : <p className="notRecordedText">No mapped non-blank answers found.</p>}
+        <h4>Unmapped Notes / Raw Homeowner Context</h4>
+        <pre className="rawImportPreview">{importPreview.unmapped || 'No extra unmapped notes detected.'}</pre>
+      </div>}
+      {intake.importedRawResponse && <details className="rawImportedResponse"><summary>Imported Notes / Raw Homeowner Response</summary><pre>{intake.importedRawResponse}</pre></details>}
+    </details>;
+}
+
+function IntakeView({client = {}, intake, updateIntake, copyFeedback = '', onCopyPreWalkthroughEmail, intakeFollowUpCount = 0}) {
+  const homeownerCompleted = completedIntakeFieldCount(intake, HOMEOWNER_QUICK_INTAKE_FIELDS);
+  const fieldPrepCompleted = completedIntakeFieldCount(intake, THA_FIELD_PREP_FIELDS);
+  const readyForHTC = homeownerCompleted >= 2 || fieldPrepCompleted >= 3;
   return <main className="intakePage">
     <div className="pmrHeader"><div><p className="eyebrow">Homeowner Quick Intake → THA Field Prep → HTC Follow-Up → PMR</p><h1>Intake — Homeowner Context & Field Prep</h1><p>Intake captures homeowner-reported context before the walkthrough. HTC verifies conditions in the field. PMR findings are only created after review.</p></div><div className="compass">◈</div></div>
     <section className="intakeStatusSummary" aria-label="Intake status summary">
@@ -3760,26 +3786,6 @@ function IntakeView({client = {}, intake, updateIntake, copyFeedback = '', onCop
         <label className="notes intakeQuestion"><span>7. Is there anything you specifically do not want overlooked?</span><textarea value={intake.doNotOverlook || ''} onChange={e=>updateIntake({doNotOverlook:e.target.value})} /></label>
       </div>
     </details>
-    <section className="pmrBlock intakeImportPanel">
-      <div className="intakeImportHeader"><div><h2>Import Intake Response</h2><p className="lede">Paste the homeowner reply, preview mapped answers, then apply them to blank Homeowner Quick Intake fields. THA Internal Intake / Field Prep fields are preserved.</p></div><label className="uploadInline txtUpload"><Upload size={16}/> Upload .txt<input type="file" accept=".txt,text/plain" onChange={e=>{loadTxtFile(e.target.files?.[0]); e.target.value='';}}/></label></div>
-      <label className="notes intakeQuestion"><span>Paste homeowner response</span><textarea value={importText} onChange={e=>{setImportText(e.target.value); setImportPreview(null);}} placeholder="Paste the homeowner's completed structured intake reply here." /></label>
-      <div className="importActions"><button type="button" onClick={previewImport} disabled={!importText.trim()}>Preview Intake Import</button><button type="button" onClick={applyImport} disabled={!importPreview || !previewRows.some(row=>row.willApply)}>Apply to Current Walkthrough</button>{conflictingRows.length > 0 && <label className="overwriteToggle"><input type="checkbox" checked={confirmOverwrite} onChange={e=>setConfirmOverwrite(e.target.checked)}/><span>Confirm overwrite of {conflictingRows.length} existing populated field{conflictingRows.length === 1 ? '' : 's'}</span></label>}</div>
-      {importPreview && <div className="importPreview">
-        <h3>Import Preview</h3>
-        {(intakeIdMismatch || addressMismatch) && <div className="driveErrorBox" role="alert"><AlertTriangle size={16}/><span>{intakeIdMismatch ? 'Imported Intake ID does not match this walkthrough. ' : ''}{addressMismatch ? 'Imported Project Address does not appear to match this walkthrough.' : ''}</span></div>}
-        <div className="previewMetaGrid">
-          <div><span>Detected Intake ID</span><strong>{importPreview.detected.intakeId || 'Not detected'}</strong></div>
-          <div><span>Detected Client Name</span><strong>{importPreview.detected.clientName || 'Not detected'}</strong></div>
-          <div><span>Detected Project Address</span><strong>{importPreview.detected.projectAddress || 'Not detected'}</strong></div>
-          <div><span>Detected Walkthrough Date</span><strong>{importPreview.detected.walkthroughDate || 'Not detected'}</strong></div>
-        </div>
-        <h4>Mapped Answers</h4>
-        {previewRows.length ? <div className="mappedAnswerList">{previewRows.map(row => <div key={`${row.key}-${row.fieldKey || 'value'}`} className={row.hasExisting ? 'mappedAnswer conflict' : 'mappedAnswer'}><span>{row.label}</span><strong>{row.value}</strong>{row.hasExisting && <small>Existing value kept unless overwrite is confirmed: {row.currentValue}</small>}<em>{row.willApply ? 'Will apply' : 'Will skip'}</em></div>)}</div> : <p className="notRecordedText">No mapped non-blank answers found.</p>}
-        <h4>Unmapped Notes / Raw Homeowner Context</h4>
-        <pre className="rawImportPreview">{importPreview.unmapped || 'No extra unmapped notes detected.'}</pre>
-      </div>}
-      {intake.importedRawResponse && <details className="rawImportedResponse"><summary>Imported Notes / Raw Homeowner Response</summary><pre>{intake.importedRawResponse}</pre></details>}
-    </section>
     <details className="pmrBlock intakeLane" open>
       <summary><span>THA Internal Intake / Field Prep</span><small>Detailed system context to guide HTC. Homeowner-reported answers become follow-up prompts only after field verification.</small></summary>
       <p className="lede">Use these fields to prepare the walkthrough without turning intake notes into findings. Verify during HTC before PMR inclusion.</p>
