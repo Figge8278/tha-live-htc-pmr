@@ -3492,14 +3492,14 @@ function App() {
       </div>}
       {!controlsCollapsed && <div className="walkthroughControlsBody">
         <section className="controlGroup sessionCard" aria-label="Walkthrough Info">
-          <div className="controlGroupTitle"><h3>Walkthrough Info</h3></div>
+          <div className="controlGroupTitle"><h3>1. Walkthrough Setup</h3></div>
           <label>Working Session Name<input value={walkthroughName} onChange={e=>setWalkthroughName(e.target.value)} placeholder="Name this working session"/></label>
           <label className={`requiredSetupField ${setupFieldState(client.name)}`}>Client Name<input value={client.name} onChange={e=>setClient({...client,name:e.target.value})} placeholder="Client name"/><small>{setupFieldHelp(client.name, 'Client name needed')}</small></label>
           <label className={`requiredSetupField ${setupFieldState(client.address)}`}>Project Address<input value={client.address} onChange={e=>setClient({...client,address:e.target.value})} placeholder="Project address"/><small>{setupFieldHelp(client.address, 'Project address needed')}</small></label>
           <label className={`requiredSetupField ${setupFieldState(client.date)}`}>Walkthrough Date / Visit Label<input value={client.date} onChange={e=>setClient({...client,date:e.target.value})} placeholder="Walkthrough date / visit label"/><small>{setupFieldHelp(client.date, 'Required before PMR output')}</small></label>
         </section>
         <section className="controlGroup sessionCard localWorkCard" aria-label="Local Work">
-          <div className="controlGroupTitle"><h3>1. Local Work / This Device</h3><p>Autosaves and saved sessions stay in this browser on this device unless you download or upload them.</p></div>
+          <div className="controlGroupTitle"><h3>2. Work Session</h3><p>Autosaves and saved sessions stay in this browser on this device unless you download or upload them.</p></div>
           <div className="walkthroughActions" aria-label="Walkthrough save and backup actions">
             <button type="button" onClick={startNewWalkthrough}>New Blank Local Walkthrough</button>
             <div className="manualSaveGroup"><button type="button" className="saveLocalSessionButton" onClick={saveWalkthrough}><CheckCircle2 size={18}/> Save Local Session</button><span className={`saveStatus ${saveStatus.state}`} role="status" aria-live="polite"><span className="saveStatusDot" aria-hidden="true"></span>{saveStatusText(saveStatus, hasUnsavedVisiblePhotos)}</span></div>
@@ -3507,8 +3507,11 @@ function App() {
           <p className="sectionHelperText">This working walkthrough is automatically saved in this browser's local storage. “Save Local Session” updates the saved session list below; it does not create a homeowner report or upload anything to Drive.</p>
           <label>Saved local sessions<select value={selectedWalkthroughId} onChange={e=>openSavedWalkthrough(e.target.value)}><option value="">Choose saved local session</option>{savedSessionList.map(session=><option key={session.id} value={session.id}>{session.name || 'Untitled Walkthrough'}{session.updatedAt ? ` · ${new Date(session.updatedAt).toLocaleString()}` : ''}</option>)}</select></label>
           <button type="button" className="deleteLocalSessionButton" onClick={deleteSavedWalkthrough} disabled={!selectedWalkthroughId || !savedSessions[selectedWalkthroughId]}><Trash2 size={16}/> Delete Selected Local Session</button>
-          <HomeownerIntakeImportPanel client={client} intake={intake} updateIntake={updateIntake} />
           <div className="localBackupRestore"><p><strong>Local backup download</strong><br/><span>Downloads a JSON recovery file to this device only. It is not homeowner-facing and does not upload to Drive.</span></p><button type="button" onClick={downloadEmergencyBackup}><Download size={16}/> Download Local Emergency Backup</button></div>
+        </section>
+        <section className="controlGroup sessionCard intakeImportCard" aria-label="Import Homeowner Intake">
+          <div className="controlGroupTitle"><h3>3. Import Homeowner Intake</h3><p>Import completed homeowner context into this working walkthrough.</p></div>
+          <HomeownerIntakeImportPanel client={client} intake={intake} updateIntake={updateIntake} />
         </section>
         <section className="controlGroup clientCard homeownerOutputCard" aria-label="Homeowner Output">
           <div className="controlGroupTitle"><h3>2. Homeowner Output</h3><p>View, download, or print the polished PMR Report Packet for the homeowner.</p></div>
@@ -3518,7 +3521,7 @@ function App() {
         <section className="controlGroup driveStatus driveSetupPanel businessRecordsCard" aria-label="Drive / Business Records">
           <div className="driveSetupHeader">
             <div>
-              <h3>3. Drive / Business Records</h3>
+              <h3>4. Business Records & Drive</h3>
               <p>Save internal business records, editable copies, photos, and backup data to Google Drive.</p>
               <p className="driveActionHelp">Connect Google Drive authorizes uploads from this browser. Save Drive Package uploads a business/internal package to Drive; it is separate from the homeowner download above.</p>
             </div>

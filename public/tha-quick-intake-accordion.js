@@ -192,11 +192,16 @@
     const title = header.querySelector('h2');
     const lede = header.querySelector('.lede');
     if (title) title.textContent = 'Import a Completed Intake';
-    if (lede) lede.textContent = 'Paste or upload a completed homeowner intake, review the mapped answers, then add them to this walkthrough. THA Field Prep stays unchanged.';
+    if (lede) lede.textContent = 'Paste or upload a completed homeowner response, preview recognized answers, then apply them to this working walkthrough. This imports homeowner context only; it does not create HTC findings or Field Prep notes.';
     panel.querySelectorAll('.importActions button').forEach(button => {
       if (/preview intake import/i.test(button.textContent)) button.textContent = 'Review imported answers';
       if (/apply to current walkthrough/i.test(button.textContent)) button.textContent = 'Add reviewed answers to walkthrough';
     });
+    if (panel.tagName === 'DETAILS') {
+      panel.classList.remove('tha-import-collapsed');
+      header.querySelector('.tha-import-toggle')?.remove();
+      return;
+    }
     if (header.querySelector('.tha-import-toggle')) return;
 
     const toggle = document.createElement('button');
