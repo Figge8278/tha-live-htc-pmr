@@ -516,3 +516,6 @@
 .homeownerIntakeSectionCard .homeownerImportDetails,.homeownerIntakeSectionCard .intakeImportHeader,.homeownerIntakeSectionCard .clientIntakeTwoColumnWorkflow{width:100%;box-sizing:border-box}
 .homeownerIntakeSectionCard .homeownerImportDetails{display:block}
 @media(max-width:1200px){.homeownerIntakeSectionCard .clientIntakeTwoColumnWorkflow{grid-template-columns:1fr}.homeownerIntakeSectionCard .clientIntakeTwoColumnWorkflow .clientIntakeWorkflowStep{height:auto}}
+.homeownerIntakeSectionCard .homeownerImportDetails{grid-column:1/-1;justify-self:stretch;min-width:0;max-width:none;margin-left:0;margin-right:0}
+.homeownerIntakeSectionCard .homeownerImportDetails>summary{width:100%;box-sizing:border-box}
+.homeownerIntakeSectionCard .clientIntakeWorkflowStep{min-width:0;max-width:none}
