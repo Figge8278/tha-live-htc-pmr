@@ -18,13 +18,15 @@
       .walkthroughControlsPanel .homeownerOutputCard{display:none!important}
       .walkthroughControlsPanel .walkthroughControlsBody{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-areas:"setup workSession" "intakeImport businessRecords" "advanced advanced"!important;align-items:start!important;gap:16px!important}
       .walkthroughControlsPanel .tha-walkthrough-setup-card{grid-area:setup!important}
-      .walkthroughControlsPanel .intakeImportPanel.tha-import-in-controls{grid-area:intakeImport!important;margin:0!important;align-self:start!important}
+      .walkthroughControlsPanel .intakeImportCard.tha-import-in-controls{grid-area:intakeImport!important;margin:0!important;align-self:start!important}
+      .walkthroughControlsPanel .intakeImportCard .homeownerImportDetails{margin-top:10px!important}
+      .walkthroughControlsPanel .homeownerImportDetails>summary{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;padding:12px 14px!important;border:1px solid #d7c4ef!important;border-radius:12px!important;background:#fff!important;color:#4e3470!important;font-weight:900!important;cursor:pointer!important}
       .walkthroughControlsPanel .localWorkCard{grid-area:workSession!important}
       .walkthroughControlsPanel .businessRecordsCard{grid-area:businessRecords!important}
       .walkthroughControlsPanel .advancedPanel{grid-area:advanced!important}
       .walkthroughControlsPanel .localWorkCard .controlGroupTitle h3,.walkthroughControlsPanel .businessRecordsCard h3{margin-bottom:2px}
-      .walkthroughControlsPanel .intakeImportPanel.tha-import-in-controls .intakeImportHeader{margin-bottom:0!important}
-      .walkthroughControlsPanel .intakeImportPanel.tha-import-in-controls h2{font-size:inherit!important}
+      .walkthroughControlsPanel .intakeImportCard.tha-import-in-controls .intakeImportHeader{margin-bottom:0!important}
+      .walkthroughControlsPanel .intakeImportCard.tha-import-in-controls h2{font-size:inherit!important}
       .walkthroughControlsPanel .tha-autosave-note{margin:7px 0 0;padding:8px 10px;border-left:3px solid #287bb7;border-radius:8px;background:#f5fafc;color:#496470;font-size:12px;font-weight:700;line-height:1.35}
       .walkthroughControlsPanel .tha-autosave-note strong{color:#173e57}
 
@@ -62,12 +64,15 @@
   function arrangeImportPanel(body, setup) {
     const importPanel = document.querySelector('.intakeImportPanel');
     if (!importPanel || !body) return;
-    importPanel.classList.add('tha-import-in-controls');
+    const importCard = importPanel.closest('.intakeImportCard') || importPanel;
+    importCard.classList.add('tha-import-in-controls');
     const heading = importPanel.querySelector('.intakeImportHeader h2');
-    if (heading) heading.textContent = '3. Import a Completed Intake';
+    if (heading) heading.textContent = 'Send / Import Homeowner Intake';
     body.querySelector('.intakeImportLaunchCard')?.remove();
-    if (importPanel.parentElement !== body || importPanel.previousElementSibling !== setup) {
-      body.insertBefore(importPanel, setup?.nextElementSibling || body.firstChild);
+    const workSession = body.querySelector('.localWorkCard');
+    const anchor = workSession || setup;
+    if (importCard.parentElement !== body || importCard.previousElementSibling !== anchor) {
+      body.insertBefore(importCard, anchor?.nextElementSibling || body.firstChild);
     }
   }
 
@@ -142,6 +147,7 @@
       renameHeading(panel, 'Walkthrough Info', '1. Walkthrough Setup');
       renameHeading(panel, 'Walkthrough Setup', '1. Walkthrough Setup');
       renameHeading(panel, '1. Local Work / This Device', '2. Work Session');
+      renameHeading(panel, 'Local Work / This Device', '2. Work Session');
       renameHeading(panel, '3. Work Session', '2. Work Session');
       renameHeading(panel, 'Work Session', '2. Work Session');
       renameHeading(panel, '3. Drive / Business Records', '4. Business Records & Drive');
