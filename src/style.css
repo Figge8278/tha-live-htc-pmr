@@ -604,3 +604,10 @@
 .sectionSelect.needsStatusDecision{background:var(--required-red-soft);border-color:var(--required-red-line);box-shadow:inset 0 0 0 2px rgba(198,40,29,.12)}
 .sectionSelect.needsStatusDecision::before{background:var(--required-red)}
 .sectionSelect.needsStatusDecision .sectionName{color:var(--required-red)}
+
+/* Future/context room statuses are light purple context, not unknown gray or strong THA action. */
+.statusBadge.status-future-context{background:#fbf9ff;border-color:#dfd6f8;color:#4c2f87}
+.roomOverviewSummaryItem .status-future-context{background:#fbf9ff;border-color:#dfd6f8;color:#4c2f87}
+.sectionSelect.hasFutureContext{background:#fbf9ff;border-color:#dfd6f8;box-shadow:inset 0 0 0 2px rgba(124,58,237,.08)}
+.sectionSelect.hasFutureContext:not(.active){background:#fbf9ff}
+.sectionSelect.hasFutureContext .sectionName{color:#4c2f87}

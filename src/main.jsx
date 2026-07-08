@@ -1525,6 +1525,7 @@ function roomStatusPillClass(status = 'Unknown') {
   const text = String(status || 'Unknown').toLowerCase();
   if (/immediate|now|urgent/.test(text)) return 'status-immediate-concern';
   if (/needs attention|trade attention|handy services/.test(text)) return 'status-needs-attention';
+  if (/routine care|pass|homeowner goal/.test(text)) return 'status-future-context';
   if (/watch|monitor|worth watching|upcoming/.test(text)) return 'status-monitor';
   if (/looking good|good/.test(text)) return 'status-good';
   return 'status-unknown';
@@ -1532,6 +1533,9 @@ function roomStatusPillClass(status = 'Unknown') {
 function includeRoomOverviewPMR(capture = {}) {
   const status = capture?.status || 'Unknown';
   return !['Unknown','Looking Good'].includes(status);
+}
+function roomStatusFutureContext(status = '') {
+  return ['Routine Care / PASS','Homeowner Goal'].includes(status);
 }
 function pmrReportLabel(answer = {}) {
   return includePMR(answer) ? 'PMR detail: Included' : 'PMR detail: Not included';
@@ -3585,6 +3589,7 @@ function App() {
     const roomPmcpPlacement = roomLevelPmcpPlacement || rowPmcpPlacement;
     const hasActionItem = Boolean(capture.thaActionItem) || sectionRows.some(row => Boolean(row.answer.thaActionItem));
     const hasActionContext = thaActionTypeSelected(capture) || sectionRows.some(row => thaActionTypeSelected(row.answer));
+    const hasFutureContext = roomStatusFutureContext(roomStatus);
     const railLeft = hasMinimumStatus ? 'blue' : 'unknown';
     const railRight = hasActionItem
       ? 'work-now'
@@ -3622,7 +3627,7 @@ function App() {
     if (counts.trade) badges.push({ key: 'trade', label: `Trade ${counts.trade}`, tone: 'attention' });
     if (counts.handy) badges.push({ key: 'handy', label: `Handy ${counts.handy}`, tone: 'handy' });
     if (counts.watch) badges.push({ key: 'watch', label: `Watch ${counts.watch}`, tone: 'watch' });
-    return { ...counts, rail: { left: railLeft, right: railRight }, badges, hasAttention, hasActionContext, hasMinimumStatus, immediateCount };
+    return { ...counts, rail: { left: railLeft, right: railRight }, badges, hasAttention, hasActionContext, hasFutureContext, hasMinimumStatus, immediateCount };
   }
   const setupFieldState = (value) => isMissingProjectIdentityValue(value) ? 'setupMissing' : 'setupReady';
   const setupFieldHelp = (value, missingText) => isMissingProjectIdentityValue(value) ? missingText : 'Ready for PMR packet';
@@ -3814,7 +3819,7 @@ function App() {
         const isLastInGroup = !showGroupAddButton || index === rooms.length - 1 || rooms[index + 1]?.roomType !== groupType;
         const roomSummary = roomSummaryFor(r);
         const roomRailClasses = `roomRail-${roomSummary.rail.left} ${roomSummary.rail.right === 'work-now' ? 'roomRail-pass roomRail-work-now' : roomSummary.rail.right === 'pass' ? 'roomRail-pass' : ''}`.trim();
-        return <React.Fragment key={r.key}><div className="sectionNavRow" draggable onDragStart={()=>setDragSectionKey(r.key)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); moveSection(dragSectionKey, r.key); setDragSectionKey('');}} onDragEnd={()=>setDragSectionKey('')}><span className="sectionDragHandle" title="Drag to reorder walkthrough flow">⋮⋮</span><button className={`sectionSelect ${activeRoom===r.key?'active':''} ${roomRailClasses} ${roomSummary.hasAttention ? 'hasRoomAttention' : ''} ${roomSummary.hasActionContext ? 'hasActionContext' : ''} ${!roomSummary.hasMinimumStatus ? 'needsStatusDecision' : ''}`} onClick={()=>setActiveRoom(r.key)}><span className="sectionName">{r.label}</span><span className="roomSummaryBadges" aria-label={`${r.label} room summary`}>{roomSummary.badges.map(badge => <span key={badge.key} className={`roomSummaryBadge ${badge.tone}`}>{badge.label}</span>)}</span></button></div>{showGroupAddButton && isLastInGroup && <button type="button" className="sectionGroupAddButton" onClick={()=>addDynamicRoom(groupType)}>{groupType === 'Living / Family Rooms' ? '+ Add Living / Family Room' : groupType === 'Bedrooms' ? '+ Add Bedroom' : '+ Add Bathroom'}</button>}</React.Fragment>;
+        return <React.Fragment key={r.key}><div className="sectionNavRow" draggable onDragStart={()=>setDragSectionKey(r.key)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); moveSection(dragSectionKey, r.key); setDragSectionKey('');}} onDragEnd={()=>setDragSectionKey('')}><span className="sectionDragHandle" title="Drag to reorder walkthrough flow">⋮⋮</span><button className={`sectionSelect ${activeRoom===r.key?'active':''} ${roomRailClasses} ${roomSummary.hasAttention ? 'hasRoomAttention' : ''} ${roomSummary.hasActionContext ? 'hasActionContext' : ''} ${roomSummary.hasFutureContext ? 'hasFutureContext' : ''} ${!roomSummary.hasMinimumStatus ? 'needsStatusDecision' : ''}`} onClick={()=>setActiveRoom(r.key)}><span className="sectionName">{r.label}</span><span className="roomSummaryBadges" aria-label={`${r.label} room summary`}>{roomSummary.badges.map(badge => <span key={badge.key} className={`roomSummaryBadge ${badge.tone}`}>{badge.label}</span>)}</span></button></div>{showGroupAddButton && isLastInGroup && <button type="button" className="sectionGroupAddButton" onClick={()=>addDynamicRoom(groupType)}>{groupType === 'Living / Family Rooms' ? '+ Add Living / Family Room' : groupType === 'Bedrooms' ? '+ Add Bedroom' : '+ Add Bathroom'}</button>}</React.Fragment>;
       })}<div className="hint"><Camera size={18}/> Prompt: Capture context, close-up, and detail photos. Store by room/item folder path.</div></aside>
       <section className="formPanel">
         <h1>{activeRoomLabel} HTC</h1>
