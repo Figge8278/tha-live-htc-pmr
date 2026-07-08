@@ -3561,7 +3561,7 @@ function App() {
     return flags;
   };
 
-  const roomSummaryFor = (section) => {
+  function roomSummaryFor(section) {
     const sectionRows = rows.filter(row => row.sectionKey === section.key);
     const capture = roomCaptureFor(section.key);
     const roomStatus = capture.status || ROOM_STATUS_OPTIONS[0];
@@ -3612,7 +3612,7 @@ function App() {
     if (counts.handy) badges.push({ key: 'handy', label: `Handy ${counts.handy}`, tone: 'handy' });
     if (counts.watch) badges.push({ key: 'watch', label: `Watch ${counts.watch}`, tone: 'watch' });
     return { ...counts, rail: { left: railLeft, right: railRight }, badges, hasAttention, immediateCount };
-  };
+  }
   const setupFieldState = (value) => isMissingProjectIdentityValue(value) ? 'setupMissing' : 'setupReady';
   const setupFieldHelp = (value, missingText) => isMissingProjectIdentityValue(value) ? missingText : 'Ready for PMR packet';
   const setupFieldIcon = (value) => isMissingProjectIdentityValue(value) ? '!' : '✓';
