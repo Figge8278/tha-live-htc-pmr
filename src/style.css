@@ -574,3 +574,15 @@
 .roomOverviewSummaryItem .status-unknown{background:var(--status-gray-soft);border-color:var(--status-gray-line);color:#4b5563}
 .summaryFlag.notes{background:#e8f1f8;color:#1f5d82;border-color:#bdd4e6}
 .summaryFlag.photo{background:#e4f5f7;color:#12616c;border-color:#a9dce2}
+
+/* Final rail language: orange means needs review; blue means reviewed; gray is reserved for inactive/empty. */
+:root{--review-needed-orange:#e97919;--review-needed-soft:#fff7ef;--inactive-gray:#cfd6dc}
+.checklistItemCard.rail-unknown::before,.roomOverviewCard.roomRail-unknown::before,.sectionSelect.roomRail-unknown::before{background:var(--review-needed-orange)}
+.checklistItemCard.rail-empty::before,.roomOverviewCard.roomRail-empty::before,.sectionSelect.roomRail-empty::before{background:var(--inactive-gray)}
+.summaryItem.setupMissing{background:var(--attention-orange-soft);border-color:var(--attention-orange-line);box-shadow:inset 4px 0 0 var(--attention-orange)}
+.summaryItem.setupMissing small{color:var(--attention-orange)}
+.requiredSetupField.setupMissing{border-color:var(--attention-orange-line);background:var(--attention-orange-soft);box-shadow:inset 4px 0 0 var(--attention-orange)}
+.requiredSetupField.setupMissing input{border-color:var(--attention-orange);box-shadow:0 0 0 3px rgba(201,95,11,.14)}
+.requiredSetupField.setupMissing small{color:var(--attention-orange)}
+.controlAttentionPill.setupAttention{background:var(--attention-orange-soft);color:var(--attention-orange);border-color:var(--attention-orange-line)}
+.walkthroughSetupCard.setupNeedsInput{background:var(--required-red-soft);border-color:var(--required-red-line);border-left:7px solid var(--required-red)}
