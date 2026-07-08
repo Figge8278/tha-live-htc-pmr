@@ -535,3 +535,12 @@
 .controlAttentionPill.setupAttention{background:var(--required-red-soft);color:var(--required-red);border-color:var(--required-red-line)}
 .walkthroughSetupCard.setupNeedsInput,.homeownerOutputCard:has(button:disabled){background:var(--required-red-soft);border-color:var(--required-red-line);border-left:7px solid var(--required-red)}
 .businessRecordsCard.driveAttentionCard{background:var(--attention-orange-soft);border-color:var(--attention-orange-line);border-left:7px solid var(--attention-orange)}
+
+/* PR #68 follow-up: PMCP Builder is care-plan green; yellow/amber is reserved for watch/attention cues. */
+:root{--pmcp-green:#52aa4b;--pmcp-green-soft:#f3fbf1;--pmcp-green-line:#c8e7c2;--pmcp-green-active:#e5f6e3;--pmcp-green-active-line:#94cf8d;--work-purple:#7c3aed;--work-purple-soft:#f4efff;--work-purple-line:#d9cdf9}
+.passCandidateToggle{background:var(--pmcp-green-soft);border:1px solid var(--pmcp-green-line);box-shadow:inset 4px 0 0 rgba(82,170,75,.35)}
+.passCandidateToggle:has(input:checked){background:var(--pmcp-green-active);border-color:var(--pmcp-green-active-line);box-shadow:inset 6px 0 0 var(--pmcp-green),0 0 0 2px rgba(82,170,75,.10)}
+.passCandidateToggle:has(input:checked) strong{color:#285c30}
+.passCandidateToggle:has(input:checked) small{color:#356f31}
+.workOrderToggle{background:var(--work-purple-soft);border:1px solid var(--work-purple-line);box-shadow:inset 4px 0 0 rgba(124,58,237,.34)}
+.workOrderToggle:has(input:checked){box-shadow:inset 6px 0 0 var(--work-purple),0 0 0 2px rgba(124,58,237,.10)}
