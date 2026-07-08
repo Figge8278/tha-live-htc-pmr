@@ -1521,6 +1521,14 @@ function priority(status) {
   return '';
 }
 function includePMR(a) { return ['Monitor','Needs Attention','Immediate Concern'].includes(a.status); }
+function roomStatusPillClass(status = 'Unknown') {
+  const text = String(status || 'Unknown').toLowerCase();
+  if (/immediate|now|urgent/.test(text)) return 'status-immediate-concern';
+  if (/needs attention|trade attention|handy services/.test(text)) return 'status-needs-attention';
+  if (/watch|monitor|worth watching|upcoming/.test(text)) return 'status-monitor';
+  if (/looking good|good/.test(text)) return 'status-good';
+  return 'status-unknown';
+}
 function includeRoomOverviewPMR(capture = {}) {
   const status = capture?.status || 'Unknown';
   return !['Unknown','Looking Good'].includes(status);
@@ -3554,8 +3562,8 @@ function App() {
     if (isIntakeFollowUp(r)) flags.push({ key: 'intake', className: r.answer.reviewStatus === 'Not Reviewed' ? 'attention' : 'info', label: `Intake: ${r.answer.reviewStatus}` });
     if (r.answer.thaActionItem) flags.push({ key: 'workOrder', className: 'workOrder', label: currentWorkOrderLabel(r.answer) || 'THA Action-Item' });
     else if (thaActionTypeSelected(r.answer)) flags.push({ key: 'actionType', className: 'workOrder light', label: currentWorkOrderLabel(r.answer) });
-    if (photoCount) flags.push({ key: 'photos', className: itemHasPhotoAttention(r.answer) ? 'attention' : 'info', label: `${photoCount} photo${photoCount === 1 ? '' : 's'}` });
-    if (r.answer.notes.trim()) flags.push({ key: 'notes', className: 'info', label: 'Notes' });
+    if (photoCount) flags.push({ key: 'photos', className: itemHasPhotoAttention(r.answer) ? 'attention' : 'photo', label: `${photoCount} photo${photoCount === 1 ? '' : 's'}` });
+    if (r.answer.notes.trim()) flags.push({ key: 'notes', className: 'notes', label: 'Notes' });
     if (r.answer.photoRef.trim()) flags.push({ key: 'photoRef', className: 'info', label: 'Photo ref' });
     if (r.catchAll && r.answer.reassignTo) flags.push({ key: 'reassign', className: 'info', label: 'Reassign ready' });
     return flags;
@@ -3815,7 +3823,7 @@ function App() {
                 <strong>{activeRoomLabel} overview</strong>
               </div>
               <div className="roomOverviewSummary">
-                <span className="roomOverviewSummaryItem"><strong>Status</strong><small>{currentRoomCapture.status}</small></span>
+                <span className="roomOverviewSummaryItem"><strong>Status</strong><small className={`statusBadge ${roomStatusPillClass(currentRoomCapture.status)}`}>{currentRoomCapture.status}</small></span>
                 <span className="roomOverviewSummaryItem"><strong>Note</strong><small>{currentRoomCapture.note.trim() ? 'Yes' : 'No'}</small></span>
                 <span className="roomOverviewSummaryItem"><strong>Photos</strong><small>{currentRoomCapture.photos.length}</small></span>
                 <span className="roomOverviewSummaryItem"><strong>Items</strong><small>{currentRoomCapture.items.length}</small></span>

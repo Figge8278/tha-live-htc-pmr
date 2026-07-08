@@ -564,3 +564,13 @@
 .thaActionTypeField{margin-top:8px;padding:9px;border:1px solid #dfd6f8;border-radius:12px;background:#fff;color:#4c2f87}
 .thaActionTypeField small{display:block;color:#6f5aa5;font-weight:800;margin-top:2px}
 .summaryFlag.workOrder.light{background:#fbf9ff;color:#6746a4;border-color:#dfd6f8}
+
+/* Keep stoplight colors on pills/details only; rails remain reviewed/path indicators. */
+.roomOverviewSummaryItem .statusBadge{padding:4px 8px;font-size:11px}
+.roomOverviewSummaryItem .status-good{background:var(--status-green-soft);border-color:var(--status-green-line);color:var(--status-green)}
+.roomOverviewSummaryItem .status-monitor{background:var(--status-amber-soft);border-color:var(--status-amber-line);color:var(--status-amber)}
+.roomOverviewSummaryItem .status-needs-attention{background:var(--status-orange-soft);border-color:var(--status-orange-line);color:var(--status-orange)}
+.roomOverviewSummaryItem .status-immediate-concern{background:var(--status-red-soft);border-color:var(--status-red-line);color:var(--status-red)}
+.roomOverviewSummaryItem .status-unknown{background:var(--status-gray-soft);border-color:var(--status-gray-line);color:#4b5563}
+.summaryFlag.notes{background:#e8f1f8;color:#1f5d82;border-color:#bdd4e6}
+.summaryFlag.photo{background:#e4f5f7;color:#12616c;border-color:#a9dce2}
