@@ -592,3 +592,15 @@
 .sectionSelect.hasActionContext:not(.active){background:#fbf9ff}
 .sectionSelect.hasActionContext .sectionName{color:#4c2f87}
 .sectionSelect.hasActionContext .roomSummaryBadge{border-color:#dfd6f8}
+
+/* Room-level minimum status requirement: red cue until any status decision exists in the room. */
+.statusControlField{position:relative}
+.statusControlField.statusRequiredCue{border:1px solid var(--required-red-line);border-left:5px solid var(--required-red);border-radius:14px;background:var(--required-red-soft);padding:9px}
+.statusControlField.statusRequiredCue::after{content:"Pick at least one room status";display:block;margin-top:4px;color:var(--required-red);font-size:11px;font-weight:900;line-height:1.2}
+.statusControlField.statusReviewCue{border:1px solid var(--attention-orange-line);border-left:5px solid var(--attention-orange);border-radius:14px;background:var(--attention-orange-soft);padding:9px}
+.statusControlField.statusReviewCue::after{content:"Still review if needed";display:block;margin-top:4px;color:var(--attention-orange);font-size:11px;font-weight:900;line-height:1.2}
+.statusBadge.statusRequiredCue{box-shadow:0 0 0 2px rgba(198,40,29,.18);outline:2px solid var(--required-red-line);outline-offset:1px}
+.statusBadge.statusReviewCue{box-shadow:0 0 0 2px rgba(201,95,11,.16);outline:2px solid var(--attention-orange-line);outline-offset:1px}
+.sectionSelect.needsStatusDecision{background:var(--required-red-soft);border-color:var(--required-red-line);box-shadow:inset 0 0 0 2px rgba(198,40,29,.12)}
+.sectionSelect.needsStatusDecision::before{background:var(--required-red)}
+.sectionSelect.needsStatusDecision .sectionName{color:var(--required-red)}

@@ -3538,6 +3538,7 @@ function App() {
   const roomItemFormOpen = Boolean(roomItemFormOpenByRoom[activeRoom]);
   const activeRoomLabel = rooms.find(r => r.key === activeRoom)?.label || activeRoom;
   const isRoomOverviewExpanded = Boolean(roomOverviewExpandedByRoom[activeRoom]);
+  const roomStatusCueClass = currentRoomCapture.status === 'Unknown' ? (currentRoomSummary.hasMinimumStatus ? 'statusReviewCue' : 'statusRequiredCue') : '';
   const isSmartPromptExpanded = Boolean(smartPromptExpandedByRoom[activeRoom]);
   const toggleRoomOverview = () => setRoomOverviewExpandedByRoom(prev => ({ ...prev, [activeRoom]: !prev[activeRoom] }));
   const toggleSmartPrompt = () => setSmartPromptExpandedByRoom(prev => ({ ...prev, [activeRoom]: !prev[activeRoom] }));
@@ -3577,13 +3578,14 @@ function App() {
     const hasRoomEvidence = Boolean(capture.note.trim()) || capture.photos.length > 0 || roomItems.length > 0;
     const roomOverviewUnknown = roomStatus === 'Unknown';
     const unknownDetailCount = sectionRows.filter(row => (row.answer.status || 'Unknown') === 'Unknown').length;
+    const hasMinimumStatus = !roomOverviewUnknown || sectionRows.some(row => (row.answer.status || 'Unknown') !== 'Unknown');
     const roomSelection = passCareSelectionForRoom(section, passCareOutlook);
     const roomLevelPmcpPlacement = Boolean(capture.addToPmcpBuilder) || roomSelection.pmcpDecision === 'selected';
     const rowPmcpPlacement = sectionRows.some(row => Boolean(row.answer.addToPmcpBuilder) || passCareSelectionForRow(row, passCareOutlook).pmcpDecision === 'selected');
     const roomPmcpPlacement = roomLevelPmcpPlacement || rowPmcpPlacement;
     const hasActionItem = Boolean(capture.thaActionItem) || sectionRows.some(row => Boolean(row.answer.thaActionItem));
     const hasActionContext = thaActionTypeSelected(capture) || sectionRows.some(row => thaActionTypeSelected(row.answer));
-    const railLeft = roomOverviewUnknown && unknownDetailCount > 0 ? 'unknown' : 'blue';
+    const railLeft = hasMinimumStatus ? 'blue' : 'unknown';
     const railRight = hasActionItem
       ? 'work-now'
       : (roomPmcpPlacement ? 'pass' : 'none');
@@ -3620,7 +3622,7 @@ function App() {
     if (counts.trade) badges.push({ key: 'trade', label: `Trade ${counts.trade}`, tone: 'attention' });
     if (counts.handy) badges.push({ key: 'handy', label: `Handy ${counts.handy}`, tone: 'handy' });
     if (counts.watch) badges.push({ key: 'watch', label: `Watch ${counts.watch}`, tone: 'watch' });
-    return { ...counts, rail: { left: railLeft, right: railRight }, badges, hasAttention, hasActionContext, immediateCount };
+    return { ...counts, rail: { left: railLeft, right: railRight }, badges, hasAttention, hasActionContext, hasMinimumStatus, immediateCount };
   }
   const setupFieldState = (value) => isMissingProjectIdentityValue(value) ? 'setupMissing' : 'setupReady';
   const setupFieldHelp = (value, missingText) => isMissingProjectIdentityValue(value) ? missingText : 'Ready for PMR packet';
@@ -3812,7 +3814,7 @@ function App() {
         const isLastInGroup = !showGroupAddButton || index === rooms.length - 1 || rooms[index + 1]?.roomType !== groupType;
         const roomSummary = roomSummaryFor(r);
         const roomRailClasses = `roomRail-${roomSummary.rail.left} ${roomSummary.rail.right === 'work-now' ? 'roomRail-pass roomRail-work-now' : roomSummary.rail.right === 'pass' ? 'roomRail-pass' : ''}`.trim();
-        return <React.Fragment key={r.key}><div className="sectionNavRow" draggable onDragStart={()=>setDragSectionKey(r.key)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); moveSection(dragSectionKey, r.key); setDragSectionKey('');}} onDragEnd={()=>setDragSectionKey('')}><span className="sectionDragHandle" title="Drag to reorder walkthrough flow">⋮⋮</span><button className={`sectionSelect ${activeRoom===r.key?'active':''} ${roomRailClasses} ${roomSummary.hasAttention ? 'hasRoomAttention' : ''} ${roomSummary.hasActionContext ? 'hasActionContext' : ''}`} onClick={()=>setActiveRoom(r.key)}><span className="sectionName">{r.label}</span><span className="roomSummaryBadges" aria-label={`${r.label} room summary`}>{roomSummary.badges.map(badge => <span key={badge.key} className={`roomSummaryBadge ${badge.tone}`}>{badge.label}</span>)}</span></button></div>{showGroupAddButton && isLastInGroup && <button type="button" className="sectionGroupAddButton" onClick={()=>addDynamicRoom(groupType)}>{groupType === 'Living / Family Rooms' ? '+ Add Living / Family Room' : groupType === 'Bedrooms' ? '+ Add Bedroom' : '+ Add Bathroom'}</button>}</React.Fragment>;
+        return <React.Fragment key={r.key}><div className="sectionNavRow" draggable onDragStart={()=>setDragSectionKey(r.key)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); moveSection(dragSectionKey, r.key); setDragSectionKey('');}} onDragEnd={()=>setDragSectionKey('')}><span className="sectionDragHandle" title="Drag to reorder walkthrough flow">⋮⋮</span><button className={`sectionSelect ${activeRoom===r.key?'active':''} ${roomRailClasses} ${roomSummary.hasAttention ? 'hasRoomAttention' : ''} ${roomSummary.hasActionContext ? 'hasActionContext' : ''} ${!roomSummary.hasMinimumStatus ? 'needsStatusDecision' : ''}`} onClick={()=>setActiveRoom(r.key)}><span className="sectionName">{r.label}</span><span className="roomSummaryBadges" aria-label={`${r.label} room summary`}>{roomSummary.badges.map(badge => <span key={badge.key} className={`roomSummaryBadge ${badge.tone}`}>{badge.label}</span>)}</span></button></div>{showGroupAddButton && isLastInGroup && <button type="button" className="sectionGroupAddButton" onClick={()=>addDynamicRoom(groupType)}>{groupType === 'Living / Family Rooms' ? '+ Add Living / Family Room' : groupType === 'Bedrooms' ? '+ Add Bedroom' : '+ Add Bathroom'}</button>}</React.Fragment>;
       })}<div className="hint"><Camera size={18}/> Prompt: Capture context, close-up, and detail photos. Store by room/item folder path.</div></aside>
       <section className="formPanel">
         <h1>{activeRoomLabel} HTC</h1>
@@ -3832,7 +3834,7 @@ function App() {
               <span className="roomOverviewToggleText">{isRoomOverviewExpanded ? 'Close overview' : 'Open overview'}</span>
             </button>
             {isRoomOverviewExpanded && <div className="roomOverviewBody">
-              <label className="roomOverviewField">Overall Room Status<select value={currentRoomCapture.status} onChange={e=>updateRoomCapture(activeRoom,{status:e.target.value})}>{ROOM_STATUS_OPTIONS.map(x=><option key={x}>{x}</option>)}</select></label>
+              <label className={`roomOverviewField statusControlField ${roomStatusCueClass}`}>Overall Room Status<select value={currentRoomCapture.status} onChange={e=>updateRoomCapture(activeRoom,{status:e.target.value})}>{ROOM_STATUS_OPTIONS.map(x=><option key={x}>{x}</option>)}</select></label>
               <label className="passCandidateToggle"><input type="checkbox" checked={Boolean(currentRoomCapture.addToPmcpBuilder)} onChange={e=>setPmcpBuilderForRoom(rooms.find(room => room.key === activeRoom) || { key: activeRoom, label: activeRoom }, e.target.checked)}/><span><strong>Add to PMCP Builder</strong><small>Directly activates this room overview care topic for PMCP review and selection.</small></span></label>
               <div className={`workOrderActionPanel ${currentRoomCapture.thaActionItem ? 'actionSelected' : (thaActionTypeSelected(currentRoomCapture) || currentRoomCapture.note.trim() ? 'actionContext' : '')}`}><label className="workOrderToggle"><input type="checkbox" checked={Boolean(currentRoomCapture.thaActionItem)} onChange={e=>updateRoomCapture(activeRoom,{thaActionItem:e.target.checked})}/><span><strong>THA Action-Item</strong><small>Marks THA near-term follow-up responsibility for this room overview; this drives the purple rail.</small></span></label><label className="thaActionTypeField">THA Action Type<select value={currentRoomCapture.thaActionType} onChange={e=>updateRoomCapture(activeRoom,{thaActionType:e.target.value})}>{THA_ACTION_TYPES.map(option => <option key={option}>{option}</option>)}</select><small>Unknown until THA follow-up, research, repair, or trade handling is identified.</small></label></div>
               <label className="notes">Room Note / Voice Transcript<textarea value={currentRoomCapture.note} onChange={e=>updateRoomCapture(activeRoom,{note:e.target.value})} placeholder="Capture room-level context, voice transcript, or summary notes for this space."/></label>
@@ -3854,11 +3856,12 @@ function App() {
           const pmrBadgeLabelValue = showPmrBadge ? pmrReportLabel(r.answer) : '';
           const pmrBadgeClassName = pmrReportPillClass(r.answer);
           const actionClass = r.answer.thaActionItem ? 'hasActionSelected' : (hasThaActionContext(r.answer) ? 'hasActionContext' : '');
+          const statusCueClass = r.answer.status === 'Unknown' ? (currentRoomSummary.hasMinimumStatus ? 'statusReviewCue' : 'statusRequiredCue') : '';
           return <div className={`itemCard checklistItemCard categoryCard category-${meta.slug} ${isExpanded ? 'expanded' : 'collapsed'} ${flags.some(flag => flag.className === 'attention') ? 'needsAttention' : ''} ${actionClass} rail-${rail.left} ${rail.right === 'work-now' ? 'rail-pass rail-work-now' : rail.right === 'pass' ? 'rail-pass' : ''}`} key={r.id}>
           <button type="button" className="checklistSummaryRow" onClick={()=>toggleChecklistItem(r.id)} aria-expanded={isExpanded} aria-controls={`item-detail-${r.id}`}>
             <span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span>
             <span className="checklistSummaryMain"><span className="itemTitleLine"><strong>{r.item}</strong><CategoryBadge category={category}/>{isIntakeFollowUp(r) && <span className="sourceBadge">Intake Follow-Up</span>}</span><span>{r.zone} · Suggested: {displayTradeLabel(r.trade)}</span></span>
-            <span className="checklistStatus"><span className={`statusBadge status-${r.answer.status.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>{r.answer.status}</span>{showPmrBadge && <span className={`pill ${pmrBadgeClassName}`}>{pmrBadgeLabelValue}</span>}</span>
+            <span className="checklistStatus"><span className={`statusBadge status-${r.answer.status.toLowerCase().replace(/[^a-z0-9]+/g, '-')} ${statusCueClass}`}>{r.answer.status}</span>{showPmrBadge && <span className={`pill ${pmrBadgeClassName}`}>{pmrBadgeLabelValue}</span>}</span>
             <span className="checklistSummaryFlags">{flags.length ? flags.map(flag => <span key={flag.key} className={`summaryFlag ${flag.className}`}>{flag.label}</span>) : <span className="summaryFlag quiet">No notes/photos</span>}</span>
             <span className="expandHint">{isExpanded ? 'Close' : 'Open'}</span>
           </button>
@@ -3867,7 +3870,7 @@ function App() {
             <div className="prompt"><Search size={16}/><strong>Prompt:</strong> {r.prompt}</div>
             {isIntakeFollowUp(r) && <div className="intakeReviewNotes"><strong>Homeowner-reported:</strong> {r.intakeFieldLabel}: {r.intakeValue}<br/><span>Verify during HTC before PMR inclusion · Target: {r.roomName || r.room} · Source: {r.source}</span></div>}
             <div className="inputs">
-              <label>Status<select value={r.answer.status} onChange={e=>update(r.id,{status:e.target.value})}>{STATUS.map(x=><option key={x}>{x}</option>)}</select></label>
+              <label className={`statusControlField ${statusCueClass}`}>Status<select value={r.answer.status} onChange={e=>update(r.id,{status:e.target.value})}>{STATUS.map(x=><option key={x}>{x}</option>)}</select></label>
               <label>Action Certainty<select value={actionCertaintyFor(r.answer)} onChange={e=>update(r.id,{actionCertainty:e.target.value})}>{ACTION_CERTAINTY.map(x=><option key={x}>{x}</option>)}</select></label>
               <label>Suggested Trade / Resource<select value={r.answer.trade} onChange={e=>update(r.id,{trade:e.target.value})}>{TRADE_OPTIONS.map(x=><option key={x} value={x}>{displayTradeLabel(x)}</option>)}</select></label>
               <label>Approx. Time<select value={r.answer.effort} onChange={e=>update(r.id,{effort:e.target.value})}>{EFFORT.map(x=><option key={x}>{x}</option>)}</select></label>
