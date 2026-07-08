@@ -16,7 +16,7 @@
       .walkthroughControlsPanel.collapsed .walkthroughControlsSummary>*:not(.openControlsButton){display:none!important}
       .walkthroughControlsPanel.collapsed .openControlsButton{display:inline-flex!important;align-items:center;justify-content:center}
       .walkthroughControlsPanel .homeownerOutputCard{display:none!important}
-      .walkthroughControlsPanel .walkthroughControlsBody{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-areas:"setup workSession" "intakeImport intakeImport" "businessRecords businessRecords" "advanced advanced"!important;align-items:start!important;gap:16px!important}
+      .walkthroughControlsPanel .walkthroughControlsBody{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-areas:"setup workSession" "intakeImport businessRecords" "advanced advanced"!important;align-items:start!important;gap:16px!important}
       .walkthroughControlsPanel .tha-walkthrough-setup-card{grid-area:setup!important}
       .walkthroughControlsPanel .intakeImportCard.tha-import-in-controls{grid-area:intakeImport!important;margin:0!important;align-self:start!important}
       .walkthroughControlsPanel .intakeImportCard .homeownerImportDetails{margin-top:10px!important}

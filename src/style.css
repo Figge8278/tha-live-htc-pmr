@@ -512,3 +512,7 @@
 .businessRecordsCard.driveReadyCard{background:#f3f9ff;border-color:#b9d8ef;border-left:7px solid #287bb7}
 .advancedPanel.advancedGoldCard{background:#fffbea;border-color:#ead894}
 @media(max-width:900px){.clientIntakeTwoColumnWorkflow{grid-template-columns:1fr}.clientIntakeTwoColumnWorkflow .clientIntakeWorkflowStep{height:auto}}
+
+.homeownerIntakeSectionCard .homeownerImportDetails,.homeownerIntakeSectionCard .intakeImportHeader,.homeownerIntakeSectionCard .clientIntakeTwoColumnWorkflow{width:100%;box-sizing:border-box}
+.homeownerIntakeSectionCard .homeownerImportDetails{display:block}
+@media(max-width:1200px){.homeownerIntakeSectionCard .clientIntakeTwoColumnWorkflow{grid-template-columns:1fr}.homeownerIntakeSectionCard .clientIntakeTwoColumnWorkflow .clientIntakeWorkflowStep{height:auto}}

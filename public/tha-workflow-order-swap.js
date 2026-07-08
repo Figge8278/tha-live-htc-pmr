@@ -4,7 +4,7 @@
     const style = document.createElement('style');
     style.id = 'tha-workflow-order-swap-styles';
     style.textContent = `
-      .walkthroughControlsPanel .walkthroughControlsBody{grid-template-areas:"setup workSession" "intakeImport intakeImport" "businessRecords businessRecords" "advanced advanced"!important}
+      .walkthroughControlsPanel .walkthroughControlsBody{grid-template-areas:"setup workSession" "intakeImport businessRecords" "advanced advanced"!important}
       @media(max-width:900px){
         .walkthroughControlsPanel .walkthroughControlsBody{grid-template-areas:"setup" "workSession" "intakeImport" "businessRecords" "advanced"!important}
       }
