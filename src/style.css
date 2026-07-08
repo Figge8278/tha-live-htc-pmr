@@ -586,3 +586,9 @@
 .requiredSetupField.setupMissing small{color:var(--attention-orange)}
 .controlAttentionPill.setupAttention{background:var(--attention-orange-soft);color:var(--attention-orange);border-color:var(--attention-orange-line)}
 .walkthroughSetupCard.setupNeedsInput{background:var(--required-red-soft);border-color:var(--required-red-line);border-left:7px solid var(--required-red)}
+
+/* Walkthrough section tiles get light purple context when THA Action Type is selected in that room. */
+.sectionSelect.hasActionContext{background:#fbf9ff;border-color:#dfd6f8;box-shadow:inset 0 0 0 2px rgba(124,58,237,.08)}
+.sectionSelect.hasActionContext:not(.active){background:#fbf9ff}
+.sectionSelect.hasActionContext .sectionName{color:#4c2f87}
+.sectionSelect.hasActionContext .roomSummaryBadge{border-color:#dfd6f8}
