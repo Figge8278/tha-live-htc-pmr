@@ -491,3 +491,12 @@
 .secondaryPasteImport{margin-top:10px;padding-top:12px;border-top:1px solid #eadff6}
 .secondaryPasteImport>span{color:#5b4674;font-weight:900}
 @media(max-width:700px){.primaryImportFileBox{grid-template-columns:1fr}.primaryTxtUpload{min-height:58px}}
+.clientIntakeWorkflowStep{display:grid;gap:10px;margin:14px 0;padding:14px;border:1px solid #e1d8ed;border-radius:16px;background:#fff}
+.clientIntakeWorkflowStep h3{margin:0;color:#4e3470;font-size:15px}
+.clientIntakeWorkflowStep p{margin:4px 0 0;color:#5f6b73;font-weight:700;line-height:1.35}
+.clientIntakeActionRow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.clientIntakeActionRow button{display:inline-flex;align-items:center;gap:6px;border:1px solid #745a91;border-radius:12px;background:#745a91;color:#fff;padding:9px 12px;font-weight:900;cursor:pointer}
+.clientIntakeActionRow button.secondaryBtn{background:#fff;color:#4e3470;border-color:#d7c4ef}
+.clientIntakeActionRow button:hover{filter:brightness(.96)}
+.importCompletedIntakeStep{border-color:#d7c4ef;background:#fbf8ff}
+@media(max-width:700px){.clientIntakeActionRow button{width:100%;justify-content:center}}

@@ -684,6 +684,127 @@ function buildPreWalkthroughIntakeEmail({ client = {}, intakeId = '' }) {
   lines.push(`${HOMEOWNER_QUICK_INTAKE_TEXT_FIELDS[2].label}:`, '', 'Thank you,', 'The Homeowner Advocate');
   return lines.join('\n');
 }
+
+function safeFileSegment(value = '') {
+  return String(value || '').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'client';
+}
+function clientIntakeFileName({ client = {}, intakeId = '' } = {}) {
+  return `THA-Homeowner-Intake-${safeFileSegment(client.name || client.address)}-${safeFileSegment(intakeId || 'intake')}.txt`;
+}
+function homeownerQuickIntakePromptLines(sample = false) {
+  const samplePlain = {
+    notes: 'Test sample: We want to understand a few recurring maintenance priorities before the walkthrough.',
+    priorityAreas: 'Kitchen sink base, upstairs hallway bathroom, back patio drainage, and attic access.',
+    doNotOverlook: 'Please do not overlook the garage side door weatherstripping.'
+  };
+  const sampleStructured = {
+    leaksMoisture: 'Small test drip seen under kitchen sink after heavy use.',
+    slowDrainsPlumbing: 'Upstairs hall bath drains slowly in this sample.',
+    electricalConcerns: 'Test sample flicker at dining room pendant once per week.',
+    comfortIssues: 'Back bedroom runs cooler than the rest of the home.',
+    stickyOpeningsDrafts: 'Garage side door sticks and has a draft.',
+    pestActivity: 'Ants noticed near back slider in spring.',
+    drainageGrading: 'Water pools near back patio after rain.',
+    odorsNoisesAppliances: 'Dishwasher made a rattling sound twice.',
+    otherRecurringSymptoms: 'No other recurring symptoms in this test sample.',
+    furnaceService: 'Unknown — homeowner could not find the sticker.',
+    acHeatPumpService: 'Serviced in spring 2025 per sample note.',
+    airDuctsCleaned: 'Unknown.',
+    chimneyFireplaceService: 'Not applicable.',
+    waterHeaterService: 'Flushed in 2024 per sample note.',
+    roofRepairedReplaced: 'Minor flashing repair in 2023.',
+    exteriorPaintStain: 'Exterior trim touched up in 2022.',
+    windowsDoorsRepairedReplaced: 'Back slider rollers replaced in 2021.',
+    otherMaintenanceHistory: 'Sample note: gutters cleaned last fall.',
+    recentInspectionReport: 'Available as a PDF if needed.',
+    roofPaperwork: 'Invoice available for the flashing repair.',
+    sewerPlumbingRecords: 'No sewer records available.',
+    solarDocuments: 'Not applicable.',
+    paintColorRecords: 'Paint can is in the garage.',
+    otherHelpfulRecords: 'Water heater manual is available.',
+    pets: 'One friendly dog; please call before entering.',
+    gatesKeysLockedAreas: 'Side gate latch sticks; no key needed.',
+    atticCrawlBasementMechanical: 'Attic access is in hallway closet.',
+    detachedGarageShedOutbuildings: 'Detached shed is unlocked for this sample.',
+    areasBlockedByStorage: 'Garage wall has boxes along one side.',
+    fragileSensitiveOffLimits: 'Please avoid the nursery during nap time.'
+  };
+  const lines = [
+    `${HOMEOWNER_QUICK_INTAKE_TEXT_FIELDS[0].label}:`,
+    sample ? samplePlain.notes : '',
+    '',
+    `${HOMEOWNER_QUICK_INTAKE_TEXT_FIELDS[1].label}:`,
+    sample ? samplePlain.priorityAreas : '',
+    ''
+  ];
+  STRUCTURED_HOMEOWNER_QUICK_INTAKE_GROUPS.forEach(group => {
+    lines.push(group.question);
+    if (group.help) lines.push(`Note: ${group.help}`);
+    group.fields.forEach(field => lines.push(`${field.label}: ${sample ? (sampleStructured[field.key] || 'Sample answer for testing.') : ''}`));
+    lines.push('');
+  });
+  lines.push(`${HOMEOWNER_QUICK_INTAKE_TEXT_FIELDS[2].label}:`, sample ? samplePlain.doNotOverlook : '');
+  return lines;
+}
+function buildClientIntakeTxt({ client = {}, intakeId = '', sample = false } = {}) {
+  const lines = [
+    sample ? 'TEST SAMPLE — COMPLETED HOMEOWNER INTAKE' : 'THA Homeowner Quick Intake',
+    '',
+    'Unknown is okay.',
+    'Leave blank anything you do not know.',
+    'These answers are homeowner-provided context; THA verifies during the walkthrough.',
+    'Please save/return this completed .txt file by replying to this email.',
+    '',
+    `Client Name: ${sample ? 'Sample Homeowner' : (client.name || '')}`,
+    `Project Address: ${sample ? '123 Sample Street, Sampletown' : (client.address || '')}`,
+    `Walkthrough Date / Visit Label: ${sample ? 'Sample walkthrough date' : (client.date || '')}`,
+    `Intake ID: ${sample ? (intakeId || 'THA-SAMPLE-INTAKE') : (intakeId || '')}`,
+    '',
+    'Homeowner Quick Intake',
+    '',
+    ...homeownerQuickIntakePromptLines(sample),
+    '',
+    sample ? 'End of test sample.' : 'Thank you,',
+    sample ? 'This file uses fake/dummy answers for testing only.' : 'The Homeowner Advocate'
+  ];
+  return lines.join('\n');
+}
+function buildClientIntakeEmail({ client = {}, intakeId = '' } = {}) {
+  return [
+    `Subject: Please complete your THA homeowner intake${client.address ? ` for ${client.address}` : ''}`,
+    '',
+    'Hello,',
+    '',
+    'Attached is a blank THA homeowner intake .txt file for your walkthrough.',
+    '',
+    'Please:',
+    '1. Open the attached .txt file.',
+    '2. Type answers below any questions you can answer.',
+    '3. Save the file.',
+    '4. Reply to this email with the completed .txt attached.',
+    '',
+    'Unknown is okay. Leave blank anything you do not know.',
+    'These answers are homeowner-provided context; THA verifies during the walkthrough.',
+    '',
+    `Client Name: ${client.name || ''}`,
+    `Project Address: ${client.address || ''}`,
+    `Walkthrough Date / Visit Label: ${client.date || ''}`,
+    `Intake ID: ${intakeId || ''}`,
+    '',
+    'Thank you,',
+    'The Homeowner Advocate'
+  ].join('\n');
+}
+function downloadTextFile(text, filename) {
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function flattenedImportUpdates(mapped = {}) {
   const rows = [];
   HOMEOWNER_QUICK_INTAKE_TEXT_FIELDS.forEach(field => {
@@ -3706,6 +3827,7 @@ function HomeownerIntakeImportPanel({client = {}, intake, updateIntake}) {
   const [importPreview, setImportPreview] = useState(null);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const [importFileName, setImportFileName] = useState('');
+  const [intakeWorkflowStatus, setIntakeWorkflowStatus] = useState('');
   const parsedUpdates = importPreview ? flattenedImportUpdates(importPreview.mapped) : [];
   const previewRows = parsedUpdates.map(row => {
     const currentValue = row.fieldKey ? structuredIntakeAnswerValue(intake, row.key, row.fieldKey) : intake[row.key];
@@ -3715,6 +3837,34 @@ function HomeownerIntakeImportPanel({client = {}, intake, updateIntake}) {
   const conflictingRows = previewRows.filter(row => row.hasExisting);
   const intakeIdMismatch = Boolean(importPreview?.detected.intakeId && intake.intakeId && importPreview.detected.intakeId !== intake.intakeId);
   const addressMismatch = Boolean(importPreview?.detected.projectAddress && client.address && !addressAppearsToMatch(importPreview.detected.projectAddress, client.address));
+  const ensureIntakeId = () => {
+    const intakeId = intake.intakeId || generateIntakeId();
+    if (!intake.intakeId) updateIntake({ intakeId });
+    return intakeId;
+  };
+  const setTemporaryWorkflowStatus = (message) => {
+    setIntakeWorkflowStatus(message);
+    window.setTimeout(() => setIntakeWorkflowStatus(''), 2500);
+  };
+  const downloadBlankClientIntake = () => {
+    const intakeId = ensureIntakeId();
+    downloadTextFile(buildClientIntakeTxt({ client, intakeId }), clientIntakeFileName({ client, intakeId }));
+    setTemporaryWorkflowStatus('Blank client intake downloaded');
+  };
+  const copyClientIntakeEmail = async () => {
+    const intakeId = ensureIntakeId();
+    try {
+      await copyTextToClipboard(buildClientIntakeEmail({ client, intakeId }));
+      setTemporaryWorkflowStatus('Client intake email copied');
+    } catch (error) {
+      setTemporaryWorkflowStatus('Could not copy client intake email');
+    }
+  };
+  const downloadSampleCompletedIntake = () => {
+    const intakeId = ensureIntakeId();
+    downloadTextFile(buildClientIntakeTxt({ client, intakeId: `${intakeId}-SAMPLE`, sample: true }), `THA-Homeowner-Intake-TEST-SAMPLE-${safeFileSegment(intakeId)}.txt`);
+    setTemporaryWorkflowStatus('Sample completed intake downloaded');
+  };
   const previewImport = () => {
     const parsed = parseIntakeResponseText(importText);
     setImportPreview(parsed);
@@ -3747,13 +3897,21 @@ function HomeownerIntakeImportPanel({client = {}, intake, updateIntake}) {
   return <details className="pmrBlock intakeImportPanel homeownerImportDetails">
       <summary><span>Import homeowner intake into this walkthrough</span></summary>
       <p className="lede">Paste or upload a completed homeowner response, preview recognized answers, then apply them to this working walkthrough. This imports homeowner context only; it does not create HTC findings or Field Prep notes.</p>
-      <div className="intakeImportHeader"><div><h2>Import Intake Response</h2><p className="lede">Choose the completed .txt intake file first, review recognized answers, then apply them to blank Homeowner Quick Intake fields. THA Internal Intake / Field Prep fields are preserved.</p></div></div>
+      <div className="intakeImportHeader"><div><h2>Import Intake Response</h2><p className="lede">Send the blank client intake first, then import the completed returned .txt file. THA Internal Intake / Field Prep fields are preserved.</p></div></div>
+      <section className="clientIntakeWorkflowStep sendClientIntakeStep" aria-label="Step 1 — Send Client Intake">
+        <div><h3>Step 1 — Send Client Intake</h3><p>Download the blank .txt intake, send the email instructions, and have the client reply with the completed file attached.</p></div>
+        <div className="clientIntakeActionRow"><button type="button" onClick={downloadBlankClientIntake}><Download size={16}/> Download blank client intake (.txt)</button><button type="button" onClick={copyClientIntakeEmail}><ClipboardCheck size={16}/> Copy client intake email</button><button type="button" className="secondaryBtn" onClick={downloadSampleCompletedIntake}><Download size={16}/> Download sample completed intake (.txt)</button></div>
+        {intakeWorkflowStatus && <span className="copyFeedback" role="status">{intakeWorkflowStatus}</span>}
+      </section>
+      <section className="clientIntakeWorkflowStep importCompletedIntakeStep" aria-label="Step 2 — Import Completed Intake">
+        <div><h3>Step 2 — Import Completed Intake</h3><p>Choose the completed .txt returned by the client, review mapped answers, then apply homeowner context to this walkthrough.</p></div>
       <div className="primaryImportFileBox">
         <label className="primaryTxtUpload"><Upload size={18}/> Choose completed intake file (.txt)<input type="file" accept=".txt,text/plain" onChange={e=>{loadTxtFile(e.target.files?.[0]); e.target.value='';}}/></label>
         <div className="selectedImportFile"><span>Selected file</span><strong>{importFileName || 'No file selected yet'}</strong>{importFileName && <small>Preview is ready below. Next step: Review imported answers.</small>}</div>
       </div>
       <label className="notes intakeQuestion secondaryPasteImport"><span>Or paste a completed intake response</span><textarea value={importText} onChange={e=>{setImportText(e.target.value); setImportFileName(''); setImportPreview(null);}} placeholder="Paste the homeowner's completed structured intake reply here if you do not have a .txt file." /></label>
       <div className="importActions"><button type="button" onClick={previewImport} disabled={!importText.trim()}>Review imported answers</button><button type="button" onClick={applyImport} disabled={!importPreview || !previewRows.some(row=>row.willApply)}>Apply to Current Walkthrough</button>{conflictingRows.length > 0 && <label className="overwriteToggle"><input type="checkbox" checked={confirmOverwrite} onChange={e=>setConfirmOverwrite(e.target.checked)}/><span>Confirm overwrite of {conflictingRows.length} existing populated field{conflictingRows.length === 1 ? '' : 's'}</span></label>}</div>
+      </section>
       {importPreview && <div className="importPreview">
         <h3>Import Preview</h3>
         {(intakeIdMismatch || addressMismatch) && <div className="driveErrorBox" role="alert"><AlertTriangle size={16}/><span>{intakeIdMismatch ? 'Imported Intake ID does not match this walkthrough. ' : ''}{addressMismatch ? 'Imported Project Address does not appear to match this walkthrough.' : ''}</span></div>}
