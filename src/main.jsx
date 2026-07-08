@@ -243,7 +243,7 @@ const PASS_CADENCE = ['Monthly','Quarterly','Seasonal','Semiannual','Annual','Co
 const PASS_DATE_SOURCES = ['unknown','homeowner-reported','THA observed'];
 const PASS_FOLLOW_UP_STATUSES = ['Not Scheduled','Verify / Establish Baseline','Planned','Scheduled','Completed','Deferred'];
 const PASS_RESOURCES = ['Handy Services','HVAC','Plumbing','Roofing','Roofing / gutters','Gutters/Drainage','Pest','Safety','Appliance','Chimney','Other'];
-const THA_ACTION_TYPES = ['Research','Trade consultation','Estimate needed','Schedule service','Client-approved work','Follow-up observation'];
+const THA_ACTION_TYPES = ['Unknown','Research','Trade consultation','Estimate needed','Schedule service','Client-approved work','Follow-up observation'];
 const PHOTO_LABELS = ['Context','Close-up','Detail'];
 const ROOM_PHOTO_LABELS = ['Overview'];
 const ROOM_STATUS_OPTIONS = ['Unknown','Looking Good','Watch Item / Worth Watching','Handy Services','Trade Attention','Routine Care / PASS','Homeowner Goal'];
@@ -1521,15 +1521,26 @@ function priority(status) {
   return '';
 }
 function includePMR(a) { return ['Monitor','Needs Attention','Immediate Concern'].includes(a.status); }
+function includeRoomOverviewPMR(capture = {}) {
+  const status = capture?.status || 'Unknown';
+  return !['Unknown','Looking Good'].includes(status);
+}
 function pmrReportLabel(answer = {}) {
   return includePMR(answer) ? 'Repair report: Included' : 'Repair report: None';
 }
 function pmrReportPillClass(answer = {}) {
   return includePMR(answer) ? 'pmr-included' : 'pmr-none';
 }
+function thaActionTypeSelected(answer = {}) {
+  return Boolean(answer?.thaActionType && answer.thaActionType !== 'Unknown');
+}
+function hasThaActionContext(answer = {}) {
+  return Boolean(answer?.thaActionItem || answer?.workOrderNow || thaActionTypeSelected(answer) || String(answer?.notes || '').trim());
+}
 function currentWorkOrderLabel(answer = {}) {
-  if (!(answer?.thaActionItem || answer?.workOrderNow)) return '';
-  return `THA action-item: ${answer?.thaActionType || 'Research'}`;
+  if (!(answer?.thaActionItem || answer?.workOrderNow || thaActionTypeSelected(answer))) return '';
+  const type = answer?.thaActionType || 'Unknown';
+  return answer?.thaActionItem || answer?.workOrderNow ? `THA action-item: ${type}` : `THA follow-up: ${type}`;
 }
 function roomOverviewCareTopicId(sectionKey = '') {
   return `room-overview-pass-${String(sectionKey || 'room').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
@@ -1550,7 +1561,7 @@ function passCareSelectionForRoom(section = {}, passCareOutlook = []) {
 function railStateFor(answer = {}, { pmcpSelected = false, workOrderNow = false } = {}) {
   const status = answer?.status || 'Unknown';
   const actionActive = Boolean(workOrderNow || answer?.thaActionItem || answer?.workOrderNow);
-  const left = status === 'Unknown' ? 'unknown' : 'blue';
+  const left = status === 'Unknown' ? 'unknown' : 'reviewed';
   const right = actionActive ? 'work-now' : (pmcpSelected ? 'pass' : 'none');
   return { left, right };
 }
@@ -1673,7 +1684,7 @@ function normalizeAnswer(answer, item) {
     passCandidate: typeof answer?.passCandidate === 'boolean' ? answer.passCandidate : false,
     addToPmcpBuilder: typeof answer?.addToPmcpBuilder === 'boolean' ? answer.addToPmcpBuilder : false,
     thaActionItem,
-    thaActionType: THA_ACTION_TYPES.includes(answer?.thaActionType) ? answer.thaActionType : 'Research',
+    thaActionType: THA_ACTION_TYPES.includes(answer?.thaActionType) ? answer.thaActionType : 'Unknown',
     workOrderNow: thaActionItem,
     passTargetWindow: answer?.passTargetWindow || '',
     passCadence: answer?.passCadence || passCadenceFor(item),
@@ -3009,7 +3020,7 @@ function App() {
     status: roomCapture?.[sectionKey]?.status || ROOM_STATUS_OPTIONS[0],
     addToPmcpBuilder: Boolean(roomCapture?.[sectionKey]?.addToPmcpBuilder),
     thaActionItem: Boolean(roomCapture?.[sectionKey]?.thaActionItem),
-    thaActionType: THA_ACTION_TYPES.includes(roomCapture?.[sectionKey]?.thaActionType) ? roomCapture[sectionKey].thaActionType : 'Research',
+    thaActionType: THA_ACTION_TYPES.includes(roomCapture?.[sectionKey]?.thaActionType) ? roomCapture[sectionKey].thaActionType : 'Unknown',
     note: roomCapture?.[sectionKey]?.note || '',
     photos: photoList(roomCapture?.[sectionKey]).map(photo => ({ ...photo, label: photo.label || 'Overview' })),
     items: Array.isArray(roomCapture?.[sectionKey]?.items) ? roomCapture[sectionKey].items.map(item => ({
@@ -3131,7 +3142,7 @@ function App() {
             status: prev?.[sectionKey]?.status || ROOM_STATUS_OPTIONS[0],
             addToPmcpBuilder: Boolean(prev?.[sectionKey]?.addToPmcpBuilder),
             thaActionItem: Boolean(prev?.[sectionKey]?.thaActionItem),
-            thaActionType: THA_ACTION_TYPES.includes(prev?.[sectionKey]?.thaActionType) ? prev[sectionKey].thaActionType : 'Research',
+            thaActionType: THA_ACTION_TYPES.includes(prev?.[sectionKey]?.thaActionType) ? prev[sectionKey].thaActionType : 'Unknown',
             note: prev?.[sectionKey]?.note || '',
             photos: photoList(prev?.[sectionKey]).map(existing => ({ ...existing, label: existing.label || 'Overview' })),
             items: Array.isArray(prev?.[sectionKey]?.items) ? prev[sectionKey].items : []
@@ -3173,7 +3184,7 @@ function App() {
         status: prev?.[sectionKey]?.status || ROOM_STATUS_OPTIONS[0],
         addToPmcpBuilder: Boolean(prev?.[sectionKey]?.addToPmcpBuilder),
         thaActionItem: Boolean(prev?.[sectionKey]?.thaActionItem),
-        thaActionType: THA_ACTION_TYPES.includes(prev?.[sectionKey]?.thaActionType) ? prev[sectionKey].thaActionType : 'Research',
+        thaActionType: THA_ACTION_TYPES.includes(prev?.[sectionKey]?.thaActionType) ? prev[sectionKey].thaActionType : 'Unknown',
         note: prev?.[sectionKey]?.note || '',
         photos: photoList(prev?.[sectionKey]).map(existing => ({ ...existing, label: existing.label || 'Overview' })),
         items: Array.isArray(prev?.[sectionKey]?.items) ? prev[sectionKey].items : []
@@ -3513,6 +3524,9 @@ function App() {
   };
   const roomRows = rows.filter(r => r.sectionKey === activeRoom);
   const currentRoomCapture = roomCaptureFor(activeRoom);
+  const currentRoomSummary = roomSummaryFor(rooms.find(r => r.key === activeRoom) || { key: activeRoom, label: activeRoom });
+  const currentRoomActionClass = currentRoomCapture.thaActionItem ? 'hasActionSelected' : (hasThaActionContext(currentRoomCapture) ? 'hasActionContext' : '');
+  const currentRoomRailClasses = `roomRail-${currentRoomSummary.rail.left} ${currentRoomSummary.rail.right === 'work-now' ? 'roomRail-pass roomRail-work-now' : currentRoomSummary.rail.right === 'pass' ? 'roomRail-pass' : ''} ${currentRoomActionClass}`.trim();
   const roomItemFormOpen = Boolean(roomItemFormOpenByRoom[activeRoom]);
   const activeRoomLabel = rooms.find(r => r.key === activeRoom)?.label || activeRoom;
   const isRoomOverviewExpanded = Boolean(roomOverviewExpandedByRoom[activeRoom]);
@@ -3539,6 +3553,7 @@ function App() {
     else if (includePMR(r.answer)) flags.push({ key: 'attention', className: 'attention', label: `Attention: ${r.answer.status}` });
     if (isIntakeFollowUp(r)) flags.push({ key: 'intake', className: r.answer.reviewStatus === 'Not Reviewed' ? 'attention' : 'info', label: `Intake: ${r.answer.reviewStatus}` });
     if (r.answer.thaActionItem) flags.push({ key: 'workOrder', className: 'workOrder', label: currentWorkOrderLabel(r.answer) || 'THA Action-Item' });
+    else if (thaActionTypeSelected(r.answer)) flags.push({ key: 'actionType', className: 'workOrder light', label: currentWorkOrderLabel(r.answer) });
     if (photoCount) flags.push({ key: 'photos', className: itemHasPhotoAttention(r.answer) ? 'attention' : 'info', label: `${photoCount} photo${photoCount === 1 ? '' : 's'}` });
     if (r.answer.notes.trim()) flags.push({ key: 'notes', className: 'info', label: 'Notes' });
     if (r.answer.photoRef.trim()) flags.push({ key: 'photoRef', className: 'info', label: 'Photo ref' });
@@ -3598,8 +3613,6 @@ function App() {
     if (counts.watch) badges.push({ key: 'watch', label: `Watch ${counts.watch}`, tone: 'watch' });
     return { ...counts, rail: { left: railLeft, right: railRight }, badges, hasAttention, immediateCount };
   };
-  const currentRoomSummary = roomSummaryFor(rooms.find(r => r.key === activeRoom) || { key: activeRoom, label: activeRoom });
-  const currentRoomRailClasses = `roomRail-${currentRoomSummary.rail.left} ${currentRoomSummary.rail.right === 'work-now' ? 'roomRail-pass roomRail-work-now' : currentRoomSummary.rail.right === 'pass' ? 'roomRail-pass' : ''}`.trim();
   const setupFieldState = (value) => isMissingProjectIdentityValue(value) ? 'setupMissing' : 'setupReady';
   const setupFieldHelp = (value, missingText) => isMissingProjectIdentityValue(value) ? missingText : 'Ready for PMR packet';
   const setupFieldIcon = (value) => isMissingProjectIdentityValue(value) ? '!' : '✓';
@@ -3812,8 +3825,7 @@ function App() {
             {isRoomOverviewExpanded && <div className="roomOverviewBody">
               <label className="roomOverviewField">Overall Room Status<select value={currentRoomCapture.status} onChange={e=>updateRoomCapture(activeRoom,{status:e.target.value})}>{ROOM_STATUS_OPTIONS.map(x=><option key={x}>{x}</option>)}</select></label>
               <label className="passCandidateToggle"><input type="checkbox" checked={Boolean(currentRoomCapture.addToPmcpBuilder)} onChange={e=>setPmcpBuilderForRoom(rooms.find(room => room.key === activeRoom) || { key: activeRoom, label: activeRoom }, e.target.checked)}/><span><strong>Add to PMCP Builder</strong><small>Directly activates this room overview care topic for PMCP review and selection.</small></span></label>
-              <label className="workOrderToggle"><input type="checkbox" checked={Boolean(currentRoomCapture.thaActionItem)} onChange={e=>updateRoomCapture(activeRoom,{thaActionItem:e.target.checked})}/><span><strong>THA Action-Item</strong><small>Marks THA near-term follow-up responsibility for this room overview; this drives the purple rail.</small></span></label>
-              {currentRoomCapture.thaActionItem && <label>THA action type<select value={currentRoomCapture.thaActionType} onChange={e=>updateRoomCapture(activeRoom,{thaActionType:e.target.value})}>{THA_ACTION_TYPES.map(option => <option key={option}>{option}</option>)}</select></label>}
+              <div className={`workOrderActionPanel ${currentRoomCapture.thaActionItem ? 'actionSelected' : (thaActionTypeSelected(currentRoomCapture) || currentRoomCapture.note.trim() ? 'actionContext' : '')}`}><label className="workOrderToggle"><input type="checkbox" checked={Boolean(currentRoomCapture.thaActionItem)} onChange={e=>updateRoomCapture(activeRoom,{thaActionItem:e.target.checked})}/><span><strong>THA Action-Item</strong><small>Marks THA near-term follow-up responsibility for this room overview; this drives the purple rail.</small></span></label><label className="thaActionTypeField">THA Action Type<select value={currentRoomCapture.thaActionType} onChange={e=>updateRoomCapture(activeRoom,{thaActionType:e.target.value})}>{THA_ACTION_TYPES.map(option => <option key={option}>{option}</option>)}</select><small>Unknown until THA follow-up, research, repair, or trade handling is identified.</small></label></div>
               <label className="notes">Room Note / Voice Transcript<textarea value={currentRoomCapture.note} onChange={e=>updateRoomCapture(activeRoom,{note:e.target.value})} placeholder="Capture room-level context, voice transcript, or summary notes for this space."/></label>
               <div className="roomPhotoBox"><div className="photoBox"><Camera size={18}/><strong>Room Overview Photos:</strong><label className="uploadInline"><Upload size={16}/> Add Room Overview Photo<input type="file" accept="image/*" multiple onChange={e=>{addRoomPhotos(activeRoom, e.target.files); e.target.value='';}}/></label><span>{photoSummary(currentRoomCapture.photos, { emptyText: 'No room overview photos attached yet', labels: ROOM_PHOTO_LABELS })}</span></div>{currentRoomCapture.photos.length > 0 && <div className="thumbGrid roomThumbGrid">{currentRoomCapture.photos.map(photo => { const displaySrc = photoDisplaySrc(photo); return <div className="thumbCard" key={photo.id}><div className="thumb">{displaySrc ? <img src={displaySrc} alt={`Overview for ${activeRoomLabel}`}/> : <Image size={24}/>}</div><span>Overview</span><span title={photo.name}>{photo.name}</span><span className={`photoStatusBadge ${photo.uploadStatus || PHOTO_UPLOAD_STATUS.LOCAL}`}>{photoStatusLabel(photo)}</span><span className="photoStatusText">{photoStatusMessage(photo, Boolean(driveToken))}</span><button onClick={()=>removeRoomPhoto(activeRoom, photo.id)} aria-label="Remove room overview photo"><X size={14}/></button></div>; })}</div>}</div>
               <div className="roomItemsPlaceholder"><div className="roomOverviewSectionHeader"><h3>Room-level added items</h3><button type="button" onClick={openRoomItemForm}>Add Item</button></div>{roomItemFormOpen && <div className="roomItemForm"><div className="inputs roomItemInputs"><label>Item title<input value={roomItemDraft.title} onChange={e=>updateRoomItemDraft({title:e.target.value})} placeholder="e.g., Loose towel bar" autoFocus/></label><label>Item bucket/type<select value={roomItemDraft.bucket} onChange={e=>updateRoomItemDraft({bucket:e.target.value})}>{ROOM_ITEM_BUCKETS.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label></div><label className="discoveryCheck"><input type="checkbox" checked={roomItemDraft.isDiscovery} onChange={e=>updateRoomItemDraft({isDiscovery:e.target.checked})}/><span><strong>Discovery</strong><small>Unexpected, hidden, unusual, or out of the ordinary.</small></span></label><label className="notes">Notes<textarea value={roomItemDraft.notes} onChange={e=>updateRoomItemDraft({notes:e.target.value})} placeholder="Add room-level context, next step, or follow-up note."/></label><div className="roomItemActions"><button type="button" onClick={saveRoomItem} disabled={!roomItemDraft.title.trim()}>Save</button><button type="button" onClick={cancelRoomItemForm}>Cancel</button></div></div>}{currentRoomCapture.items.length > 0 ? <ul className="roomItemList">{currentRoomCapture.items.map(item=><li key={item.id} className="roomItemRow"><div><strong>{item.title}</strong><span>{roomItemBucketLabel(item.bucket)}{item.isDiscovery ? ' · Discovery' : ''}</span>{item.notes && <p>{item.notes}</p>}</div><button type="button" onClick={()=>removeRoomItem(activeRoom, item.id)} aria-label={`Remove ${item.title}`}><X size={14}/> Remove</button></li>)}</ul> : <p>No room-level items added yet.</p>}</div>
@@ -3831,7 +3843,8 @@ function App() {
           const rail = railStateFor(r.answer, { pmcpSelected: Boolean(r.answer.addToPmcpBuilder) || selection.pmcpDecision === 'selected', workOrderNow: r.answer.thaActionItem });
           const pmrBadgeLabelValue = pmrReportLabel(r.answer);
           const pmrBadgeClassName = pmrReportPillClass(r.answer);
-          return <div className={`itemCard checklistItemCard categoryCard category-${meta.slug} ${isExpanded ? 'expanded' : 'collapsed'} ${flags.some(flag => flag.className === 'attention') ? 'needsAttention' : ''} rail-${rail.left} ${rail.right === 'work-now' ? 'rail-pass rail-work-now' : rail.right === 'pass' ? 'rail-pass' : ''}`} key={r.id}>
+          const actionClass = r.answer.thaActionItem ? 'hasActionSelected' : (hasThaActionContext(r.answer) ? 'hasActionContext' : '');
+          return <div className={`itemCard checklistItemCard categoryCard category-${meta.slug} ${isExpanded ? 'expanded' : 'collapsed'} ${flags.some(flag => flag.className === 'attention') ? 'needsAttention' : ''} ${actionClass} rail-${rail.left} ${rail.right === 'work-now' ? 'rail-pass rail-work-now' : rail.right === 'pass' ? 'rail-pass' : ''}`} key={r.id}>
           <button type="button" className="checklistSummaryRow" onClick={()=>toggleChecklistItem(r.id)} aria-expanded={isExpanded} aria-controls={`item-detail-${r.id}`}>
             <span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span>
             <span className="checklistSummaryMain"><span className="itemTitleLine"><strong>{r.item}</strong><CategoryBadge category={category}/>{isIntakeFollowUp(r) && <span className="sourceBadge">Intake Follow-Up</span>}</span><span>{r.zone} · Suggested: {displayTradeLabel(r.trade)}</span></span>
@@ -3853,8 +3866,7 @@ function App() {
               {isIntakeFollowUp(r) && <label className="intakeFollowUpReview">Review Status<select value={r.answer.reviewStatus} onChange={e=>update(r.id,{reviewStatus:e.target.value})}>{INTAKE_REVIEW_STATUSES.map(x=><option key={x}>{x}</option>)}</select></label>}
             </div>
             <label className="passCandidateToggle"><input type="checkbox" checked={Boolean(r.answer.addToPmcpBuilder)} onChange={e=>setPmcpBuilderForRow(r, e.target.checked)}/><span><strong>Add to PMCP Builder</strong><small>Direct field-action control that activates this canonical care topic for PMCP review/selection.</small></span></label>
-            <label className="workOrderToggle"><input type="checkbox" checked={Boolean(r.answer.thaActionItem)} onChange={e=>update(r.id,{thaActionItem:e.target.checked, workOrderNow:e.target.checked})}/><span><strong>THA Action-Item</strong><small>THA near-term follow-up responsibility; purple rail supersedes green while keeping PMCP selection active.</small></span></label>
-            {r.answer.thaActionItem && <label>THA action type<select value={r.answer.thaActionType} onChange={e=>update(r.id,{thaActionType:e.target.value})}>{THA_ACTION_TYPES.map(option=><option key={option}>{option}</option>)}</select></label>}
+            <div className={`workOrderActionPanel ${r.answer.thaActionItem ? 'actionSelected' : (hasThaActionContext(r.answer) ? 'actionContext' : '')}`}><label className="workOrderToggle"><input type="checkbox" checked={Boolean(r.answer.thaActionItem)} onChange={e=>update(r.id,{thaActionItem:e.target.checked, workOrderNow:e.target.checked})}/><span><strong>THA Action-Item</strong><small>THA near-term follow-up responsibility; purple rail supersedes green while keeping PMCP selection active.</small></span></label><label className="thaActionTypeField">THA Action Type<select value={r.answer.thaActionType} onChange={e=>update(r.id,{thaActionType:e.target.value})}>{THA_ACTION_TYPES.map(option=><option key={option}>{option}</option>)}</select><small>Unknown until THA follow-up, research, repair, or trade handling is identified.</small></label></div>
             <label className="notes">Notes for PMR detail<textarea value={r.answer.notes} onChange={e=>update(r.id,{notes:e.target.value})} placeholder="What do I see? What would I suggest? What needs confirmation? These notes sharpen the PMR language."/></label>
             <div className="photoBox"><Camera size={18}/><strong>Photo Capture:</strong><label className="uploadInline"><Upload size={16}/> Upload<input type="file" accept="image/*" multiple onChange={e=>{addPhotos(r.id, e.target.files); e.target.value='';}}/></label><span>{photoSummary(r.answer.photos)}</span></div>
             {r.answer.photos.length > 0 && <div className="thumbGrid">{r.answer.photos.map(photo => { const displaySrc = photoDisplaySrc(photo); return <div className="thumbCard" key={photo.id}><div className="thumb">{displaySrc ? <img src={displaySrc} alt={`${photo.label} for ${r.item}`}/> : <Image size={24}/>}</div><select value={photo.label} onChange={e=>updatePhoto(r.id, photo.id, {label:e.target.value})}>{PHOTO_LABELS.map(label=><option key={label}>{label}</option>)}</select><span title={photo.name}>{photo.name}</span><span className={`photoStatusBadge ${photo.uploadStatus || PHOTO_UPLOAD_STATUS.LOCAL}`}>{photoStatusLabel(photo)}</span><span className="photoStatusText">{photoStatusMessage(photo, Boolean(driveToken))}</span><button onClick={()=>removePhoto(r.id, photo.id)} aria-label="Remove photo"><X size={14}/></button></div>; })}</div>}
@@ -4123,15 +4135,18 @@ function PMR({client, intake, rows = [], pmr, counts, quickHits, passCareCandida
   const tradeItems = pmr.filter(r => !['Handyman','Safety'].includes(r.answer.trade));
   const immediateItems = pmr.filter(r => r.answer.status === 'Immediate Concern');
   const handyItems = pmr.filter(r => r.answer.trade === 'Handyman');
-  const actionItems = rows.filter(r => r.answer.thaActionItem);
+  const actionItems = rows.filter(r => r.answer.thaActionItem || thaActionTypeSelected(r.answer));
+  const roomOverviewFindings = sections
+    .map(section => ({ section, capture: roomCapture?.[section.key] || {} }))
+    .filter(({ capture }) => includeRoomOverviewPMR(capture));
   const roomActionItems = sections
-    .filter(section => Boolean(roomCapture?.[section.key]?.thaActionItem))
+    .filter(section => Boolean(roomCapture?.[section.key]?.thaActionItem) || thaActionTypeSelected(roomCapture?.[section.key]))
     .map(section => ({
       id: `room-action-${section.key}`,
       roomName: section.label || section.roomName || section.key,
       item: 'Room overview follow-up',
       trade: 'Handyman',
-      actionType: THA_ACTION_TYPES.includes(roomCapture?.[section.key]?.thaActionType) ? roomCapture[section.key].thaActionType : 'Research',
+      actionType: THA_ACTION_TYPES.includes(roomCapture?.[section.key]?.thaActionType) ? roomCapture[section.key].thaActionType : 'Unknown',
       note: roomCapture?.[section.key]?.note || ''
     }));
   const roomIssueCounts = Object.entries(pmr.reduce((acc, r) => {
@@ -4178,7 +4193,8 @@ function PMR({client, intake, rows = [], pmr, counts, quickHits, passCareCandida
     <section className="pmrBlock frontSummary"><h2><ClipboardList size={20}/> Plain-English Summary</h2><p className="overallSummary">{overallSummary}</p><div className="summaryTypeGrid"><div><strong>{immediateItems.length}</strong><span>Immediate / higher concern</span></div><div><strong>{handyItems.length}</strong><span>Handy Services items</span></div><div><strong>{tradeItems.length}</strong><span>Trade items</span></div><div><strong>{passCareOutlook.length}</strong><span>PASS continued care / routine care</span></div></div></section>
     <section className="pmrBlock baselineCare"><h2>Baseline Home Care / Upkeep To-Dos</h2><p className="lede">No repair concern is implied by this section. These are baseline reminders and practical upkeep opportunities. The list becomes more tailored as Intake, HTC, PMCP Builder, and THA Action-Items are completed.</p>{Object.entries(baselineByGroup).length ? Object.entries(baselineByGroup).map(([groupName, items]) => <section className="passCalendarCareGroup" key={`baseline-${groupName}`}><h3>{groupName}</h3><div className="passCalendarTable">{items.map(item => <article className="passCalendarRow baseline" key={item.id}><div><strong>{item.title}</strong><small>{item.guidance}</small>{item.evidence.length > 0 && <small>Evidence: {item.evidence.join(' · ')}</small>}</div><span>Routine</span><span>Baseline</span><span className="nextWindow">{item.group}</span><span>{item.evidence.length ? 'Supported by intake/HTC context' : 'General homeowner care baseline'}</span><span><em className="passStatusChip baseline">Not a repair finding</em></span></article>)}</div></section>) : <p className="lede">No baseline topics generated.</p>}</section>
     <section className="pmrBlock passOutlook"><h2><ClipboardList size={20}/> Home-Specific Care Supported by Intake and/or HTC</h2><p className="lede">These care topics are supported by intake and/or walkthrough evidence and remain separate from repair findings and PMR priority counts.</p>{baselineModel.homeSpecificCare.length ? <div className="passOutlookGrid">{baselineModel.homeSpecificCare.map(item => <article className="passOutlookCard" key={`supported-care-${item.id}`}><div className="findTop"><TradeIcon trade="Handyman"/><div><h3>{item.careItem}</h3><p>{item.sourceLabel} · Intake/HTC supported care</p></div></div><div className="findGrid"><p><strong>Homeowner-facing reason:</strong><br/>{item.reason || 'Supported by intake and/or HTC context.'}</p><p><strong>Category:</strong><br/>Home-specific care supported by Intake and/or HTC</p></div></article>)}</div> : <p className="lede">No additional intake/HTC-supported care topics are pending outside PMCP selected items.</p>}</section>
-    {(actionItems.length > 0 || roomActionItems.length > 0) && <section className="pmrBlock workOrderSummary"><h2><ClipboardList size={20}/> THA Action-Items / Near-Term Follow-Up</h2><p className="lede">These THA action-items stay separate from ordinary repair findings. Purple supersedes green in rails while PMCP selections remain active underneath.</p><div className="findingTypeList"><article><h3>Detailed HTC line items</h3>{actionItems.length ? actionItems.map(r => <p key={`workorder-${r.id}`}>{r.roomName || r.room} — {r.item} · {displayTradeLabel(r.answer.trade)} · {r.answer.thaActionType || 'Research'}{includePMRRow(r) ? ` · ${pmrReportLabel(r.answer)}` : ''}</p>) : <p>No detailed line-item action-items recorded.</p>}</article><article><h3>Room overview action-items</h3>{roomActionItems.length ? roomActionItems.map(item => <p key={item.id}>{item.roomName} — {item.item} · {item.actionType}{item.note ? ` · ${item.note}` : ''}</p>) : <p>No room-overview action-items recorded.</p>}</article></div></section>}
+    {roomOverviewFindings.length > 0 && <section className="pmrBlock roomOverviewFindings"><h2><Home size={20}/> Room Overview Status Notes</h2><p className="lede">Room overview statuses that moved beyond Unknown / Looking Good are included as compact PMR context. Detailed checklist PMR findings remain counted separately.</p><div className="findingTypeList">{roomOverviewFindings.map(({ section, capture }) => <article key={`room-overview-pmr-${section.key}`}><h3>{section.label || section.roomName || section.key}</h3><p><strong>Status:</strong> {capture.status}</p>{capture.note && <p><strong>Notes/action detail:</strong> {capture.note}</p>}{thaActionTypeSelected(capture) && <p><strong>THA Action Type:</strong> {capture.thaActionType}</p>}{capture.thaActionItem && <p><strong>THA Action Item:</strong> Selected for THA work/follow-up.</p>}{photoList(capture).length > 0 && <p><strong>Photos:</strong> {photoList(capture).length} room overview photo{photoList(capture).length === 1 ? '' : 's'} linked in Photo Index.</p>}</article>)}</div></section>}
+    {(actionItems.length > 0 || roomActionItems.length > 0) && <section className="pmrBlock workOrderSummary"><h2><ClipboardList size={20}/> THA Action-Items / Near-Term Follow-Up</h2><p className="lede">These THA action-items stay separate from ordinary repair findings. Purple supersedes green in rails while PMCP selections remain active underneath.</p><div className="findingTypeList"><article><h3>Detailed HTC line items</h3>{actionItems.length ? actionItems.map(r => <p key={`workorder-${r.id}`}>{r.roomName || r.room} — {r.item} · {displayTradeLabel(r.answer.trade)} · {r.answer.thaActionType || 'Unknown'}{includePMRRow(r) ? ` · ${pmrReportLabel(r.answer)}` : ''}</p>) : <p>No detailed line-item action-items recorded.</p>}</article><article><h3>Room overview action-items</h3>{roomActionItems.length ? roomActionItems.map(item => <p key={item.id}>{item.roomName} — {item.item} · {item.actionType}{item.note ? ` · ${item.note}` : ''}</p>) : <p>No room-overview action-items recorded.</p>}</article></div></section>}
     <PassPlanSummary passCareOutlook={passCareOutlook} passReview={passReview} />
     <section className="pmrBlock roomIssueSummary"><h2><Home size={20}/> Room-by-Room Issue Count</h2><p className="lede">PMR counts only. PASS continued care stays separate and is not included in this chart.</p>{roomIssueCounts.length ? <div className="roomIssueChart">{roomIssueCounts.map(([room, count]) => <div className="roomIssueRow" key={room}><span>{room}</span><div className="roomIssueBar"><i style={{width: `${Math.max(8, (count / maxRoomIssueCount) * 100)}%`}}></i></div><strong>{count}</strong></div>)}</div> : <p className="lede">No repair issues recorded by room.</p>}</section>
     <section className="pmrBlock findingTypeSummary"><h2><AlertTriangle size={20}/> Summary by Finding Type</h2><div className="findingTypeList"><article><h3>Immediate / higher concern items</h3>{immediateItems.length ? immediateItems.map(r => <p key={`immediate-${r.id}`}>{r.roomName || r.room} — {r.item}</p>) : <p>No immediate higher-concern items recorded.</p>}</article><article><h3>Handy Services items</h3>{handyItems.length ? handyItems.map(r => <p key={`handy-${r.id}`}>{r.roomName || r.room} — {r.item}</p>) : <p>No Handy Services PMR items recorded.</p>}</article><article><h3>Trade items</h3>{tradeItems.length ? tradeItems.map(r => <p key={`trade-summary-${r.id}`}>{displayTradeLabel(r.answer.trade)}: {r.roomName || r.room} — {r.item}</p>) : <p>No trade PMR items recorded.</p>}</article><article><h3>PASS continued care / routine care</h3>{passCareOutlook.length ? passCareOutlook.map(item => <p key={`pass-summary-${item.id}`}>{item.careItem} · {item.resource}</p>) : <p>No homeowner-facing PASS continued-care items included.</p>}</article></div></section>

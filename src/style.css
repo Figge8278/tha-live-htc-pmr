@@ -544,3 +544,23 @@
 .passCandidateToggle:has(input:checked) small{color:#356f31}
 .workOrderToggle{background:var(--work-purple-soft);border:1px solid var(--work-purple-line);box-shadow:inset 4px 0 0 rgba(124,58,237,.34)}
 .workOrderToggle:has(input:checked){box-shadow:inset 6px 0 0 var(--work-purple),0 0 0 2px rgba(124,58,237,.10)}
+
+/* PR #68 line-item status/action language refinement. */
+:root{--status-gray:#6b7280;--status-gray-soft:#f3f4f6;--status-gray-line:#d1d5db;--status-green:#2e7d32;--status-green-soft:#eaf7e9;--status-green-line:#b9d9ad;--status-amber:#a66c00;--status-amber-soft:#fff1c6;--status-amber-line:#f1d37a;--status-orange:#c95f0b;--status-orange-soft:#fff4e8;--status-orange-line:#f2a45f;--status-red:#c6281d;--status-red-soft:#fff1ef;--status-red-line:#efb4aa;--reviewed-blue:#8bb9d6;--reviewed-blue-soft:#f6fbfe}
+.statusBadge.status-unknown{background:var(--status-gray-soft);border-color:var(--status-gray-line);color:#4b5563}
+.statusBadge.status-good{background:var(--status-green-soft);border-color:var(--status-green-line);color:var(--status-green)}
+.statusBadge.status-monitor,.statusBadge.status-watch,.statusBadge.status-upcoming{background:var(--status-amber-soft);border-color:var(--status-amber-line);color:var(--status-amber)}
+.statusBadge.status-needs-attention{background:var(--status-orange-soft);border-color:var(--status-orange-line);color:var(--status-orange)}
+.statusBadge.status-immediate-concern,.statusBadge.status-now,.statusBadge.status-urgent{background:var(--status-red-soft);border-color:var(--status-red-line);color:var(--status-red)}
+.checklistItemCard.rail-unknown::before,.roomOverviewCard.roomRail-unknown::before,.sectionSelect.roomRail-unknown::before{background:var(--status-gray-line)}
+.checklistItemCard.rail-reviewed::before,.roomOverviewCard.roomRail-reviewed::before,.sectionSelect.roomRail-reviewed::before{background:var(--reviewed-blue)}
+.checklistItemCard.rail-reviewed,.roomOverviewCard.roomRail-reviewed{box-shadow:inset 3px 0 0 rgba(139,185,214,.28)}
+.checklistItemCard.needsAttention.collapsed{box-shadow:0 6px 16px rgba(13,44,73,.05)}
+.checklistItemCard.hasActionContext,.roomOverviewCard.hasActionContext{box-shadow:inset 0 0 0 2px rgba(124,58,237,.08),0 6px 16px rgba(13,44,73,.04)}
+.checklistItemCard.hasActionSelected,.roomOverviewCard.hasActionSelected{box-shadow:inset 0 0 0 2px rgba(124,58,237,.16),0 8px 18px rgba(13,44,73,.06)}
+.workOrderActionPanel{border:1px solid var(--work-purple-line);border-radius:16px;background:#fbf9ff;padding:10px;margin:10px 0;box-shadow:inset 4px 0 0 rgba(124,58,237,.20)}
+.workOrderActionPanel.actionContext{background:var(--work-purple-soft);box-shadow:inset 5px 0 0 rgba(124,58,237,.45)}
+.workOrderActionPanel.actionSelected{background:#f0e9ff;border-color:#c5b5f3;box-shadow:inset 7px 0 0 var(--work-purple),0 0 0 2px rgba(124,58,237,.10)}
+.thaActionTypeField{margin-top:8px;padding:9px;border:1px solid #dfd6f8;border-radius:12px;background:#fff;color:#4c2f87}
+.thaActionTypeField small{display:block;color:#6f5aa5;font-weight:800;margin-top:2px}
+.summaryFlag.workOrder.light{background:#fbf9ff;color:#6746a4;border-color:#dfd6f8}
