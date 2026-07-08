@@ -67,7 +67,7 @@
     const importCard = importPanel.closest('.intakeImportCard') || importPanel;
     importCard.classList.add('tha-import-in-controls');
     const heading = importPanel.querySelector('.intakeImportHeader h2');
-    if (heading) heading.textContent = 'Import a Completed Intake';
+    if (heading) heading.textContent = 'Send / Import Homeowner Intake';
     body.querySelector('.intakeImportLaunchCard')?.remove();
     const workSession = body.querySelector('.localWorkCard');
     const anchor = workSession || setup;

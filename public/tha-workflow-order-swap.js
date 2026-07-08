@@ -18,7 +18,7 @@
         heading.textContent = '2. Work Session';
       });
       panel.querySelectorAll('.intakeImportCard.tha-import-in-controls .intakeImportHeader h2').forEach(heading => {
-        heading.textContent = 'Import a Completed Intake';
+        heading.textContent = 'Send / Import Homeowner Intake';
       });
     });
   }

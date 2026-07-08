@@ -746,6 +746,63 @@ function homeownerQuickIntakePromptLines(sample = false) {
   lines.push(`${HOMEOWNER_QUICK_INTAKE_TEXT_FIELDS[2].label}:`, sample ? samplePlain.doNotOverlook : '');
   return lines;
 }
+function escapeHtml(value = '') {
+  return String(value || '').replace(/[&<>"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
+}
+function buildClientIntakeHtml({ client = {}, intakeId = '' } = {}) {
+  const plainFields = HOMEOWNER_QUICK_INTAKE_TEXT_FIELDS.map(field => ({ label: field.label, help: '' }));
+  const groups = STRUCTURED_HOMEOWNER_QUICK_INTAKE_GROUPS.map(group => ({
+    question: group.question,
+    help: group.help || '',
+    fields: group.fields.map(field => ({ label: field.label }))
+  }));
+  const filename = clientIntakeFileName({ client, intakeId });
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>THA Homeowner Intake</title>
+<style>
+  :root{font-family:Inter,Arial,sans-serif;color:#173e57;background:#f4f7fb}body{margin:0;padding:24px}.wrap{max-width:860px;margin:0 auto}.card{background:#fff;border:1px solid #d9e3ea;border-radius:18px;box-shadow:0 12px 30px rgba(23,62,87,.08);padding:24px;margin-bottom:16px}h1{margin:0 0 8px;font-size:28px;color:#173e57}h2{font-size:18px;color:#4e3470;margin:0 0 12px}.intro{color:#4f6472;font-weight:700;line-height:1.45}.meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.question{display:grid;gap:8px;margin-top:14px;padding:16px;border:1px solid #e1e9ef;border-radius:14px;background:#fbfdff}.question strong{font-size:15px}.question small{color:#647885;font-weight:700}.subgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}label{display:grid;gap:6px;font-weight:900;color:#284f68}input,textarea{width:100%;box-sizing:border-box;border:1px solid #cbd9e2;border-radius:12px;padding:10px 12px;font:inherit;background:#fff}textarea{min-height:92px;resize:vertical}.subgrid textarea{min-height:72px}button{border:0;border-radius:14px;background:#745a91;color:#fff;font-weight:950;font-size:15px;padding:14px 18px;cursor:pointer}.footer{position:sticky;bottom:0;background:rgba(244,247,251,.94);backdrop-filter:blur(6px);padding:14px 0}.note{background:#fbf8ff;border-color:#d7c4ef}@media(max-width:720px){body{padding:14px}.meta,.subgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="card note"><h1>THA Homeowner Intake</h1><p class="intro">Unknown is okay. Leave blank anything you do not know. These answers are homeowner-provided context; THA verifies during the walkthrough.</p></section>
+  <section class="card"><h2>Walkthrough details</h2><div class="meta">
+    <label>Client Name<input data-meta="Client Name" value="${escapeHtml(client.name || '')}" /></label>
+    <label>Project Address<input data-meta="Project Address" value="${escapeHtml(client.address || '')}" /></label>
+    <label>Walkthrough Date / Visit Label<input data-meta="Walkthrough Date / Visit Label" value="${escapeHtml(client.date || '')}" /></label>
+    <label>Intake ID<input data-meta="Intake ID" value="${escapeHtml(intakeId || '')}" /></label>
+  </div></section>
+  <section class="card"><h2>Homeowner Quick Intake</h2>
+    <div class="question"><strong>${escapeHtml(plainFields[0].label)}</strong><textarea data-label="${escapeHtml(plainFields[0].label)}"></textarea></div>
+    <div class="question"><strong>${escapeHtml(plainFields[1].label)}</strong><textarea data-label="${escapeHtml(plainFields[1].label)}"></textarea></div>
+    ${groups.map(group => `<div class="question"><strong>${escapeHtml(group.question)}</strong>${group.help ? `<small>${escapeHtml(group.help)}</small>` : ''}<div class="subgrid">${group.fields.map(field => `<label>${escapeHtml(field.label)}<textarea data-label="${escapeHtml(field.label)}"></textarea></label>`).join('')}</div></div>`).join('')}
+    <div class="question"><strong>${escapeHtml(plainFields[2].label)}</strong><textarea data-label="${escapeHtml(plainFields[2].label)}"></textarea></div>
+  </section>
+  <div class="footer"><button type="button" id="downloadCompleted">Download completed intake response (.txt)</button></div>
+</div>
+<script>
+const outputName = ${JSON.stringify(filename)};
+document.getElementById('downloadCompleted').addEventListener('click', () => {
+  const lines = ['THA Homeowner Quick Intake Response',''];
+  document.querySelectorAll('[data-meta]').forEach(input => lines.push(input.dataset.meta + ': ' + input.value.trim()));
+  lines.push('', 'Homeowner Quick Intake', '');
+  document.querySelectorAll('[data-label]').forEach(input => { lines.push(input.dataset.label + ': ' + input.value.trim()); lines.push(''); });
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = outputName.replace(/\.txt$/i, '-completed.txt');
+  a.click();
+  URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>`;
+}
 function buildClientIntakeTxt({ client = {}, intakeId = '', sample = false } = {}) {
   const lines = [
     sample ? 'TEST SAMPLE — COMPLETED HOMEOWNER INTAKE' : 'THA Homeowner Quick Intake',
@@ -775,15 +832,14 @@ function buildClientIntakeEmail({ client = {}, intakeId = '' } = {}) {
     '',
     'Hello,',
     '',
-    'Attached is a blank THA homeowner intake .txt file for your walkthrough.',
+    'Attached is a blank THA homeowner intake form for your walkthrough.',
     '',
     'Please:',
-    '1. Open the attached .txt file.',
-    '2. Type answers below any questions you can answer.',
-    '3. Save the file.',
+    '1. Open the attached intake form in your browser.',
+    '2. Fill in what you know. Unknown/blank is okay.',
+    '3. Use the form button to download the completed intake response (.txt).',
     '4. Reply to this email with the completed .txt attached.',
     '',
-    'Unknown is okay. Leave blank anything you do not know.',
     'These answers are homeowner-provided context; THA verifies during the walkthrough.',
     '',
     `Client Name: ${client.name || ''}`,
@@ -795,8 +851,8 @@ function buildClientIntakeEmail({ client = {}, intakeId = '' } = {}) {
     'The Homeowner Advocate'
   ].join('\n');
 }
-function downloadTextFile(text, filename) {
-  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+function downloadTextFile(text, filename, type = 'text/plain;charset=utf-8') {
+  const blob = new Blob([text], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -3612,14 +3668,14 @@ function App() {
         {workflowCues.map(cue => <span key={cue.label} className={`workflowCue ${cue.state}`}><strong>{cue.state === 'ready' ? '✓' : (cue.state === 'warning' ? '⚠' : (cue.state === 'missing' || cue.state === 'setupMissing' ? '!' : '•'))} {cue.label}</strong><small>{cue.text}</small></span>)}
       </div>}
       {!controlsCollapsed && <div className="walkthroughControlsBody">
-        <section className="controlGroup sessionCard" aria-label="Walkthrough Info">
+        <section className={`controlGroup sessionCard walkthroughSetupCard ${missingClientFieldCount ? 'setupNeedsInput' : 'setupReadyCard'}`} aria-label="Walkthrough Info">
           <div className="controlGroupTitle"><h3>1. Walkthrough Setup</h3></div>
           <label>Working Session Name<input value={walkthroughName} onChange={e=>setWalkthroughName(e.target.value)} placeholder="Name this working session"/></label>
           <label className={`requiredSetupField ${setupFieldState(client.name)}`}>Client Name<input value={client.name} onChange={e=>setClient({...client,name:e.target.value})} placeholder="Client name"/><small>{setupFieldHelp(client.name, 'Client name needed')}</small></label>
           <label className={`requiredSetupField ${setupFieldState(client.address)}`}>Project Address<input value={client.address} onChange={e=>setClient({...client,address:e.target.value})} placeholder="Project address"/><small>{setupFieldHelp(client.address, 'Project address needed')}</small></label>
           <label className={`requiredSetupField ${setupFieldState(client.date)}`}>Walkthrough Date / Visit Label<input value={client.date} onChange={e=>setClient({...client,date:e.target.value})} placeholder="Walkthrough date / visit label"/><small>{setupFieldHelp(client.date, 'Required before PMR output')}</small></label>
         </section>
-        <section className="controlGroup sessionCard localWorkCard" aria-label="Local Work">
+        <section className="controlGroup sessionCard localWorkCard workSessionReadyCard" aria-label="Local Work">
           <div className="controlGroupTitle"><h3>2. Work Session</h3><p>Autosaves and saved sessions stay in this browser on this device unless you download or upload them.</p></div>
           <div className="walkthroughActions" aria-label="Walkthrough save and backup actions">
             <button type="button" onClick={startNewWalkthrough}>New Blank Local Walkthrough</button>
@@ -3630,8 +3686,8 @@ function App() {
           <button type="button" className="deleteLocalSessionButton" onClick={deleteSavedWalkthrough} disabled={!selectedWalkthroughId || !savedSessions[selectedWalkthroughId]}><Trash2 size={16}/> Delete Selected Local Session</button>
           <div className="localBackupRestore"><p><strong>Local backup download</strong><br/><span>Downloads a JSON recovery file to this device only. It is not homeowner-facing and does not upload to Drive.</span></p><button type="button" onClick={downloadEmergencyBackup}><Download size={16}/> Download Local Emergency Backup</button></div>
         </section>
-        <section className="controlGroup sessionCard intakeImportCard" aria-label="Import Homeowner Intake">
-          <div className="controlGroupTitle"><h3>3. Import Homeowner Intake</h3><p>Import completed homeowner context into this working walkthrough.</p></div>
+        <section className="controlGroup sessionCard intakeImportCard homeownerIntakeSectionCard" aria-label="Homeowner Intake">
+          <div className="controlGroupTitle"><h3>3. Homeowner Intake</h3><p>Send the client intake form, then import the completed homeowner context into this working walkthrough.</p></div>
           <HomeownerIntakeImportPanel client={client} intake={intake} updateIntake={updateIntake} />
         </section>
         <section className="controlGroup clientCard homeownerOutputCard" aria-label="Homeowner Output">
@@ -3639,7 +3695,7 @@ function App() {
           <p className="driveActionHelp">Use the in-app PMR view, download the styled PMR packet, or print after required review is complete.</p>
           <div className="pmrPrintActions" aria-label="PMR homeowner deliverable actions"><button type="button" onClick={viewPMR}><FileText size={16}/> View PMR</button><button type="button" className="finalPrintButton" onClick={downloadStyledPMR} disabled={!homeownerOutputReady}><Download size={16}/> Download PMR</button><button type="button" onClick={printPMR} disabled={!homeownerOutputReady}><Printer size={16}/> Print PMR</button></div>
         </section>
-        <section className="controlGroup driveStatus driveSetupPanel businessRecordsCard" aria-label="Drive / Business Records">
+        <section className={`controlGroup driveStatus driveSetupPanel businessRecordsCard ${driveToken ? 'driveReadyCard' : 'driveAttentionCard'}`} aria-label="Drive / Business Records">
           <div className="driveSetupHeader">
             <div>
               <h3>4. Business Records & Drive</h3>
@@ -3677,7 +3733,7 @@ function App() {
             <span className={pendingPhotoCount ? 'pendingSync on' : 'pendingSync'}>{pendingPhotoCount ? `Pending photos: ${pendingPhotoCount}` : 'Pending photos: 0'}</span>
           </div>
         </section>
-        <details className="controlGroup advancedPanel" aria-label="Advanced">
+        <details className="controlGroup advancedPanel advancedGoldCard" aria-label="Advanced">
           <summary className="demoScenarioSummary"><span>Advanced</span><small>Drive troubleshooting, demo scenarios, and internal QA notes.</small></summary>
           <details className="driveTroubleshooting">
             <summary>Drive Setup Help / Troubleshooting</summary>
@@ -3848,8 +3904,8 @@ function HomeownerIntakeImportPanel({client = {}, intake, updateIntake}) {
   };
   const downloadBlankClientIntake = () => {
     const intakeId = ensureIntakeId();
-    downloadTextFile(buildClientIntakeTxt({ client, intakeId }), clientIntakeFileName({ client, intakeId }));
-    setTemporaryWorkflowStatus('Blank client intake downloaded');
+    downloadTextFile(buildClientIntakeHtml({ client, intakeId }), clientIntakeFileName({ client, intakeId }).replace(/\.txt$/i, '.html'), 'text/html;charset=utf-8');
+    setTemporaryWorkflowStatus('Blank client intake form downloaded');
   };
   const copyClientIntakeEmail = async () => {
     const intakeId = ensureIntakeId();
@@ -3895,12 +3951,12 @@ function HomeownerIntakeImportPanel({client = {}, intake, updateIntake}) {
     setConfirmOverwrite(false);
   };
   return <details className="pmrBlock intakeImportPanel homeownerImportDetails">
-      <summary><span>Import homeowner intake into this walkthrough</span></summary>
+      <summary><span>Send blank intake / import completed response</span></summary>
       <p className="lede">Paste or upload a completed homeowner response, preview recognized answers, then apply them to this working walkthrough. This imports homeowner context only; it does not create HTC findings or Field Prep notes.</p>
       <div className="intakeImportHeader"><div><h2>Import Intake Response</h2><p className="lede">Send the blank client intake first, then import the completed returned .txt file. THA Internal Intake / Field Prep fields are preserved.</p></div></div>
-      <section className="clientIntakeWorkflowStep sendClientIntakeStep" aria-label="Step 1 — Send Client Intake">
-        <div><h3>Step 1 — Send Client Intake</h3><p>Download the blank .txt intake, send the email instructions, and have the client reply with the completed file attached.</p></div>
-        <div className="clientIntakeActionRow"><button type="button" onClick={downloadBlankClientIntake}><Download size={16}/> Download blank client intake (.txt)</button><button type="button" onClick={copyClientIntakeEmail}><ClipboardCheck size={16}/> Copy client intake email</button><button type="button" className="secondaryBtn" onClick={downloadSampleCompletedIntake}><Download size={16}/> Download sample completed intake (.txt)</button></div>
+      <div className="clientIntakeTwoColumnWorkflow"><section className="clientIntakeWorkflowStep sendClientIntakeStep" aria-label="Step 1 — Send Client Intake">
+        <div><h3>Step 1 — Send Client Intake</h3><p>Download the blank intake form, send the email instructions, and have the client reply with the completed .txt response attached.</p></div>
+        <div className="clientIntakeActionRow"><button type="button" onClick={downloadBlankClientIntake}><Download size={16}/> Download blank client intake form</button><button type="button" onClick={copyClientIntakeEmail}><ClipboardCheck size={16}/> Copy client intake email</button><button type="button" className="secondaryBtn" onClick={downloadSampleCompletedIntake}><Download size={16}/> Download sample completed intake</button></div>
         {intakeWorkflowStatus && <span className="copyFeedback" role="status">{intakeWorkflowStatus}</span>}
       </section>
       <section className="clientIntakeWorkflowStep importCompletedIntakeStep" aria-label="Step 2 — Import Completed Intake">
@@ -3911,7 +3967,7 @@ function HomeownerIntakeImportPanel({client = {}, intake, updateIntake}) {
       </div>
       <label className="notes intakeQuestion secondaryPasteImport"><span>Or paste a completed intake response</span><textarea value={importText} onChange={e=>{setImportText(e.target.value); setImportFileName(''); setImportPreview(null);}} placeholder="Paste the homeowner's completed structured intake reply here if you do not have a .txt file." /></label>
       <div className="importActions"><button type="button" onClick={previewImport} disabled={!importText.trim()}>Review imported answers</button><button type="button" onClick={applyImport} disabled={!importPreview || !previewRows.some(row=>row.willApply)}>Apply to Current Walkthrough</button>{conflictingRows.length > 0 && <label className="overwriteToggle"><input type="checkbox" checked={confirmOverwrite} onChange={e=>setConfirmOverwrite(e.target.checked)}/><span>Confirm overwrite of {conflictingRows.length} existing populated field{conflictingRows.length === 1 ? '' : 's'}</span></label>}</div>
-      </section>
+      </section></div>
       {importPreview && <div className="importPreview">
         <h3>Import Preview</h3>
         {(intakeIdMismatch || addressMismatch) && <div className="driveErrorBox" role="alert"><AlertTriangle size={16}/><span>{intakeIdMismatch ? 'Imported Intake ID does not match this walkthrough. ' : ''}{addressMismatch ? 'Imported Project Address does not appear to match this walkthrough.' : ''}</span></div>}

@@ -191,7 +191,7 @@
     if (!header) return;
     const title = header.querySelector('h2');
     const lede = header.querySelector('.lede');
-    if (title) title.textContent = 'Import a Completed Intake';
+    if (title) title.textContent = 'Send / Import Homeowner Intake';
     if (lede) lede.textContent = 'Paste or upload a completed homeowner response, preview recognized answers, then apply them to this working walkthrough. This imports homeowner context only; it does not create HTC findings or Field Prep notes.';
     panel.querySelectorAll('.importActions button').forEach(button => {
       if (/preview intake import/i.test(button.textContent)) button.textContent = 'Review imported answers';
