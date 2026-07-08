@@ -611,3 +611,18 @@
 .sectionSelect.hasFutureContext{background:#fbf9ff;border-color:#dfd6f8;box-shadow:inset 0 0 0 2px rgba(124,58,237,.08)}
 .sectionSelect.hasFutureContext:not(.active){background:#fbf9ff}
 .sectionSelect.hasFutureContext .sectionName{color:#4c2f87}
+
+/* Overall Room Status select uses the same status palette as its collapsed pill. */
+.statusControlField.statusRequiredCue,.statusControlField.statusReviewCue{background:#fff;border-color:var(--attention-orange-line);border-left-color:var(--attention-orange)}
+.statusControlField.statusRequiredCue::after{content:"Status required";display:inline-flex;width:max-content;margin-top:5px;border:1px solid var(--required-red-line);border-radius:999px;background:var(--required-red-soft);color:var(--required-red);padding:3px 7px;font-size:11px;font-weight:900;line-height:1.1}
+.statusControlField.statusReviewCue::after{content:"Still review if needed";color:var(--attention-orange)}
+.statusControlField.status-good select{background:var(--status-green-soft);border-color:var(--status-green-line);color:var(--status-green);font-weight:900}
+.statusControlField.status-monitor select{background:var(--status-amber-soft);border-color:var(--status-amber-line);color:var(--status-amber);font-weight:900}
+.statusControlField.status-needs-attention select{background:var(--status-orange-soft);border-color:var(--status-orange-line);color:var(--status-orange);font-weight:900}
+.statusControlField.status-future-context select{background:#fbf9ff;border-color:#dfd6f8;color:#4c2f87;font-weight:900}
+.statusControlField.status-unknown select{background:var(--status-gray-soft);border-color:var(--status-gray-line);color:#4b5563;font-weight:900}
+.roomSummaryBadge.status-good{background:var(--status-green-soft);border-color:var(--status-green-line);color:var(--status-green)}
+.roomSummaryBadge.status-monitor{background:var(--status-amber-soft);border-color:var(--status-amber-line);color:var(--status-amber)}
+.roomSummaryBadge.status-needs-attention{background:var(--status-orange-soft);border-color:var(--status-orange-line);color:var(--status-orange)}
+.roomSummaryBadge.status-future-context{background:#fbf9ff;border-color:#dfd6f8;color:#4c2f87}
+.roomSummaryBadge.status-unknown{background:var(--status-gray-soft);border-color:var(--status-gray-line);color:#4b5563}
