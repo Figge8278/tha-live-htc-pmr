@@ -626,3 +626,9 @@
 .roomSummaryBadge.status-needs-attention{background:var(--status-orange-soft);border-color:var(--status-orange-line);color:var(--status-orange)}
 .roomSummaryBadge.status-future-context{background:#fbf9ff;border-color:#dfd6f8;color:#4c2f87}
 .roomSummaryBadge.status-unknown{background:var(--status-gray-soft);border-color:var(--status-gray-line);color:#4b5563}
+
+/* Targeted fix: Overall Room Status value colors must not be overridden by required cues. */
+.roomOverviewSummaryItem .statusBadge.status-unknown{background:var(--status-gray-soft)!important;border-color:var(--status-gray-line)!important;color:#4b5563!important;box-shadow:none;outline:0}
+.roomOverviewField.statusControlField.status-unknown select{background:var(--status-gray-soft)!important;border-color:var(--status-gray-line)!important;color:#4b5563!important;box-shadow:none!important;outline:0!important}
+.roomOverviewField.statusControlField.statusRequiredCue.status-unknown,.roomOverviewField.statusControlField.statusReviewCue.status-unknown{background:#fff;border-color:var(--attention-orange-line);border-left-color:var(--attention-orange)}
+.roomOverviewField.statusControlField.statusRequiredCue.status-unknown::after{content:"Status required";display:inline-flex;width:max-content;margin-top:5px;border:1px solid var(--required-red-line);border-radius:999px;background:var(--required-red-soft);color:var(--required-red);padding:3px 7px;font-size:11px;font-weight:900;line-height:1.1}
