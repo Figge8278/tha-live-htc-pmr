@@ -3705,6 +3705,7 @@ function HomeownerIntakeImportPanel({client = {}, intake, updateIntake}) {
   const [importText, setImportText] = useState('');
   const [importPreview, setImportPreview] = useState(null);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
+  const [importFileName, setImportFileName] = useState('');
   const parsedUpdates = importPreview ? flattenedImportUpdates(importPreview.mapped) : [];
   const previewRows = parsedUpdates.map(row => {
     const currentValue = row.fieldKey ? structuredIntakeAnswerValue(intake, row.key, row.fieldKey) : intake[row.key];
@@ -3737,15 +3738,22 @@ function HomeownerIntakeImportPanel({client = {}, intake, updateIntake}) {
   const loadTxtFile = async (file) => {
     if (!file) return;
     if (!file.name.toLowerCase().endsWith('.txt') && file.type && file.type !== 'text/plain') return;
-    setImportText(await file.text());
-    setImportPreview(null);
+    const text = await file.text();
+    setImportFileName(file.name);
+    setImportText(text);
+    setImportPreview(parseIntakeResponseText(text));
+    setConfirmOverwrite(false);
   };
   return <details className="pmrBlock intakeImportPanel homeownerImportDetails">
       <summary><span>Import homeowner intake into this walkthrough</span></summary>
       <p className="lede">Paste or upload a completed homeowner response, preview recognized answers, then apply them to this working walkthrough. This imports homeowner context only; it does not create HTC findings or Field Prep notes.</p>
-      <div className="intakeImportHeader"><div><h2>Import Intake Response</h2><p className="lede">Paste the homeowner reply, preview mapped answers, then apply them to blank Homeowner Quick Intake fields. THA Internal Intake / Field Prep fields are preserved.</p></div><label className="uploadInline txtUpload"><Upload size={16}/> Upload .txt<input type="file" accept=".txt,text/plain" onChange={e=>{loadTxtFile(e.target.files?.[0]); e.target.value='';}}/></label></div>
-      <label className="notes intakeQuestion"><span>Paste homeowner response</span><textarea value={importText} onChange={e=>{setImportText(e.target.value); setImportPreview(null);}} placeholder="Paste the homeowner's completed structured intake reply here." /></label>
-      <div className="importActions"><button type="button" onClick={previewImport} disabled={!importText.trim()}>Preview Intake Import</button><button type="button" onClick={applyImport} disabled={!importPreview || !previewRows.some(row=>row.willApply)}>Apply to Current Walkthrough</button>{conflictingRows.length > 0 && <label className="overwriteToggle"><input type="checkbox" checked={confirmOverwrite} onChange={e=>setConfirmOverwrite(e.target.checked)}/><span>Confirm overwrite of {conflictingRows.length} existing populated field{conflictingRows.length === 1 ? '' : 's'}</span></label>}</div>
+      <div className="intakeImportHeader"><div><h2>Import Intake Response</h2><p className="lede">Choose the completed .txt intake file first, review recognized answers, then apply them to blank Homeowner Quick Intake fields. THA Internal Intake / Field Prep fields are preserved.</p></div></div>
+      <div className="primaryImportFileBox">
+        <label className="primaryTxtUpload"><Upload size={18}/> Choose completed intake file (.txt)<input type="file" accept=".txt,text/plain" onChange={e=>{loadTxtFile(e.target.files?.[0]); e.target.value='';}}/></label>
+        <div className="selectedImportFile"><span>Selected file</span><strong>{importFileName || 'No file selected yet'}</strong>{importFileName && <small>Preview is ready below. Next step: Review imported answers.</small>}</div>
+      </div>
+      <label className="notes intakeQuestion secondaryPasteImport"><span>Or paste a completed intake response</span><textarea value={importText} onChange={e=>{setImportText(e.target.value); setImportFileName(''); setImportPreview(null);}} placeholder="Paste the homeowner's completed structured intake reply here if you do not have a .txt file." /></label>
+      <div className="importActions"><button type="button" onClick={previewImport} disabled={!importText.trim()}>Review imported answers</button><button type="button" onClick={applyImport} disabled={!importPreview || !previewRows.some(row=>row.willApply)}>Apply to Current Walkthrough</button>{conflictingRows.length > 0 && <label className="overwriteToggle"><input type="checkbox" checked={confirmOverwrite} onChange={e=>setConfirmOverwrite(e.target.checked)}/><span>Confirm overwrite of {conflictingRows.length} existing populated field{conflictingRows.length === 1 ? '' : 's'}</span></label>}</div>
       {importPreview && <div className="importPreview">
         <h3>Import Preview</h3>
         {(intakeIdMismatch || addressMismatch) && <div className="driveErrorBox" role="alert"><AlertTriangle size={16}/><span>{intakeIdMismatch ? 'Imported Intake ID does not match this walkthrough. ' : ''}{addressMismatch ? 'Imported Project Address does not appear to match this walkthrough.' : ''}</span></div>}

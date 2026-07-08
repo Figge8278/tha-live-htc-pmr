@@ -479,3 +479,15 @@
 .passSourceEvidence p{margin:0;color:#43515c;font-size:13px}
 .buttonRow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 @media(max-width:900px){.passReviewTop{align-items:stretch;flex-direction:column}.passReviewTop .secondaryBtn{width:100%}}
+
+.primaryImportFileBox{display:grid;grid-template-columns:minmax(220px,1fr) minmax(180px,.8fr);gap:12px;align-items:stretch;margin:14px 0;padding:14px;border:2px dashed #9c73c9;border-radius:16px;background:#fff}
+.primaryTxtUpload{position:relative;overflow:hidden;display:flex!important;align-items:center;justify-content:center;gap:8px;min-height:64px;border:2px solid #745a91;border-radius:14px;background:#745a91;color:#fff!important;font-weight:950;letter-spacing:.01em;cursor:pointer;text-align:center;box-shadow:0 10px 18px rgba(116,90,145,.18)}
+.primaryTxtUpload input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.primaryTxtUpload:hover{background:#62487f;border-color:#62487f}
+.selectedImportFile{display:grid;gap:4px;align-content:center;border:1px solid #e0d4ef;border-radius:14px;background:#fbf8ff;padding:10px 12px;color:#4e3470}
+.selectedImportFile span{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#745a91}
+.selectedImportFile strong{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.selectedImportFile small{font-size:12px;font-weight:800;color:#5b4674;line-height:1.35}
+.secondaryPasteImport{margin-top:10px;padding-top:12px;border-top:1px solid #eadff6}
+.secondaryPasteImport>span{color:#5b4674;font-weight:900}
+@media(max-width:700px){.primaryImportFileBox{grid-template-columns:1fr}.primaryTxtUpload{min-height:58px}}
