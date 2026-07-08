@@ -519,3 +519,19 @@
 .homeownerIntakeSectionCard .homeownerImportDetails{grid-column:1/-1;justify-self:stretch;min-width:0;max-width:none;margin-left:0;margin-right:0}
 .homeownerIntakeSectionCard .homeownerImportDetails>summary{width:100%;box-sizing:border-box}
 .homeownerIntakeSectionCard .clientIntakeWorkflowStep{min-width:0;max-width:none}
+
+/* V3.2 required vs attention signal system: red is reserved for blocking output; orange is recommended/attention-only. */
+:root{--required-red:#c6281d;--required-red-soft:#fff1ef;--required-red-line:#efb4aa;--attention-orange:#c95f0b;--attention-orange-soft:#fff4e8;--attention-orange-line:#f2a45f}
+.summaryItem.setupMissing{background:var(--required-red-soft);border-color:var(--required-red-line);box-shadow:inset 4px 0 0 var(--required-red)}
+.summaryItem.setupMissing small{color:var(--required-red)}
+.requiredSetupField.setupMissing{border-color:var(--required-red-line);background:var(--required-red-soft);box-shadow:inset 4px 0 0 var(--required-red)}
+.requiredSetupField.setupMissing input{border-color:var(--required-red);box-shadow:0 0 0 3px rgba(198,40,29,.14)}
+.requiredSetupField.setupMissing small{color:var(--required-red)}
+.workflowCue.setupMissing{background:var(--required-red-soft);border-color:var(--required-red-line);color:var(--required-red);box-shadow:inset 4px 0 0 var(--required-red)}
+.workflowCue.setupMissing small{color:var(--required-red)}
+.workflowCue.warning{background:var(--attention-orange-soft);border-color:var(--attention-orange-line);color:var(--attention-orange);box-shadow:inset 4px 0 0 var(--attention-orange)}
+.workflowCue.warning small{color:var(--attention-orange)}
+.controlAttentionPill{background:var(--attention-orange-soft);color:var(--attention-orange);border-color:var(--attention-orange-line)}
+.controlAttentionPill.setupAttention{background:var(--required-red-soft);color:var(--required-red);border-color:var(--required-red-line)}
+.walkthroughSetupCard.setupNeedsInput,.homeownerOutputCard:has(button:disabled){background:var(--required-red-soft);border-color:var(--required-red-line);border-left:7px solid var(--required-red)}
+.businessRecordsCard.driveAttentionCard{background:var(--attention-orange-soft);border-color:var(--attention-orange-line);border-left:7px solid var(--attention-orange)}

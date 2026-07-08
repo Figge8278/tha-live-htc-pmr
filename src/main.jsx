@@ -2622,7 +2622,10 @@ function cleanWalkthroughData() {
     itemOrder: {},
     pinnedItems: {},
     roomCapture: {},
-    passReview: {}
+    passReview: {},
+    roomOverviewExpandedByRoom: {},
+    smartPromptExpandedByRoom: {},
+    expandedChecklistItems: {}
   };
 }
 
@@ -2812,16 +2815,16 @@ function App() {
   const [pinnedItems, setPinnedItems] = useState(initialState.data.pinnedItems);
   const [roomCapture, setRoomCapture] = useState(initialState.data.roomCapture);
   const [passReview, setPassReview] = useState(() => normalizePassReviewData(initialState.data.passReview || {}));
-  const [roomItemFormOpen, setRoomItemFormOpen] = useState(false);
+  const [roomItemFormOpenByRoom, setRoomItemFormOpenByRoom] = useState({});
   const [roomItemDraft, setRoomItemDraft] = useState(EMPTY_ROOM_ITEM_DRAFT);
   const [dragSectionKey, setDragSectionKey] = useState('');
   const [photoFeedback, setPhotoFeedback] = useState({ state: '', message: '' });
   const [copyFeedback, setCopyFeedback] = useState('');
   const [storageWarning, setStorageWarning] = useState('');
   const [saveStatus, setSaveStatus] = useState({ state: 'saved', time: initialState.activeId ? 'loaded' : '' });
-  const [expandedChecklistItems, setExpandedChecklistItems] = useState({});
-  const [roomOverviewExpandedByRoom, setRoomOverviewExpandedByRoom] = useState({});
-  const [smartPromptExpandedByRoom, setSmartPromptExpandedByRoom] = useState({});
+  const [expandedChecklistItems, setExpandedChecklistItems] = useState(initialState.data.expandedChecklistItems || {});
+  const [roomOverviewExpandedByRoom, setRoomOverviewExpandedByRoom] = useState(initialState.data.roomOverviewExpandedByRoom || {});
+  const [smartPromptExpandedByRoom, setSmartPromptExpandedByRoom] = useState(initialState.data.smartPromptExpandedByRoom || {});
   const [controlsCollapsed, setControlsCollapsed] = useState(() => {
     const initialClient = initialState.data.client || {};
     const missingBasicInfo = isMissingProjectIdentityValue(initialClient.name) || isMissingProjectIdentityValue(initialClient.address) || isMissingProjectIdentityValue(initialClient.date);
@@ -3023,11 +3026,11 @@ function App() {
   const updateRoomItemDraft = (patch) => setRoomItemDraft(prev => ({ ...prev, ...patch }));
   const openRoomItemForm = () => {
     setRoomItemDraft(EMPTY_ROOM_ITEM_DRAFT);
-    setRoomItemFormOpen(true);
+    setRoomItemFormOpenByRoom(prev => ({ ...prev, [activeRoom]: true }));
   };
   const cancelRoomItemForm = () => {
     setRoomItemDraft(EMPTY_ROOM_ITEM_DRAFT);
-    setRoomItemFormOpen(false);
+    setRoomItemFormOpenByRoom(prev => { const next = { ...prev }; delete next[activeRoom]; return next; });
   };
   const saveRoomItem = () => {
     const title = roomItemDraft.title.trim();
@@ -3291,7 +3294,10 @@ function App() {
     itemOrder: itemOrderState,
     pinnedItems,
     roomCapture,
-    passReview: normalizePassReviewData(passReview)
+    passReview: normalizePassReviewData(passReview),
+    roomOverviewExpandedByRoom,
+    smartPromptExpandedByRoom,
+    expandedChecklistItems
   });
   const persistCurrentWalkthroughSession = () => {
     const id = activeWalkthroughId || `walkthrough-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -3329,7 +3335,7 @@ function App() {
       persistCurrentWalkthroughSession();
     }, 1000);
     return () => window.clearTimeout(timeout);
-  }, [activeWalkthroughId, client, answers, intake, dynamicRooms, sectionOrderState, itemOrderState, pinnedItems, roomCapture, passReview, walkthroughName]);
+  }, [activeWalkthroughId, client, answers, intake, dynamicRooms, sectionOrderState, itemOrderState, pinnedItems, roomCapture, passReview, roomOverviewExpandedByRoom, smartPromptExpandedByRoom, expandedChecklistItems, walkthroughName]);
   const applyWalkthroughData = (data) => {
     const clean = cleanWalkthroughData();
     setClient(data?.client || clean.client);
@@ -3341,9 +3347,11 @@ function App() {
     setPinnedItems(data?.pinnedItems || clean.pinnedItems);
     setRoomCapture(data?.roomCapture || clean.roomCapture);
     setPassReview(normalizePassReviewData(data?.passReview || clean.passReview));
-    setRoomItemFormOpen(false);
+    setRoomOverviewExpandedByRoom(data?.roomOverviewExpandedByRoom || clean.roomOverviewExpandedByRoom);
+    setSmartPromptExpandedByRoom(data?.smartPromptExpandedByRoom || clean.smartPromptExpandedByRoom);
+    setExpandedChecklistItems(data?.expandedChecklistItems || clean.expandedChecklistItems);
+    setRoomItemFormOpenByRoom({});
     setRoomItemDraft(EMPTY_ROOM_ITEM_DRAFT);
-    setExpandedChecklistItems({});
     setView('intake');
   };
   const startNewWalkthrough = () => {
@@ -3505,6 +3513,7 @@ function App() {
   };
   const roomRows = rows.filter(r => r.sectionKey === activeRoom);
   const currentRoomCapture = roomCaptureFor(activeRoom);
+  const roomItemFormOpen = Boolean(roomItemFormOpenByRoom[activeRoom]);
   const activeRoomLabel = rooms.find(r => r.key === activeRoom)?.label || activeRoom;
   const isRoomOverviewExpanded = Boolean(roomOverviewExpandedByRoom[activeRoom]);
   const isSmartPromptExpanded = Boolean(smartPromptExpandedByRoom[activeRoom]);
