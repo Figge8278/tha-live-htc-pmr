@@ -696,3 +696,11 @@
 .statusControlField.status-monitor select{background:var(--status-amber-soft);border-color:var(--status-amber-line);color:var(--status-amber);font-weight:900}
 .statusControlField.status-good select{background:var(--status-green-soft);border-color:var(--status-green-line);color:var(--status-green);font-weight:900}
 .statusControlField.status-unknown select{background:var(--status-gray-soft);border-color:var(--status-gray-line);color:#4b5563;font-weight:900}
+
+/* Expanded checklist cleanup: only the review rail may color the left edge. */
+.checklistItemCard.categoryCard{border-left:1px solid var(--line)}
+.checklistItemCard.rail-reviewed{box-shadow:0 6px 16px rgba(13,44,73,.05)}
+.checklistItemCard.expanded.rail-reviewed,.checklistItemCard.expanded.rail-unknown{box-shadow:0 8px 18px rgba(13,44,73,.06)}
+.checklistItemCard.hasActionContext,.checklistItemCard.hasActionSelected{box-shadow:0 8px 18px rgba(13,44,73,.06)}
+.checklistItemCard.needsAttention{border-color:var(--line)}
+.checklistItemCard.needsAttention.collapsed{box-shadow:0 6px 16px rgba(13,44,73,.05)}
