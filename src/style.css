@@ -676,3 +676,23 @@
 .passReviewTop{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
 .passReviewDetailsToggle{margin-top:2px}
 .passReviewFields{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+
+/* Rail/accent cleanup: PMCP green and THA purple live on the right; left remains status/review/required only. */
+.passCandidateToggle{box-shadow:inset -4px 0 0 rgba(82,170,75,.35)}
+.passCandidateToggle:has(input:checked){box-shadow:inset -6px 0 0 var(--pmcp-green),0 0 0 2px rgba(82,170,75,.10)}
+.includeToggle:has(input:checked){border:1px solid var(--pmcp-green-line);border-radius:14px;background:var(--pmcp-green-soft);padding:10px;box-shadow:inset -6px 0 0 var(--pmcp-green),0 0 0 2px rgba(82,170,75,.10)}
+.workOrderToggle{box-shadow:inset -4px 0 0 rgba(124,58,237,.34)}
+.workOrderToggle:has(input:checked){box-shadow:inset -6px 0 0 var(--work-purple),0 0 0 2px rgba(124,58,237,.10)}
+.workOrderActionPanel{box-shadow:inset -4px 0 0 rgba(124,58,237,.20)}
+.workOrderActionPanel.actionContext{box-shadow:inset -5px 0 0 rgba(124,58,237,.45)}
+.workOrderActionPanel.actionSelected{box-shadow:inset -7px 0 0 var(--work-purple),0 0 0 2px rgba(124,58,237,.10)}
+.thaActionTypeField{box-shadow:inset -4px 0 0 rgba(124,58,237,.16)}
+.thaActionTodoList{box-shadow:inset -6px 0 0 rgba(124,58,237,.28)}
+.thaTodoItem{box-shadow:inset -4px 0 0 rgba(124,58,237,.24)}
+.thaTodoItem.primaryAction{box-shadow:inset -7px 0 0 var(--work-purple),0 0 0 2px rgba(124,58,237,.08)}
+.thaTodoItem.contextAction{box-shadow:inset -5px 0 0 rgba(124,58,237,.36)}
+.statusControlField.status-immediate-concern select{background:var(--status-red-soft);border-color:var(--status-red-line);color:var(--status-red);font-weight:900}
+.statusControlField.status-needs-attention select{background:var(--status-orange-soft);border-color:var(--status-orange-line);color:var(--status-orange);font-weight:900}
+.statusControlField.status-monitor select{background:var(--status-amber-soft);border-color:var(--status-amber-line);color:var(--status-amber);font-weight:900}
+.statusControlField.status-good select{background:var(--status-green-soft);border-color:var(--status-green-line);color:var(--status-green);font-weight:900}
+.statusControlField.status-unknown select{background:var(--status-gray-soft);border-color:var(--status-gray-line);color:#4b5563;font-weight:900}

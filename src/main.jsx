@@ -3949,7 +3949,7 @@ function App() {
             <div className="prompt"><Search size={16}/><strong>Prompt:</strong> {r.prompt}</div>
             {isIntakeFollowUp(r) && <div className="intakeReviewNotes"><strong>Homeowner-reported:</strong> {r.intakeFieldLabel}: {r.intakeValue}<br/><span>Verify during HTC before PMR inclusion · Target: {r.roomName || r.room} · Source: {r.source}</span></div>}
             <div className="inputs">
-              <label className={`statusControlField ${statusCueClass}`}>Status<select value={r.answer.status} onChange={e=>update(r.id,{status:e.target.value})}>{STATUS.map(x=><option key={x}>{x}</option>)}</select></label>
+              <label className={`statusControlField ${statusCueClass} status-${r.answer.status.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>Status<select value={r.answer.status} onChange={e=>update(r.id,{status:e.target.value})}>{STATUS.map(x=><option key={x}>{x}</option>)}</select></label>
               <label>Action Certainty<select value={actionCertaintyFor(r.answer)} onChange={e=>update(r.id,{actionCertainty:e.target.value})}>{ACTION_CERTAINTY.map(x=><option key={x}>{x}</option>)}</select></label>
               <label>Suggested Trade / Resource<select value={r.answer.trade} onChange={e=>update(r.id,{trade:e.target.value})}>{TRADE_OPTIONS.map(x=><option key={x} value={x}>{displayTradeLabel(x)}</option>)}</select></label>
               <label>Approx. Time<select value={r.answer.effort} onChange={e=>update(r.id,{effort:e.target.value})}>{EFFORT.map(x=><option key={x}>{x}</option>)}</select></label>
