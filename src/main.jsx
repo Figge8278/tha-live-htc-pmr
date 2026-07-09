@@ -242,8 +242,8 @@ const PREFS = ['Do now','Plan soon','Budget for later','Watchlist only'];
 const PASS_CADENCE = ['Monthly','Quarterly','Seasonal','Semiannual','Annual','Condition-Based','As Needed'];
 const PASS_DATE_SOURCES = ['unknown','homeowner-reported','THA observed'];
 const PASS_FOLLOW_UP_STATUSES = ['Not Scheduled','Verify / Establish Baseline','Planned','Scheduled','Completed','Deferred'];
-const PASS_RESOURCES = ['Handy Services','HVAC','Plumbing','Roofing','Roofing / gutters','Gutters/Drainage','Pest','Safety','Appliance','Chimney','Other'];
-const THA_ACTION_TYPES = ['Research','Trade consultation','Estimate needed','Schedule service','Client-approved work','Follow-up observation'];
+const PASS_RESOURCES = ['Handy Services','HVAC','Plumbing','Electrical','Roofing','Roofing / gutters','Gutters/Drainage','Irrigation/Landscape','Pest','Safety','Appliance','Chimney','Masonry','Other'];
+const THA_ACTION_TYPES = ['Unknown','Research','Trade consultation','Estimate needed','Schedule service','Client-approved work','Follow-up observation'];
 const PHOTO_LABELS = ['Context','Close-up','Detail'];
 const ROOM_PHOTO_LABELS = ['Overview'];
 const ROOM_STATUS_OPTIONS = ['Unknown','Looking Good','Watch Item / Worth Watching','Handy Services','Trade Attention','Routine Care / PASS','Homeowner Goal'];
@@ -338,22 +338,43 @@ function isMissingProjectIdentityValue(value = '') {
 }
 
 const PASS_CARE_RULES = [
-  { id: 'furnace-filter-check', careItem: 'Furnace filter check / replacement', resource: 'HVAC', trade: 'HVAC', category: 'HVAC / Mechanical', cadence: 'Every 1–3 months during heating/cooling use', cadenceMonths: 3, suggestedWindow: 'check at the next seasonal visit, then every 1–3 months during regular system use', intakeKeys: ['hvacFilter', 'furnaceService', 'hvacService'], rowKeywords: ['furnace', 'filter', 'hvac filter'], reason: 'Routine airflow care helps the HVAC system operate efficiently and keeps the service plan current.', groupingNote: 'Could be grouped with the next seasonal PASS visit.' },
-  { id: 'furnace-service', careItem: 'Furnace service', resource: 'HVAC', trade: 'HVAC', category: 'HVAC / Mechanical', cadence: 'Annual', cadenceMonths: 12, suggestedWindow: 'fall, before heating season', intakeKeys: ['furnaceService', 'hvacService'], rowKeywords: ['furnace service', 'heating service', 'hvac service'], reason: 'Annual heating-system service supports reliability before peak heating demand.' },
-  { id: 'ac-heat-pump-service', careItem: 'A/C or heat-pump service', resource: 'HVAC', trade: 'HVAC', category: 'HVAC / Mechanical', cadence: 'Annual', cadenceMonths: 12, suggestedWindow: 'spring, before cooling season', intakeKeys: ['acHeatPumpService', 'hvacAcService', 'comfort'], rowKeywords: ['a/c', 'ac service', 'heat pump', 'cooling'], reason: 'Cooling equipment should be reviewed before seasonal use so minor issues can be planned, not treated as defects.' },
-  { id: 'water-heater-flush-service-review', careItem: 'Water heater flush / service review', resource: 'Plumbing', trade: 'Plumbing', category: 'Plumbing', cadence: 'Annual; six-month preferred cadence where appropriate', cadenceMonths: 12, suggestedWindow: 'annual care planning or the next plumbing visit', intakeKeys: ['waterHeaterService', 'waterHeater', 'plumbingHistory'], rowKeywords: ['water heater', 'tankless', 'flush'], reason: 'Water-heater service history belongs in routine care planning unless active symptoms are observed.', groupingNote: 'Can be grouped with other plumbing or seasonal PASS work.' },
-  { id: 'dryer-vent-cleaning', careItem: 'Dryer vent cleaning', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', cadence: 'Annual', cadenceMonths: 12, suggestedWindow: 'fall or the next laundry / exterior vent visit', intakeKeys: ['otherMaintenanceHistory'], rowKeywords: ['dryer vent', 'lint', 'exterior flap'], reason: 'Routine dryer vent cleaning supports dryer performance and fire-safety housekeeping.' },
-  { id: 'dishwasher-filter-cleaning', careItem: 'Dishwasher filter cleaning', resource: 'Appliance', trade: 'Appliance', category: 'Appliances', cadence: 'Monthly to quarterly', cadenceMonths: 3, suggestedWindow: 'next kitchen care visit, then monthly to quarterly depending on use', intakeKeys: ['otherMaintenanceHistory'], rowKeywords: ['dishwasher', 'filter'], reason: 'Dishwasher filters are routine homeowner / appliance care and should not become PMR defects unless performance issues are observed.', groupingNote: 'Could be grouped with the next kitchen handyman or appliance visit.' },
-  { id: 'range-hood-filter-cleaning', careItem: 'Range hood filter cleaning', resource: 'Appliance', trade: 'Appliance', category: 'Appliances', cadence: 'Quarterly', cadenceMonths: 3, suggestedWindow: 'next kitchen care visit, then quarterly or as cooking use requires', intakeKeys: ['otherMaintenanceHistory'], rowKeywords: ['range hood', 'hood filter', 'ventilation'], reason: 'Range hood filter cleaning is routine kitchen ventilation care.' },
-  { id: 'smoke-co-detector-check', careItem: 'Smoke/CO detector check', resource: 'Safety', trade: 'Safety', category: 'Safety / Life Safety', cadence: 'Annual test/review; replace devices per manufacturer date', cadenceMonths: 12, suggestedWindow: 'annual safety review or next PASS visit', intakeKeys: ['smokeCO'], rowKeywords: ['smoke', 'co detector', 'carbon monoxide'], reason: 'Safety devices need routine date, battery, placement, and function checks separate from PMR finding counts.' },
-  { id: 'fire-extinguisher-check', careItem: 'Fire extinguisher check', resource: 'Safety', trade: 'Safety', category: 'Safety / Life Safety', cadence: 'Annual', cadenceMonths: 12, suggestedWindow: 'annual safety review or next PASS visit', intakeKeys: ['fireExtinguishers'], rowKeywords: ['fire extinguisher', 'extinguisher'], reason: 'Extinguisher gauge, placement, and service-date checks are recurring safety care.' },
-  { id: 'gutter-downspout-review', careItem: 'Gutter/downspout review', resource: 'Gutters/Drainage', trade: 'Handyman', category: 'Exterior & Site / Grounds', cadence: 'Seasonal', cadenceMonths: 6, suggestedWindow: 'spring and fall, especially after leaf drop or snowmelt', intakeKeys: ['gutters', 'drainagePooling', 'drainageHistory', 'drainageGrading'], rowKeywords: ['gutter', 'downspout'], reason: 'Water-management reviews help catch routine debris, discharge, or splashback concerns before they become larger issues.' },
-  { id: 'drainage-grading-water-path-review', careItem: 'Drainage / grading / water path review', resource: 'Gutters/Drainage', trade: 'Handyman', category: 'Exterior & Site / Grounds', cadence: 'Seasonal / after major storms', cadenceMonths: 6, suggestedWindow: 'next wet-season or seasonal exterior visit', intakeKeys: ['drainagePooling', 'drainageHistory', 'drainageGrading'], rowKeywords: ['drainage', 'grading', 'pooling', 'water path'], reason: 'Surface water patterns are best watched over time and should remain separate from PMR defects unless active damage is observed.' },
-  { id: 'exterior-caulk-paint-stain-review', careItem: 'Exterior caulk / paint / stain review', resource: 'Handy Services', trade: 'Paint', category: 'Painting / Staining / Protective Coatings', cadence: 'Annual review', cadenceMonths: 12, suggestedWindow: 'dry/warm exterior season', intakeKeys: ['exteriorPaintStain', 'paintStain', 'productsColors'], rowKeywords: ['paint', 'stain', 'caulk', 'exterior finish'], reason: 'Exterior finish review is routine preservation planning and can be batched with handyman touch-ups.', groupingNote: 'Could be grouped with the next exterior handyman visit.' },
+  { id: 'seasonal-handy-walkthrough', careItem: 'Seasonal walkthrough / punch-list visit', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Seasonal Home Care', cadence: 'Seasonal', cadenceMonths: 3, suggestedWindow: 'spring/fall seasonal visit or the next homeowner-requested punch-list window', intakeKeys: ['additionalConcerns', 'otherMaintenanceHistory'], rowKeywords: ['general', 'misc', 'punch-list', 'seasonal'], reason: 'A recurring Handy Services walkthrough gives THA a practical way to bundle small maintenance, observation, and coordination tasks before they become larger issues.' },
+  { id: 'furnace-filter-check', careItem: 'Furnace filter replacement/check', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Seasonal Home Care', cadence: 'Every 1–3 months during heating/cooling use', cadenceMonths: 3, suggestedWindow: 'check at the next seasonal visit, then every 1–3 months during regular system use', intakeKeys: ['hvacFilter', 'furnaceService', 'hvacService'], rowKeywords: ['furnace', 'filter', 'hvac filter'], reason: 'Filter replacement/checking can be handled by THA/Handy Services as routine airflow care, separate from licensed HVAC service.', groupingNote: 'Could be grouped with the next seasonal PASS visit.' },
+  { id: 'furnace-service', careItem: 'Furnace seasonal service', resource: 'HVAC', trade: 'HVAC', category: 'HVAC / Mechanical', cadence: 'Annual', cadenceMonths: 12, suggestedWindow: 'fall, before heating season', intakeKeys: ['furnaceService', 'hvacService'], rowKeywords: ['furnace service', 'heating service', 'hvac service'], reason: 'Annual heating-system service is trade-specific HVAC work that supports reliability before peak heating demand.' },
+  { id: 'ac-heat-pump-service', careItem: 'A/C or heat-pump seasonal service', resource: 'HVAC', trade: 'HVAC', category: 'HVAC / Mechanical', cadence: 'Annual', cadenceMonths: 12, suggestedWindow: 'spring, before cooling season', intakeKeys: ['acHeatPumpService', 'hvacAcService', 'comfort'], rowKeywords: ['a/c', 'ac service', 'heat pump', 'cooling'], reason: 'Cooling equipment should be reviewed by HVAC before seasonal use so minor issues can be planned, not treated as defects.' },
+  { id: 'water-heater-flush-service-review', careItem: 'Water heater major service / replacement planning', resource: 'Plumbing', trade: 'Plumbing', category: 'Plumbing', cadence: 'Annual; six-month preferred cadence where appropriate', cadenceMonths: 12, suggestedWindow: 'annual care planning or the next plumbing visit', intakeKeys: ['waterHeaterService', 'waterHeater', 'plumbingHistory'], rowKeywords: ['water heater', 'tankless', 'flush'], reason: 'Water-heater replacement, venting, leaks, and major service remain plumbing-scope planning unless only visual monitoring is needed.', groupingNote: 'Can be grouped with other plumbing or seasonal PASS work.' },
+  { id: 'dryer-vent-cleaning', careItem: 'Dryer vent cleaning', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Laundry / Dryer Vent', cadence: 'Annual', cadenceMonths: 12, suggestedWindow: 'fall or the next laundry / exterior vent visit', intakeKeys: ['otherMaintenanceHistory'], rowKeywords: ['dryer vent', 'lint', 'exterior flap'], reason: 'Routine dryer vent cleaning supports dryer performance and fire-safety housekeeping.' },
+  { id: 'dryer-lint-path-check', careItem: 'Dryer lint path check', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Laundry / Dryer Vent', cadence: 'Quarterly to Annual', cadenceMonths: 6, suggestedWindow: 'next laundry care visit, then seasonally or annually depending on use', intakeKeys: ['otherMaintenanceHistory'], rowKeywords: ['dryer lint', 'lint path', 'dryer duct'], reason: 'A lint-path check is a practical Handy Services maintenance task that can be paired with laundry-room review.' },
+  { id: 'dishwasher-filter-cleaning', careItem: 'Dishwasher filter cleaning', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Appliance Care', cadence: 'Monthly to Quarterly', cadenceMonths: 3, suggestedWindow: 'next kitchen care visit, then monthly to quarterly depending on use', intakeKeys: ['otherMaintenanceHistory'], rowKeywords: ['dishwasher', 'filter'], reason: 'Dishwasher filters are routine kitchen care and should not become appliance-trade work unless functional symptoms are present.', groupingNote: 'Could be grouped with the next kitchen Handy Services visit.' },
+  { id: 'range-hood-filter-cleaning', careItem: 'Range hood filter cleaning/check', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Appliance Care', cadence: 'Quarterly', cadenceMonths: 3, suggestedWindow: 'next kitchen care visit, then quarterly or as cooking use requires', intakeKeys: ['otherMaintenanceHistory'], rowKeywords: ['range hood', 'hood filter', 'ventilation'], reason: 'Range hood filter cleaning is routine kitchen ventilation care that Handy Services can perform or coordinate.' },
+  { id: 'refrigerator-coil-vent-cleaning', careItem: 'Refrigerator coil / appliance vent cleaning', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Appliance Care', cadence: 'Semiannual to Annual', cadenceMonths: 12, suggestedWindow: 'next kitchen care visit or annual appliance-care visit', intakeKeys: ['otherMaintenanceHistory'], rowKeywords: ['refrigerator', 'coil', 'appliance vent'], reason: 'Basic refrigerator coil and appliance vent cleaning is routine care unless a functional appliance failure is observed.' },
+  { id: 'garbage-disposal-care-check', careItem: 'Garbage disposal care/check', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Appliance Care', cadence: 'Quarterly / As Needed', cadenceMonths: 3, suggestedWindow: 'next kitchen care visit', intakeKeys: ['otherMaintenanceHistory'], rowKeywords: ['garbage disposal', 'disposal'], reason: 'Basic disposal care/check can be handled by Handy Services unless replacement, wiring, or plumbing repair is needed.' },
+  { id: 'sink-faucet-sprayer-visual-check', careItem: 'Sink/faucet/sprayer visual check', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Plumbing Checks', cadence: 'Seasonal', cadenceMonths: 6, suggestedWindow: 'next kitchen or bath Handy Services visit', intakeKeys: ['plumbingHistory'], rowKeywords: ['sink', 'faucet', 'sprayer', 'visible leak'], reason: 'Visible fixture checks help catch small leaks or loose hardware before damage spreads; licensed repair can be escalated if needed.' },
+  { id: 'home-shutoff-label-check', careItem: 'Home shutoff label/check', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Plumbing Checks', cadence: 'Annual', cadenceMonths: 12, suggestedWindow: 'annual walkthrough or next mechanical-room visit', intakeKeys: ['waterShutoff'], rowKeywords: ['shutoff', 'label', 'main shutoff'], reason: 'Labeling and checking accessible shutoffs is practical Handy Services care that improves homeowner readiness.' },
+  { id: 'caulk-grout-touch-up-review', careItem: 'Caulk/grout touch-up review', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Bath / Kitchen Caulk & Grout', cadence: 'Semiannual to Annual', cadenceMonths: 12, suggestedWindow: 'next bath/kitchen care visit or before wet season', intakeKeys: ['otherMaintenanceHistory'], rowKeywords: ['caulk', 'grout', 'shower', 'tub', 'backsplash'], reason: 'Routine caulk/grout review supports water management and is a common Handy Services maintenance scope.' },
+  { id: 'bath-fan-cleaning-check', careItem: 'Bath fan cleaning/check', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Bath / Kitchen Caulk & Grout', cadence: 'Annual', cadenceMonths: 12, suggestedWindow: 'annual bath ventilation visit', intakeKeys: ['otherMaintenanceHistory'], rowKeywords: ['bath fan', 'bath exhaust', 'ventilation'], reason: 'Cleaning and checking bath fans supports moisture control before mildew or finish damage appears.' },
+  { id: 'door-hinge-latch-knob-adjustment', careItem: 'Door hinge/latch/knob adjustment', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Doors / Windows / Hardware', cadence: 'As Needed / Annual review', cadenceMonths: 12, suggestedWindow: 'annual interior walkthrough or next punch-list visit', intakeKeys: ['windowsDoors'], rowKeywords: ['door', 'hinge', 'latch', 'knob'], reason: 'Door and hardware adjustment is a common Handy Services task that prevents nuisance wear.' },
+  { id: 'window-screen-lock-check', careItem: 'Window/screen/lock check', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Doors / Windows / Hardware', cadence: 'Seasonal', cadenceMonths: 6, suggestedWindow: 'spring/fall opening and screen season', intakeKeys: ['windowsDoors', 'fogging'], rowKeywords: ['window', 'screen', 'lock'], reason: 'Basic operation, lock, and screen checks fit Handy Services unless failed glass/seal replacement is needed.' },
+  { id: 'weatherstripping-check', careItem: 'Weatherstripping check', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Doors / Windows / Hardware', cadence: 'Seasonal', cadenceMonths: 6, suggestedWindow: 'fall before heating season or spring exterior visit', intakeKeys: ['windowsDoors'], rowKeywords: ['weatherstripping', 'door seal', 'draft'], reason: 'Weatherstripping checks support comfort and water resistance and can be handled during a Handy Services visit.' },
+  { id: 'cabinet-hinge-pull-adjustment', careItem: 'Cabinet hinge/pull adjustment', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Storage / Cabinets / Built-ins', cadence: 'Annual / As Needed', cadenceMonths: 12, suggestedWindow: 'next kitchen/bath or punch-list visit', intakeKeys: ['otherMaintenanceHistory'], rowKeywords: ['cabinet', 'hinge', 'pull', 'drawer'], reason: 'Cabinet hardware adjustment is a practical Handy Services maintenance item.' },
+  { id: 'storage-builtins-hardware-check', careItem: 'Storage / cabinets / built-ins hardware check', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Storage / Cabinets / Built-ins', cadence: 'Annual / As Needed', cadenceMonths: 12, suggestedWindow: 'annual walkthrough or next punch-list visit', intakeKeys: ['otherMaintenanceHistory'], rowKeywords: ['built-in', 'shelving', 'storage', 'closet'], reason: 'Shelving, built-ins, and storage hardware can loosen over time and fit routine Handy Services review.' },
+  { id: 'smoke-co-detector-check', careItem: 'Smoke/CO detector battery/date check', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Safety Checks', cadence: 'Annual test/review; replace devices per manufacturer date', cadenceMonths: 12, suggestedWindow: 'annual safety review or next PASS visit', intakeKeys: ['smokeCO'], rowKeywords: ['smoke', 'co detector', 'carbon monoxide'], reason: 'Battery/date checks and replacement reminders are routine safety care; specialty escalation is only needed for wiring issues.' },
+  { id: 'gfci-test-reset-check', careItem: 'GFCI test/reset check where appropriate', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Safety Checks', cadence: 'Annual', cadenceMonths: 12, suggestedWindow: 'annual kitchen/bath/laundry safety check', intakeKeys: ['electricalUpdates'], rowKeywords: ['gfci', 'test reset', 'outlet'], reason: 'Routine GFCI test/reset checks can be part of Handy Services; failed or unsafe wiring remains Electrical.' },
+  { id: 'fire-extinguisher-check', careItem: 'Fire extinguisher check', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Safety Checks', cadence: 'Annual', cadenceMonths: 12, suggestedWindow: 'annual safety review or next PASS visit', intakeKeys: ['fireExtinguishers'], rowKeywords: ['fire extinguisher', 'extinguisher'], reason: 'Extinguisher gauge, placement, and service-date checks are recurring safety care.' },
+  { id: 'hose-bib-check', careItem: 'Hose bib check', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Exterior / Drainage', cadence: 'Seasonal', cadenceMonths: 6, suggestedWindow: 'spring startup and fall winterization review', intakeKeys: ['sewerIrrigation'], rowKeywords: ['hose bib', 'exterior water', 'spigot'], reason: 'Basic hose bib operation/leak checks are Handy Services scope unless plumbing repair is needed.' },
+  { id: 'basic-irrigation-head-observation', careItem: 'Basic irrigation/sprinkler head observation', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Exterior / Drainage', cadence: 'Seasonal', cadenceMonths: 6, suggestedWindow: 'spring startup or regular mowing/landscape season', intakeKeys: ['sewerIrrigation', 'drainageHistory'], rowKeywords: ['irrigation', 'sprinkler', 'head'], reason: 'Visible broken heads, overspray, and timer observations can start with Handy Services; valve work, blowout, or major troubleshooting should escalate.' },
+  { id: 'gutter-downspout-review', careItem: 'Gutter/downspout visual clean/check', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Exterior / Drainage', cadence: 'Seasonal', cadenceMonths: 6, suggestedWindow: 'spring and fall, especially after leaf drop or snowmelt', intakeKeys: ['gutters', 'drainagePooling', 'drainageHistory', 'drainageGrading'], rowKeywords: ['gutter', 'downspout'], reason: 'Water-management reviews help catch routine debris, discharge, or splashback concerns before they become larger issues.' },
+  { id: 'drainage-grading-water-path-review', careItem: 'Drainage / grading / water path review', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Exterior / Drainage', cadence: 'Seasonal / after major storms', cadenceMonths: 6, suggestedWindow: 'next wet-season or seasonal exterior visit', intakeKeys: ['drainagePooling', 'drainageHistory', 'drainageGrading'], rowKeywords: ['drainage', 'grading', 'pooling', 'water path'], reason: 'Surface water patterns can start as Handy Services observation and coordination unless corrective drainage work is clearly needed.' },
+  { id: 'exterior-caulk-paint-stain-review', careItem: 'Exterior caulk/paint/stain touch-up review', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Exterior / Drainage', cadence: 'Annual review', cadenceMonths: 12, suggestedWindow: 'dry/warm exterior season', intakeKeys: ['exteriorPaintStain', 'paintStain', 'productsColors'], rowKeywords: ['paint', 'stain', 'caulk', 'exterior finish'], reason: 'Exterior finish review is routine preservation planning and can be batched with Handy Services touch-ups.', groupingNote: 'Could be grouped with the next exterior Handy Services visit.' },
+  { id: 'paint-drywall-trim-touchup-review', careItem: 'Paint / drywall / trim touch-up review', resource: 'Handy Services', trade: 'Handyman', category: 'Handy Services', pmcpDomain: 'Paint / Drywall / Trim', cadence: 'Annual / As Needed', cadenceMonths: 12, suggestedWindow: 'annual interior walkthrough or next punch-list visit', intakeKeys: ['paintStain', 'productsColors'], rowKeywords: ['paint', 'drywall', 'trim', 'touch-up'], reason: 'Minor paint, drywall, and trim touch-up review fits routine Handy Services care and planning.' },
   { id: 'pest-prevention-watch', careItem: 'Pest prevention watch', resource: 'Pest', trade: 'Pest', category: 'Pest', cadence: 'Seasonal / As Needed', cadenceMonths: 6, suggestedWindow: 'spring/fall or as needed based on activity', intakeKeys: ['pestActivity', 'pests'], rowKeywords: ['pest', 'insect', 'rodent', 'bug'], reason: 'Pest history and prevention should be tracked as a watch item unless active evidence creates a separate PMR finding.' },
-  { id: 'chimney-fireplace-inspection-cleaning', careItem: 'Chimney / fireplace inspection or cleaning, if applicable', resource: 'Chimney', trade: 'Chimney', category: 'Exterior & Site / Grounds', cadence: 'Annual when used / as applicable', cadenceMonths: 12, suggestedWindow: 'fall, before fireplace use', intakeKeys: ['chimneyFireplaceService', 'chimney'], rowKeywords: ['chimney', 'fireplace', 'hearth', 'damper'], reason: 'If the home has a fireplace or chimney, service timing should be planned before seasonal use.', groupingNote: 'Verify applicability before scheduling.' },
+  { id: 'chimney-fireplace-inspection-cleaning', careItem: 'Chimney / fireplace inspection or cleaning, if applicable', resource: 'Chimney', trade: 'Chimney', category: 'Exterior & Site / Grounds', cadence: 'Annual when used / as applicable', cadenceMonths: 12, suggestedWindow: 'fall, before fireplace use', intakeKeys: ['chimneyFireplaceService', 'chimney'], rowKeywords: ['chimney', 'fireplace', 'hearth', 'damper'], reason: 'If the home has a fireplace or chimney, cap/crown/flashing and fireplace safety stay chimney/masonry specialty planning.', groupingNote: 'Verify applicability before scheduling.' },
   { id: 'sump-pump-test', careItem: 'Sump pump test, if applicable', resource: 'Plumbing', trade: 'Plumbing', category: 'Plumbing', cadence: 'Seasonal / before wet season', cadenceMonths: 6, suggestedWindow: 'before wet season or next basement/mechanical visit', intakeKeys: ['plumbingHistory', 'drainageHistory', 'otherMaintenanceHistory'], rowKeywords: ['sump pump', 'sump', 'pump test'], reason: 'If present, sump pumps should be tested routinely before wet weather rather than treated as an urgent defect without symptoms.', groupingNote: 'Verify applicability before scheduling.' },
-  { id: 'hvac-duct-cleaning-review', careItem: 'HVAC duct cleaning review', resource: 'HVAC', trade: 'HVAC', category: 'HVAC / Mechanical', cadence: 'Condition-Based only — not automatic annual cleaning', cadenceMonths: null, suggestedWindow: 'review only as-needed based on dust, renovation history, airflow concerns, pests, moisture, or occupant needs', intakeKeys: ['airDuctsCleaned', 'hvacService', 'comfort'], rowKeywords: ['duct', 'air ducts', 'airflow'], reason: 'Duct cleaning should be considered only when conditions justify it, not as an automatic annual service.', groupingNote: 'Could be discussed during the next HVAC service visit.' }
+  { id: 'hvac-duct-cleaning-review', careItem: 'HVAC duct cleaning review', resource: 'HVAC', trade: 'HVAC', category: 'HVAC / Mechanical', cadence: 'Condition-Based only — not automatic annual cleaning', cadenceMonths: null, suggestedWindow: 'review only as-needed based on dust, renovation history, airflow concerns, pests, moisture, or occupant needs', intakeKeys: ['airDuctsCleaned', 'hvacService', 'comfort'], rowKeywords: ['duct', 'air ducts', 'airflow'], reason: 'Duct cleaning should be considered only when conditions justify it, not as an automatic annual service.', groupingNote: 'Could be discussed during the next HVAC service visit.' },
+  { id: 'electrical-panel-safety-review', careItem: 'Electrical panel / unsafe wiring review', resource: 'Electrical', trade: 'Electrical', category: 'Electrical', cadence: 'As Needed / Safety-driven', cadenceMonths: null, suggestedWindow: 'when panel, breaker, heat, scorch, nuisance trip, or unsafe wiring concern is observed', intakeKeys: ['electricalPanel', 'electricalUpdates'], rowKeywords: ['electrical panel', 'breaker', 'unsafe wiring', 'scorch'], reason: 'Electrical panels and unsafe wiring stay trade-specific and should not be defaulted to Handy Services.' },
+  { id: 'roof-repair-flashing-review', careItem: 'Roof repair / flashing review', resource: 'Roofing', trade: 'Roof', category: 'Exterior & Site / Grounds', cadence: 'As Needed / After storms', cadenceMonths: null, suggestedWindow: 'after storm damage, active leak signs, or visible roof/flashing concern', intakeKeys: ['roofAge', 'roofHistory'], rowKeywords: ['roof', 'flashing', 'shingle', 'leak'], reason: 'Roof repair and flashing work remain roofing-specific due to access, safety, and water-entry risk.' },
+  { id: 'major-irrigation-troubleshooting', careItem: 'Major irrigation valve/troubleshooting/blowout', resource: 'Irrigation/Landscape', trade: 'Landscape', category: 'Exterior & Site / Grounds', cadence: 'Seasonal / As Needed', cadenceMonths: 6, suggestedWindow: 'spring startup, fall winterization, or when valve/system symptoms are present', intakeKeys: ['sewerIrrigation'], rowKeywords: ['irrigation valve', 'sprinkler valve', 'blowout', 'winterization'], reason: 'Valve work, blowout, and major sprinkler troubleshooting should stay irrigation/landscape trade-specific.' },
+  { id: 'appliance-functional-repair', careItem: 'Appliance functional failure/repair', resource: 'Appliance', trade: 'Appliance', category: 'Appliances', cadence: 'As Needed', cadenceMonths: null, suggestedWindow: 'when appliance symptoms or failures are observed', intakeKeys: ['otherMaintenanceHistory'], rowKeywords: ['appliance failure', 'not cooling', 'not heating', 'not draining', 'appliance repair'], reason: 'Functional appliance failures remain appliance-trade work rather than routine Handy Services care.' }
 ];
 
 const BASELINE_CARE_TOPICS = [
@@ -1010,7 +1031,8 @@ function buildPassCatalogItem(rule = {}, intake = {}, rows = [], passReview = {}
     source: 'catalog',
     careItem: rule.careItem,
     category: rule.category,
-    careTopic: rule.category,
+    pmcpDomain: rule.pmcpDomain || rule.category,
+    careTopic: rule.pmcpDomain || rule.category,
     careTopicId: rule.id,
     reason: rule.reason,
     targetWindow: rule.suggestedWindow,
@@ -1020,6 +1042,8 @@ function buildPassCatalogItem(rule = {}, intake = {}, rows = [], passReview = {}
     resource: rule.resource,
     followUpStatus: PASS_FOLLOW_UP_STATUSES[0],
     internalNote: '',
+    thaActionItem: Boolean(review.thaActionItem),
+    thaActionType: THA_ACTION_TYPES.includes(review.thaActionType) ? review.thaActionType : 'Unknown',
     groupingNote: rule.groupingNote || '',
     basis: [passIntakeBasis(intake, rule), passRoutineObservationBasis(rows, rule), `Common care cadence: ${rule.cadence}`].filter(Boolean).join(' · '),
     sourceEvidence: { label: sourceLabel, intakeEvidence, htcRows },
@@ -1293,7 +1317,9 @@ function applyPassReview(passItems = [], passReview = {}, { includeHidden = fals
         cadence: review.cadence ?? item.cadence,
         resource: review.resource ?? item.resource,
         followUpStatus: passPlanningStatusText(review.followUpStatus ?? item.followUpStatus),
-        internalNote: review.internalNote ?? item.internalNote ?? ''
+        internalNote: review.internalNote ?? item.internalNote ?? '',
+        thaActionItem: Boolean(review.thaActionItem ?? item.thaActionItem),
+        thaActionType: THA_ACTION_TYPES.includes(review.thaActionType) ? review.thaActionType : (item.thaActionType || 'Unknown')
       };
     })
     .filter(item => includeHidden || item.pmcpDecision === 'selected');
@@ -1350,32 +1376,80 @@ function buildBaselineCareModel({ intake = {}, rows = [], passCareCandidates = [
 }
 
 const library = [
-  {room:'Kitchen', zone:'Electrical', item:'GFCI outlet near sink', trade:'Electrical', effort:'30 min', prompt:'Test trip/reset. Note if missing, failed, loose, or visibly unsafe.', why:'GFCI protection matters where water and electricity are close together.', action:'Replace/repair GFCI protection or have electrician evaluate if wiring issue is suspected.', timing:{Monitor:'3–6 months','Needs Attention':'0–30 days','Immediate Concern':'Immediate'}},
-  {room:'Kitchen', zone:'Plumbing', item:'Sink / disposal / drain behavior', trade:'Plumbing', effort:'45–60 min', prompt:'Run water. Listen for disposal noise. Check under-sink shutoffs and trap for leaks.', why:'Small leaks, slow drains, and noisy disposals often become larger repair issues.', action:'Clear/inspect drain, check disposal, and escalate to plumber if issue is beyond handyman-level.'},
-  {room:'Kitchen', zone:'Cabinetry', item:'Cabinet hinges, drawers, pulls', trade:'Handyman', effort:'30 min', prompt:'Open/close doors and drawers. Note loose hardware, rubbing, misalignment, or damaged boxes.', why:'Loose hardware creates wear and makes daily use feel rough.', action:'Tighten, adjust, and document damaged components for repair or replacement.'},
-  {room:'Kitchen', zone:'Ventilation', item:'Range hood / filter', trade:'Appliance', effort:'30 min', prompt:'Test fan/light, inspect filter, note venting or recirculating configuration.', why:'Kitchen ventilation supports air quality, odor control, and moisture management.', action:'Clean filter, test operation, and service/replace if needed.', pass:true, frequency:'Annual'},
-  {room:'Laundry', zone:'Ventilation', item:'Dryer vent and exterior flap', trade:'Handyman', effort:'45–60 min', prompt:'Look for lint buildup, crushed duct, long run, weak airflow, or exterior flap stuck closed.', why:'Lint buildup reduces dryer efficiency and can become a fire risk.', action:'Clean dryer vent path and confirm exterior termination opens properly.', pass:true, frequency:'Annual / Fall'},
-  {room:'Laundry', zone:'Plumbing', item:'Washer hoses and shutoffs', trade:'Handyman', effort:'30 min', prompt:'Check hose material/age, corrosion, access to shutoffs, and signs of leaks.', why:'Washer hoses are common leak points and can cause expensive water damage.', action:'Replace aging hoses with braided lines and confirm shutoffs are accessible.', pass:true, frequency:'Annual check'},
-  {room:'Laundry', zone:'Electrical', item:'Laundry GFCI outlet', trade:'Electrical', effort:'30 min', prompt:'Test GFCI protection and note if outlet is missing, dead, loose, or not resetting.', why:'Laundry rooms combine water, appliances, and electrical load.', action:'Correct outlet protection; electrician if wiring concern exists.'},
-  {room:'Bedroom', zone:'Windows', item:'Window operation, locks, seals', trade:'Windows', effort:'30 min', prompt:'Open/close. Check locks, failed seals/fogging, damaged screens, and egress concerns.', why:'Bedroom windows affect comfort, ventilation, and emergency egress.', action:'Adjust/repair hardware; refer to window specialist for failed seals or replacement.'},
-  {room:'Bedroom', zone:'Doors', item:'Door hinges, knobs, latch alignment', trade:'Handyman', effort:'30 min', prompt:'Open/close door, test latch, check loose hinges and rubbing.', why:'Small door adjustments prevent wear and daily frustration.', action:'Tighten/adjust hinges, knobs, strikes, and rubbing points.'},
-  {room:'Bathroom', zone:'Wet Areas', item:'Caulk / grout at tub, shower, sink', trade:'Handyman', effort:'1–2 hrs', prompt:'Look for cracks, gaps, mold staining, failed caulk, loose grout, or soft surfaces.', why:'Failed caulk and grout invite water behind finishes.', action:'Remove failing caulk/grout and re-seal cleanly; escalate if water damage is suspected.'},
-  {room:'Bathroom', zone:'Ventilation', item:'Bath exhaust fan', trade:'Handyman', effort:'30 min', prompt:'Turn fan on. Listen for noise. Confirm airflow at grille and note possible venting concern.', why:'Bath fans reduce humidity and help prevent mildew and finish damage.', action:'Clean/test fan; replace fan or evaluate venting if weak/noisy.'},
+  {room:'Kitchen', zone:'Interior Finish', item:'Paint, drywall, ceiling, and trim condition', trade:'Handyman', effort:'30 min', prompt:'Scan walls, ceiling, trim, and corners for stains, cracks, nail pops, failed touch-ups, or moisture signs.', why:'Kitchen finish wear can reveal leaks, ventilation issues, or ordinary touch-up needs.', action:'Document locations, touch up minor finish issues, and investigate active staining or moisture.'},
+  {room:'Kitchen', zone:'Plumbing', item:'Sink, faucet, sprayer hose, and visible leaks', trade:'Handyman', effort:'45–60 min', prompt:'Run hot/cold water, test sprayer, check faucet base, supply lines, shutoffs, trap, and cabinet floor for leaks or swelling.', why:'Small sink leaks and loose faucet parts often start as handyman-level fixes but can become cabinet damage.', action:'Tighten/adjust minor hardware, document leaks, and refer to plumber for valve, supply, or licensed repair scope.'},
+  {room:'Kitchen', zone:'Plumbing', item:'Disposal if present', trade:'Handyman', effort:'30 min', prompt:'If present, test disposal sound, vibration, switch behavior, splash guard, and visible leaks under the sink.', why:'Disposal issues often show up as noise, drain odor, leaks, or vibration before full failure.', action:'Clear simple jams/odor issues where safe, document leaks, and escalate to plumber or appliance resource if replacement is needed.'},
+  {room:'Kitchen', zone:'Plumbing', item:'Dishwasher connection and visible leaks', trade:'Handyman', effort:'30 min', prompt:'Look around dishwasher toe-kick, supply/drain routing if visible, high-loop/air-gap clues, and floor/cabinet moisture signs.', why:'Dishwasher leaks can damage cabinets and flooring before they are obvious.', action:'Document evidence, tighten accessible minor items where appropriate, and refer appliance/plumbing repair for active leaks.'},
+  {room:'Kitchen', zone:'Cabinetry', item:'Cabinets, drawers, hinges, pulls, and boxes', trade:'Handyman', effort:'30 min', prompt:'Open/close doors and drawers. Note loose hardware, rubbing, misalignment, damaged boxes, or swollen cabinet floors.', why:'Loose or misaligned cabinet hardware creates wear and makes daily use feel rough.', action:'Tighten, adjust, and document damaged components for repair or replacement.'},
+  {room:'Kitchen', zone:'Surfaces', item:'Countertop, backsplash, and caulk joints', trade:'Handyman', effort:'30 min', prompt:'Inspect backsplash seams, counter edges, sink/counter caulk, loose tiles, cracks, and gaps.', why:'Open seams and failed caulk let water behind finishes.', action:'Re-caulk small gaps, document loose/cracked surfaces, and refer specialty surface work if needed.'},
+  {room:'Kitchen', zone:'Appliances', item:'Kitchen appliances visible condition and operation', trade:'Appliance', effort:'45–60 min', prompt:'Check visible condition and basic operation clues for refrigerator, range/oven, microwave, dishwasher, and other kitchen appliances.', why:'Appliance symptoms often need appliance-specific repair but should be documented during HTC.', action:'Document symptoms and recommend appliance service for functional failures.'},
+  {room:'Kitchen', zone:'Electrical', item:'GFCI outlets, outlets, switches, and covers', trade:'Electrical', effort:'30 min', prompt:'Test GFCI protection near sink and scan outlets/switches for loose, missing, damaged, dead, or visibly unsafe conditions.', why:'Kitchens combine water, appliances, and electrical load.', action:'Tighten covers where appropriate; use electrician for failed GFCI, wiring symptoms, heat, or unsafe conditions.', timing:{Monitor:'3–6 months','Needs Attention':'0–30 days','Immediate Concern':'Immediate'}},
+  {room:'Kitchen', zone:'Ventilation', item:'Range hood / exhaust / filter', trade:'Handyman', effort:'30 min', prompt:'Test fan/light, inspect filter, note venting or recirculating configuration, grease buildup, and noisy/weak operation.', why:'Kitchen ventilation supports air quality, odor control, and moisture management.', action:'Clean filter, test operation, and refer appliance/HVAC resource for failed fan or venting concerns.', pass:true, frequency:'Annual'},
+  {room:'Kitchen', zone:'Flooring', item:'Flooring and transitions', trade:'Handyman', effort:'30 min', prompt:'Check for loose transitions, swelling, cracked tile, gaps, soft spots, or trip edges.', why:'Kitchen flooring often reveals leaks, movement, or wear at transitions.', action:'Secure simple transitions, document damage, and escalate specialty flooring repairs when needed.'},
+
+  {room:'Bedroom', zone:'Interior Finish', item:'Paint, drywall, ceiling, and trim condition', trade:'Handyman', effort:'30 min', prompt:'Scan walls, ceiling, trim, and corners for cracks, stains, nail pops, loose trim, or prior patch issues.', why:'Bedroom finish review catches comfort, moisture, and normal wear issues early.', action:'Document and touch up minor finish issues; investigate active staining or movement.'},
+  {room:'Bedroom', zone:'Doors', item:'Doors, hinges, knobs, and latch alignment', trade:'Handyman', effort:'30 min', prompt:'Open/close doors, test latch, check loose hinges, rubbing, strike alignment, and stops.', why:'Small door adjustments prevent wear and daily frustration.', action:'Tighten/adjust hinges, knobs, strikes, and rubbing points.'},
+  {room:'Bedroom', zone:'Windows', item:'Windows, blinds, locks, screens, and seals', trade:'Handyman', effort:'30 min', prompt:'Operate accessible windows and blinds, test locks, note torn screens, drafts, fogging, and egress concerns.', why:'Bedroom windows affect comfort, ventilation, security, and emergency egress.', action:'Adjust/repair basic hardware and screens; refer failed seals or replacement needs to window specialist.'},
+  {room:'Bedroom', zone:'Closets', item:'Closet doors, shelving, rods, and hardware', trade:'Handyman', effort:'30 min', prompt:'Operate closet doors, check tracks, rods, shelving support, loose hardware, and damaged stops.', why:'Closet components are common small repairs that improve daily function.', action:'Tighten, adjust, and reinforce basic closet components; document larger carpentry needs.'},
+  {room:'Bedroom', zone:'Flooring', item:'Flooring and transitions', trade:'Handyman', effort:'30 min', prompt:'Check carpet edges, loose transitions, squeaks, gaps, cracked flooring, or trip edges.', why:'Flooring issues can affect safety, comfort, and room readiness.', action:'Secure simple transitions and document flooring repair needs.'},
+  {room:'Bedroom', zone:'Electrical', item:'Outlets, switches, covers, and lighting', trade:'Handyman', effort:'30 min', prompt:'Scan for missing covers, loose devices, damaged plates, flickering lights, and obvious safety concerns.', why:'Many cover/fixture issues are minor, while wiring symptoms need electrician review.', action:'Tighten/replace covers where appropriate; refer electrical symptoms to electrician.'},
+  {room:'Bedroom', zone:'Safety', item:'Smoke / CO placement reminder where applicable', trade:'Safety', effort:'15 min', prompt:'Note visible smoke/CO detector presence, placement concerns, chirps, missing devices, or outdated units.', why:'Bedrooms and sleeping areas need reliable life-safety coverage.', action:'Replace missing/expired units and document placement concerns.'},
+
+  {room:'Bathroom', zone:'Interior Finish', item:'Paint, drywall, ceiling moisture signs', trade:'Handyman', effort:'30 min', prompt:'Look for peeling paint, ceiling stains, bubbling drywall, soft trim, mildew, or fan-related moisture patterns.', why:'Bathroom finish issues often signal ventilation or water-management problems.', action:'Document moisture signs, improve ventilation, touch up minor finishes, and escalate active leaks.'},
+  {room:'Bathroom', zone:'Wet Areas', item:'Tile, grout, caulk, and enclosure joints', trade:'Handyman', effort:'1–2 hrs', prompt:'Inspect tub/shower/sink caulk, grout cracks, mold staining, loose tile, gaps, and soft surfaces.', why:'Failed caulk and grout invite water behind finishes.', action:'Remove failing caulk/grout and re-seal cleanly; escalate if water damage is suspected.'},
+  {room:'Bathroom', zone:'Plumbing', item:'Sink, faucet, drain, and visible leaks', trade:'Handyman', effort:'30 min', prompt:'Run water, check faucet base, drain speed, trap, supply lines, shutoffs, and vanity floor for leaks or swelling.', why:'Bathroom sink leaks often start small and damage cabinets or flooring.', action:'Tighten/adjust minor items, document leaks, and refer plumber for valve/supply/drain repair beyond handyman scope.'},
+  {room:'Bathroom', zone:'Cabinetry', item:'Vanity, cabinet, and hardware', trade:'Handyman', effort:'30 min', prompt:'Check vanity doors/drawers, loose pulls, swelling, cabinet floor, and wall attachment.', why:'Vanity condition helps reveal leaks and everyday hardware needs.', action:'Tighten/adjust hardware, document water damage, and repair minor cabinet issues.'},
+  {room:'Bathroom', zone:'Plumbing', item:'Toilet function, movement, and leaks', trade:'Handyman', effort:'30 min', prompt:'Flush, check fill/stop behavior, base movement, caulk condition, visible leaks, and floor softness.', why:'Toilet leaks and movement can damage subfloor and finishes.', action:'Tighten/adjust simple components and refer plumber for flange, supply, or persistent leak repairs.'},
+  {room:'Bathroom', zone:'Plumbing', item:'Shower / tub valve, drain, caulk, and function', trade:'Handyman', effort:'45–60 min', prompt:'Run shower/tub, check diverter, drain speed, valve trim, caulk lines, and visible leaks.', why:'Tub/shower defects are common sources of hidden moisture damage.', action:'Re-caulk minor gaps, document symptoms, and refer plumber for valve/drain repairs.'},
+  {room:'Bathroom', zone:'Ventilation', item:'Bath fan / ventilation', trade:'Handyman', effort:'30 min', prompt:'Turn fan on. Listen for noise. Confirm airflow at grille and note possible venting concern.', why:'Bath fans reduce humidity and help prevent mildew and finish damage.', action:'Clean/test fan; replace fan or evaluate venting if weak/noisy.'},
+  {room:'Bathroom', zone:'Electrical', item:'GFCI, outlets, switches, and covers', trade:'Electrical', effort:'30 min', prompt:'Test GFCI protection and scan outlets/switches for loose, missing, damaged, dead, or visibly unsafe conditions.', why:'Bathrooms combine water and electrical exposure.', action:'Tighten covers where appropriate; use electrician for failed GFCI, wiring symptoms, heat, or unsafe conditions.'},
+  {room:'Bathroom', zone:'Hardware', item:'Towel bars, accessories, and loose hardware', trade:'Handyman', effort:'30 min', prompt:'Check towel bars, robe hooks, toilet paper holders, mirrors, and accessories for loose mounts or wall damage.', why:'Loose accessories are common small repairs and can damage drywall if ignored.', action:'Re-anchor or tighten hardware and document wall repair needs.'},
+  {room:'Bathroom', zone:'Flooring', item:'Flooring, transitions, soft spots, mildew signs', trade:'Handyman', effort:'30 min', prompt:'Check flooring edges, transitions, soft spots near toilet/tub, loose tile, staining, mildew, and trip edges.', why:'Bathroom flooring can reveal leaks, poor caulk, or ventilation problems.', action:'Document soft spots and moisture patterns; secure simple transitions and escalate water-damage concerns.'},
+
+  {room:'Laundry', zone:'Plumbing', item:'Washer hoses, valves, and visible leaks', trade:'Handyman', effort:'30 min', prompt:'Check hose material/age, corrosion, access to shutoffs, valve leaks, and wall/floor staining.', why:'Washer hoses are common leak points and can cause expensive water damage.', action:'Replace aging hoses with braided lines and confirm shutoffs are accessible; refer plumber for valve leaks.', pass:true, frequency:'Annual check'},
+  {room:'Laundry', zone:'Ventilation', item:'Dryer vent, lint path, and duct condition', trade:'Handyman', effort:'45–60 min', prompt:'Look for lint buildup, crushed duct, long run, weak airflow, or disconnected ducting.', why:'Lint buildup reduces dryer efficiency and can become a fire risk.', action:'Clean dryer vent path where accessible and document specialized/blocked runs.', pass:true, frequency:'Annual / Fall'},
+  {room:'Laundry', zone:'Ventilation', item:'Dryer exhaust termination if visible', trade:'Handyman', effort:'30 min', prompt:'Check visible exterior termination for flap movement, lint, pest screens, obstructions, or damage.', why:'A blocked termination can reduce airflow and increase fire risk.', action:'Clean accessible termination and document roof/high-access or specialized vent issues.'},
+  {room:'Laundry', zone:'Plumbing', item:'Utility sink if present', trade:'Handyman', effort:'30 min', prompt:'If present, run faucet, check drain, trap, cabinet/floor below, and visible leaks.', why:'Utility sinks often reveal leaks or slow drains during routine use.', action:'Tighten/adjust minor issues and refer plumber for drain/supply repair.'},
+  {room:'Laundry', zone:'Plumbing', item:'Floor drain if present', trade:'Plumbing', effort:'30 min', prompt:'If present, note location, visible debris, dryness, odor, or backup signs.', why:'Floor drains protect against water events but may need plumbing attention if dry, clogged, or backing up.', action:'Clean visible debris and refer plumber for trap/backup concerns.'},
+  {room:'Laundry', zone:'Storage', item:'Cabinets, shelving, and hardware', trade:'Handyman', effort:'30 min', prompt:'Check shelves, cabinet doors, wall anchors, rods, and loose hardware.', why:'Laundry storage sees vibration and moisture that loosen hardware.', action:'Tighten/anchor hardware and document damaged shelving.'},
+  {room:'Laundry', zone:'Interior Finish', item:'Paint, drywall, and moisture signs', trade:'Handyman', effort:'30 min', prompt:'Look for staining, bubbling paint, soft drywall, dryer lint staining, or washer leak patterns.', why:'Laundry finish issues often reveal ventilation or plumbing problems.', action:'Document moisture signs, touch up minor finish issues, and escalate active leaks.'},
+  {room:'Laundry', zone:'Electrical', item:'GFCI, outlets, and appliance power', trade:'Electrical', effort:'30 min', prompt:'Test GFCI where present and scan outlets/covers for loose, missing, damaged, dead, or visibly unsafe conditions.', why:'Laundry rooms combine water, appliances, and electrical load.', action:'Tighten covers where appropriate; use electrician for failed GFCI, wiring symptoms, heat, or unsafe conditions.'},
+  {room:'Laundry', zone:'Flooring', item:'Flooring and transitions', trade:'Handyman', effort:'30 min', prompt:'Check flooring edges, transitions, soft spots, stains, and trip edges.', why:'Laundry flooring often shows washer leaks or vibration wear.', action:'Secure simple transitions and document moisture-related flooring concerns.'},
+
   {room:'Mechanical', zone:'HVAC', item:'Furnace filter condition and size', trade:'Handyman', effort:'15 min', prompt:'Photograph filter size, date, orientation, and condition.', why:'Clean filters protect equipment and airflow.', action:'Replace filter and add to recurring care schedule.', pass:true, frequency:'Every 1–3 months'},
-  {room:'Mechanical', zone:'HVAC', item:'Furnace / AC service history', trade:'HVAC', effort:'Trade scope', prompt:'Look for service sticker, system age, visible wear, condensate, noise, or comfort complaints.', why:'Scheduled service helps catch issues before peak heating/cooling seasons.', action:'Schedule HVAC service if overdue or symptoms are present.', pass:true, frequency:'Annual'},
-  {room:'Exterior', zone:'Drainage', item:'Gutters, downspouts, water discharge', trade:'Handyman', effort:'1–2 hrs', prompt:'Check overflow, loose sections, downspout extensions, and water discharge near foundation.', why:'Water management protects siding, roof edges, foundation, and basements.', action:'Clean/repair gutters and extend downspouts away from foundation.', pass:true, frequency:'Spring / Fall'},
+  {room:'Mechanical', zone:'HVAC', item:'Furnace service history / seasonal service', trade:'HVAC', effort:'Trade scope', prompt:'Look for service sticker, system age, visible wear, noise, combustion/venting concerns, or heating complaints.', why:'Scheduled HVAC service helps catch issues before peak heating season.', action:'Schedule HVAC service if overdue, unknown, or symptoms are present.', pass:true, frequency:'Annual'},
+  {room:'Mechanical', zone:'HVAC', item:'AC / heat pump service history / seasonal service', trade:'HVAC', effort:'Trade scope', prompt:'Look for service sticker, outdoor unit condition, condensate clues, noise, airflow, or cooling complaints.', why:'Cooling equipment benefits from trade service before peak season.', action:'Schedule HVAC service if overdue, unknown, or symptoms are present.', pass:true, frequency:'Annual'},
+  {room:'Mechanical', zone:'Plumbing', item:'Water heater age, leak signs, flush/service history', trade:'Plumbing', effort:'Trade scope', prompt:'Photograph data plate, check pan/drain, corrosion, leak signs, TPR discharge, venting, and service history.', why:'Water heaters can leak suddenly and often require licensed plumbing work for replacement or major repair.', action:'Schedule plumbing service for leaks, unsafe venting, overdue service, or replacement planning.', pass:true, frequency:'Annual review'},
+  {room:'Mechanical', zone:'HVAC / Plumbing', item:'Condensate and drain lines', trade:'Handyman', effort:'30 min', prompt:'Check visible condensate lines, pump, traps, discharge point, algae, staining, or overflow signs.', why:'Clogged condensate paths can shut equipment down or cause water damage.', action:'Clean visible accessible lines and refer HVAC/plumbing if pump, trap, or routing repair is needed.'},
+  {room:'Mechanical', zone:'HVAC', item:'Humidifier if present', trade:'HVAC', effort:'30 min', prompt:'If present, check pad date/condition, bypass damper, leaks, and service history.', why:'Humidifiers need seasonal care to avoid leaks, scale, and air-quality issues.', action:'Replace pad where appropriate and refer HVAC for service/repair.'},
+  {room:'Mechanical', zone:'Shutoffs', item:'Main shutoffs and labels if present', trade:'Handyman', effort:'30 min', prompt:'Identify visible water/gas/electrical shutoffs, access, labels, and obvious obstruction.', why:'Clear shutoff labeling helps homeowners respond quickly in emergencies.', action:'Label accessible shutoffs and document blocked or unclear shutoff locations.'},
+  {room:'Mechanical', zone:'Electrical', item:'Electrical panel observation only', trade:'Electrical', effort:'Trade scope', prompt:'Observe panel access, labeling, missing cover screws, scorch marks, rust, double taps if visible, or unsafe clearance; do not remove covers.', why:'Panel defects and unsafe wiring require licensed electrical evaluation.', action:'Document visible concerns and refer electrician for panel/wiring repair or safety review.'},
+
+  {room:'Exterior', zone:'Water / Irrigation', item:'Irrigation, sprinklers, hose bibs, and exterior water', trade:'Handyman', effort:'45–60 min', prompt:'Check hose bib operation/leaks, vacuum breakers, visible irrigation heads/timer clues, broken heads, overspray, and winterization/service concerns.', why:'Exterior water issues can waste water, damage siding/foundation, or need seasonal service.', action:'Tighten/document basic hose bib or head issues; refer irrigation/landscape trade for valve work, blowout, or major troubleshooting.'},
+  {room:'Exterior', zone:'Drainage', item:'Gutters, downspouts, and drainage discharge', trade:'Handyman', effort:'1–2 hrs', prompt:'Check overflow, loose sections, downspout extensions, splash blocks, and water discharge near foundation.', why:'Water management protects siding, roof edges, foundation, and basements.', action:'Clean/repair gutters and extend downspouts away from foundation.', pass:true, frequency:'Spring / Fall'},
   {room:'Exterior', zone:'Drainage', item:'Grading / pooling near foundation', trade:'Drainage', effort:'Trade scope', prompt:'Note low spots, negative slope, soil contact, pooling areas, and relation to downspouts.', why:'Poor grading and pooling water can create long-term foundation and basement risk.', action:'Plan drainage correction, regrading, extensions, or landscape drainage solution.'},
-  {room:'Exterior', zone:'Finish', item:'Exterior paint / stain / caulk wear', trade:'Paint', effort:'Trade scope', prompt:'Look for exposed wood, peeling paint, failed caulk, checks, rot, or sun-exposed wear.', why:'Exterior finish is a protective shield, not just color.', action:'Plan touch-ups, caulking, carpentry repair, or repaint/stain scope.', pass:true, frequency:'Annual review'},
+  {room:'Exterior', zone:'Finish', item:'Exterior paint / stain / caulk wear', trade:'Handyman', effort:'1–2 hrs', prompt:'Look for exposed wood, peeling paint, failed caulk, checks, rot, or sun-exposed wear.', why:'Exterior finish is a protective shield, not just color.', action:'Handle minor caulk/touch-ups where appropriate and plan larger repaint/stain scope.', pass:true, frequency:'Annual review'},
+  {room:'Exterior', zone:'Exterior Shell', item:'Siding, trim, fascia, and soffit condition', trade:'Handyman', effort:'45–60 min', prompt:'Scan siding, trim, fascia, soffits, penetrations, loose boards, rot, swelling, gaps, and animal damage.', why:'Exterior shell defects can admit water and pests.', action:'Secure/document minor trim issues and refer carpentry/exterior trade for rot or larger repair scope.'},
+  {room:'Exterior', zone:'Openings', item:'Exterior doors, thresholds, and weatherstripping', trade:'Handyman', effort:'45–60 min', prompt:'Operate doors, check thresholds, sweeps, weatherstripping, locks, rot, gaps, and water staining.', why:'Exterior doors affect comfort, water resistance, and security.', action:'Adjust hardware and weatherstripping; document rot or replacement needs.'},
+  {room:'Exterior', zone:'Openings', item:'Windows and exterior sealant', trade:'Handyman', effort:'45–60 min', prompt:'Scan window trim, sealant, weep paths, screens, failed caulk, fogging, and water staining.', why:'Exterior window joints are common water-entry points.', action:'Re-caulk minor gaps and refer window/exterior specialist for failed units or larger repairs.'},
+  {room:'Exterior', zone:'Site / Structures', item:'Deck, porch, patio, and railings', trade:'Handyman', effort:'45–60 min', prompt:'Check walking surfaces, railing movement, loose boards, fasteners, settlement, cracks, and trip hazards.', why:'Exterior walking surfaces and rails affect safety and usability.', action:'Tighten/secure minor components and refer structural/deck trade for unsafe movement or major repair.'},
+  {room:'Exterior', zone:'Site / Structures', item:'Fence and gates if relevant', trade:'Handyman', effort:'30 min', prompt:'Check gate swing/latch, loose boards, leaning posts, damaged pickets, and hardware.', why:'Fence and gate issues are common handy-service repairs unless posts/sections need larger replacement.', action:'Adjust/tighten hardware and document larger fence repair needs.'},
+  {room:'Exterior', zone:'Foundation', item:'Visible foundation cracks or movement', trade:'General Contractor', effort:'Trade scope', prompt:'Observe visible cracks, displacement, moisture staining, settlement clues, and areas needing specialist evaluation.', why:'Foundation movement can indicate structural or drainage concerns.', action:'Document and refer qualified foundation/structural resource for significant movement or cracking.'},
+  {room:'Exterior', zone:'Pest', item:'Pest entry points and exterior gaps', trade:'Handyman', effort:'45–60 min', prompt:'Look for gaps at penetrations, utility entries, vents, doors, siding, soffits, and rodent/insect clues.', why:'Small exterior gaps can invite pests and moisture.', action:'Seal simple gaps and refer pest/exterior specialist for infestation or complex exclusion work.'},
+  {room:'Exterior', zone:'Roofline', item:'Roofline visible issues', trade:'Roof', effort:'Trade scope', prompt:'From ground only, note missing/damaged shingles, lifted flashing, sagging, debris, moss, or obvious roofline concerns.', why:'Roof defects can quickly become water-entry issues.', action:'Document and refer roofer for roof/flashing repair or unsafe access needs.'},
+  {room:'Exterior', zone:'Roof / Chimney', item:'Chimney exterior, cap, crown, and flashing', trade:'Chimney', effort:'Trade scope', prompt:'From safe vantage points, photograph visible crown, cap, masonry, flashing, staining, and missing spark arrestor clues.', why:'Chimney exterior defects can create water entry and fire-safety concerns.', action:'Schedule chimney/masonry evaluation if cap, crown, flashing, or masonry concerns are present.', pass:true, frequency:'Annual / Fall'},
+
   {room:'Safety', zone:'Whole Home', item:'Smoke / CO detectors', trade:'Safety', effort:'30 min', prompt:'Photograph date stamp when possible. Note hardwired vs battery and missing/expired units.', why:'Smoke and CO detection is basic life safety.', action:'Replace expired/missing units and consider hardwired upgrade where needed.', pass:true, frequency:'Annual test'},
-  {room:'Safety', zone:'Whole Home', item:'Fire extinguishers', trade:'Safety', effort:'15 min', prompt:'Check quantity, location, accessibility, and gauge/date if visible.', why:'Accessible extinguishers provide first-response safety.', action:'Add/replace extinguishers and place in kitchen, garage, and mechanical areas.', pass:true, frequency:'Annual check'},
-  {room:'Exterior', zone:'Roof / Chimney', item:'Chimney inspection / cleaning history', trade:'Chimney', effort:'Trade scope', prompt:'Ask last cleaning date. Photograph visible crown/cap/firebox if accessible/safe.', why:'Chimney service supports fire safety and proper system function.', action:'Schedule chimney inspection/cleaning if overdue or unknown.', pass:true, frequency:'Annual / Fall'}
+  {room:'Safety', zone:'Whole Home', item:'Fire extinguishers', trade:'Safety', effort:'15 min', prompt:'Check quantity, location, accessibility, and gauge/date if visible.', why:'Accessible extinguishers provide first-response safety.', action:'Add/replace extinguishers and place in kitchen, garage, and mechanical areas.', pass:true, frequency:'Annual check'}
 ];
 
 const livingFamilyTemplate = [
-  {room:'Living / Family Rooms', zone:'Interior Finish', item:'Walls, ceilings, trim, and visible staining', trade:'Handyman', effort:'30 min', prompt:'Scan walls, ceilings, trim, flooring edges, and corners for stains, cracks, swelling, or movement.', why:'Finish changes can point to moisture, settlement, daily wear, or prior repairs that deserve monitoring.', action:'Document locations, touch up minor finish issues, and investigate active moisture or movement.'},
-  {room:'Living / Family Rooms', zone:'Windows / Doors', item:'Windows, doors, locks, screens, and seals', trade:'Windows', effort:'30 min', prompt:'Operate accessible windows and doors, test locks, and note fogged glass, torn screens, drafts, or difficult movement.', why:'Living-space openings affect comfort, security, energy use, and water resistance.', action:'Adjust hardware, repair screens, and refer failed seals or damaged units to a window specialist.'},
-  {room:'Living / Family Rooms', zone:'Electrical', item:'Outlets, switches, lighting, and ceiling fans', trade:'Electrical', effort:'30 min', prompt:'Look for loose outlets, missing covers, flickering lights, damaged switches, fan wobble, or unusual heat/discoloration.', why:'Small electrical defects can create safety concerns or indicate aging components.', action:'Tighten or replace covers and fixtures where appropriate; use an electrician for wiring symptoms.'},
-  {room:'Living / Family Rooms', zone:'Fireplace', item:'Fireplace, hearth, damper, and visible masonry', trade:'Chimney', effort:'Trade scope', prompt:'Check visible firebox, hearth cracks, damper movement, odor, staining, and last service history.', why:'Fireplaces and chimneys need regular review for fire safety, drafting, and masonry condition.', action:'Schedule chimney inspection or cleaning if service history is unknown, overdue, or symptoms are present.', pass:true, frequency:'Annual / Fall'}
+  {room:'Living / Family Rooms', zone:'Interior Finish', item:'Paint, drywall, ceiling, trim, and visible staining', trade:'Handyman', effort:'30 min', prompt:'Scan walls, ceilings, trim, flooring edges, and corners for stains, cracks, swelling, or movement.', why:'Finish changes can point to moisture, settlement, daily wear, or prior repairs that deserve monitoring.', action:'Document locations, touch up minor finish issues, and investigate active moisture or movement.'},
+  {room:'Living / Family Rooms', zone:'Windows / Doors', item:'Doors, windows, locks, screens, and hardware', trade:'Handyman', effort:'30 min', prompt:'Operate accessible windows and doors, test locks/latches, and note fogged glass, torn screens, drafts, or difficult movement.', why:'Living-space openings affect comfort, security, energy use, and water resistance.', action:'Adjust hardware, repair screens, and refer failed seals or damaged units to a window specialist.'},
+  {room:'Living / Family Rooms', zone:'Flooring', item:'Flooring and transitions', trade:'Handyman', effort:'30 min', prompt:'Check flooring edges, transitions, squeaks, gaps, cracked flooring, loose thresholds, or trip edges.', why:'Flooring and transition issues affect safety and daily use.', action:'Secure simple transitions and document flooring repair needs.'},
+  {room:'Living / Family Rooms', zone:'Electrical', item:'Outlets, switches, covers, lighting, and ceiling fans', trade:'Handyman', effort:'30 min', prompt:'Look for loose outlets, missing covers, flickering lights, damaged switches, fan wobble, or unusual heat/discoloration.', why:'Many cover/fixture issues are minor, while wiring symptoms need electrician review.', action:'Tighten or replace covers and fixtures where appropriate; use an electrician for wiring symptoms.'},
+  {room:'Living / Family Rooms', zone:'Fireplace', item:'Fireplace interior, hearth, damper, and gas log area if present', trade:'Chimney', effort:'Trade scope', prompt:'Check visible firebox, hearth cracks, damper movement, gas log area, odor, staining, and last service history.', why:'Fireplace interiors need room-level review while chimney exterior belongs in Exterior.', action:'Schedule chimney/fireplace inspection or cleaning if service history is unknown, overdue, or symptoms are present.', pass:true, frequency:'Annual / Fall'},
+  {room:'Living / Family Rooms', zone:'Built-ins', item:'Built-ins, shelving, and wall-mounted features if present', trade:'Handyman', effort:'30 min', prompt:'Check shelving, built-ins, wall anchors, cabinet doors, loose hardware, and visible movement.', why:'Built-ins and shelves can loosen with use and create safety or finish issues.', action:'Tighten/anchor minor components and document carpentry needs.'}
 ];
 
 const DEFAULT_SECTION_ORDER = ['Exterior','Kitchen','Living / Family Rooms','Bedrooms','Bathrooms','Mechanical','Laundry','Safety'];
@@ -1521,15 +1595,38 @@ function priority(status) {
   return '';
 }
 function includePMR(a) { return ['Monitor','Needs Attention','Immediate Concern'].includes(a.status); }
+function roomStatusPillClass(status = 'Unknown') {
+  const text = String(status || 'Unknown').toLowerCase();
+  if (/immediate|now|urgent/.test(text)) return 'status-immediate-concern';
+  if (/needs attention|trade attention|handy services/.test(text)) return 'status-needs-attention';
+  if (/routine care|pass|homeowner goal/.test(text)) return 'status-future-context';
+  if (/watch|monitor|worth watching|upcoming/.test(text)) return 'status-monitor';
+  if (/looking good|good/.test(text)) return 'status-good';
+  return 'status-unknown';
+}
+function includeRoomOverviewPMR(capture = {}) {
+  const status = capture?.status || 'Unknown';
+  return !['Unknown','Looking Good'].includes(status);
+}
+function roomStatusFutureContext(status = '') {
+  return ['Routine Care / PASS','Homeowner Goal'].includes(status);
+}
 function pmrReportLabel(answer = {}) {
-  return includePMR(answer) ? 'Repair report: Included' : 'Repair report: None';
+  return includePMR(answer) ? 'PMR detail: Included' : 'PMR detail: Not included';
 }
 function pmrReportPillClass(answer = {}) {
   return includePMR(answer) ? 'pmr-included' : 'pmr-none';
 }
+function thaActionTypeSelected(answer = {}) {
+  return Boolean(answer?.thaActionType && answer.thaActionType !== 'Unknown');
+}
+function hasThaActionContext(answer = {}) {
+  return Boolean(answer?.thaActionItem || answer?.workOrderNow || thaActionTypeSelected(answer) || String(answer?.notes || '').trim());
+}
 function currentWorkOrderLabel(answer = {}) {
-  if (!(answer?.thaActionItem || answer?.workOrderNow)) return '';
-  return `THA action-item: ${answer?.thaActionType || 'Research'}`;
+  if (!(answer?.thaActionItem || answer?.workOrderNow || thaActionTypeSelected(answer))) return '';
+  const type = answer?.thaActionType || 'Unknown';
+  return answer?.thaActionItem || answer?.workOrderNow ? `THA action-item: ${type}` : `THA follow-up: ${type}`;
 }
 function roomOverviewCareTopicId(sectionKey = '') {
   return `room-overview-pass-${String(sectionKey || 'room').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
@@ -1550,7 +1647,7 @@ function passCareSelectionForRoom(section = {}, passCareOutlook = []) {
 function railStateFor(answer = {}, { pmcpSelected = false, workOrderNow = false } = {}) {
   const status = answer?.status || 'Unknown';
   const actionActive = Boolean(workOrderNow || answer?.thaActionItem || answer?.workOrderNow);
-  const left = status === 'Unknown' ? 'unknown' : 'blue';
+  const left = status === 'Unknown' ? 'unknown' : 'reviewed';
   const right = actionActive ? 'work-now' : (pmcpSelected ? 'pass' : 'none');
   return { left, right };
 }
@@ -1673,7 +1770,7 @@ function normalizeAnswer(answer, item) {
     passCandidate: typeof answer?.passCandidate === 'boolean' ? answer.passCandidate : false,
     addToPmcpBuilder: typeof answer?.addToPmcpBuilder === 'boolean' ? answer.addToPmcpBuilder : false,
     thaActionItem,
-    thaActionType: THA_ACTION_TYPES.includes(answer?.thaActionType) ? answer.thaActionType : 'Research',
+    thaActionType: THA_ACTION_TYPES.includes(answer?.thaActionType) ? answer.thaActionType : 'Unknown',
     workOrderNow: thaActionItem,
     passTargetWindow: answer?.passTargetWindow || '',
     passCadence: answer?.passCadence || passCadenceFor(item),
@@ -2622,7 +2719,10 @@ function cleanWalkthroughData() {
     itemOrder: {},
     pinnedItems: {},
     roomCapture: {},
-    passReview: {}
+    passReview: {},
+    roomOverviewExpandedByRoom: {},
+    smartPromptExpandedByRoom: {},
+    expandedChecklistItems: {}
   };
 }
 
@@ -2812,16 +2912,16 @@ function App() {
   const [pinnedItems, setPinnedItems] = useState(initialState.data.pinnedItems);
   const [roomCapture, setRoomCapture] = useState(initialState.data.roomCapture);
   const [passReview, setPassReview] = useState(() => normalizePassReviewData(initialState.data.passReview || {}));
-  const [roomItemFormOpen, setRoomItemFormOpen] = useState(false);
+  const [roomItemFormOpenByRoom, setRoomItemFormOpenByRoom] = useState({});
   const [roomItemDraft, setRoomItemDraft] = useState(EMPTY_ROOM_ITEM_DRAFT);
   const [dragSectionKey, setDragSectionKey] = useState('');
   const [photoFeedback, setPhotoFeedback] = useState({ state: '', message: '' });
   const [copyFeedback, setCopyFeedback] = useState('');
   const [storageWarning, setStorageWarning] = useState('');
   const [saveStatus, setSaveStatus] = useState({ state: 'saved', time: initialState.activeId ? 'loaded' : '' });
-  const [expandedChecklistItems, setExpandedChecklistItems] = useState({});
-  const [roomOverviewExpandedByRoom, setRoomOverviewExpandedByRoom] = useState({});
-  const [smartPromptExpandedByRoom, setSmartPromptExpandedByRoom] = useState({});
+  const [expandedChecklistItems, setExpandedChecklistItems] = useState(initialState.data.expandedChecklistItems || {});
+  const [roomOverviewExpandedByRoom, setRoomOverviewExpandedByRoom] = useState(initialState.data.roomOverviewExpandedByRoom || {});
+  const [smartPromptExpandedByRoom, setSmartPromptExpandedByRoom] = useState(initialState.data.smartPromptExpandedByRoom || {});
   const [controlsCollapsed, setControlsCollapsed] = useState(() => {
     const initialClient = initialState.data.client || {};
     const missingBasicInfo = isMissingProjectIdentityValue(initialClient.name) || isMissingProjectIdentityValue(initialClient.address) || isMissingProjectIdentityValue(initialClient.date);
@@ -3006,7 +3106,7 @@ function App() {
     status: roomCapture?.[sectionKey]?.status || ROOM_STATUS_OPTIONS[0],
     addToPmcpBuilder: Boolean(roomCapture?.[sectionKey]?.addToPmcpBuilder),
     thaActionItem: Boolean(roomCapture?.[sectionKey]?.thaActionItem),
-    thaActionType: THA_ACTION_TYPES.includes(roomCapture?.[sectionKey]?.thaActionType) ? roomCapture[sectionKey].thaActionType : 'Research',
+    thaActionType: THA_ACTION_TYPES.includes(roomCapture?.[sectionKey]?.thaActionType) ? roomCapture[sectionKey].thaActionType : 'Unknown',
     note: roomCapture?.[sectionKey]?.note || '',
     photos: photoList(roomCapture?.[sectionKey]).map(photo => ({ ...photo, label: photo.label || 'Overview' })),
     items: Array.isArray(roomCapture?.[sectionKey]?.items) ? roomCapture[sectionKey].items.map(item => ({
@@ -3023,11 +3123,11 @@ function App() {
   const updateRoomItemDraft = (patch) => setRoomItemDraft(prev => ({ ...prev, ...patch }));
   const openRoomItemForm = () => {
     setRoomItemDraft(EMPTY_ROOM_ITEM_DRAFT);
-    setRoomItemFormOpen(true);
+    setRoomItemFormOpenByRoom(prev => ({ ...prev, [activeRoom]: true }));
   };
   const cancelRoomItemForm = () => {
     setRoomItemDraft(EMPTY_ROOM_ITEM_DRAFT);
-    setRoomItemFormOpen(false);
+    setRoomItemFormOpenByRoom(prev => { const next = { ...prev }; delete next[activeRoom]; return next; });
   };
   const saveRoomItem = () => {
     const title = roomItemDraft.title.trim();
@@ -3128,7 +3228,7 @@ function App() {
             status: prev?.[sectionKey]?.status || ROOM_STATUS_OPTIONS[0],
             addToPmcpBuilder: Boolean(prev?.[sectionKey]?.addToPmcpBuilder),
             thaActionItem: Boolean(prev?.[sectionKey]?.thaActionItem),
-            thaActionType: THA_ACTION_TYPES.includes(prev?.[sectionKey]?.thaActionType) ? prev[sectionKey].thaActionType : 'Research',
+            thaActionType: THA_ACTION_TYPES.includes(prev?.[sectionKey]?.thaActionType) ? prev[sectionKey].thaActionType : 'Unknown',
             note: prev?.[sectionKey]?.note || '',
             photos: photoList(prev?.[sectionKey]).map(existing => ({ ...existing, label: existing.label || 'Overview' })),
             items: Array.isArray(prev?.[sectionKey]?.items) ? prev[sectionKey].items : []
@@ -3170,7 +3270,7 @@ function App() {
         status: prev?.[sectionKey]?.status || ROOM_STATUS_OPTIONS[0],
         addToPmcpBuilder: Boolean(prev?.[sectionKey]?.addToPmcpBuilder),
         thaActionItem: Boolean(prev?.[sectionKey]?.thaActionItem),
-        thaActionType: THA_ACTION_TYPES.includes(prev?.[sectionKey]?.thaActionType) ? prev[sectionKey].thaActionType : 'Research',
+        thaActionType: THA_ACTION_TYPES.includes(prev?.[sectionKey]?.thaActionType) ? prev[sectionKey].thaActionType : 'Unknown',
         note: prev?.[sectionKey]?.note || '',
         photos: photoList(prev?.[sectionKey]).map(existing => ({ ...existing, label: existing.label || 'Overview' })),
         items: Array.isArray(prev?.[sectionKey]?.items) ? prev[sectionKey].items : []
@@ -3291,7 +3391,10 @@ function App() {
     itemOrder: itemOrderState,
     pinnedItems,
     roomCapture,
-    passReview: normalizePassReviewData(passReview)
+    passReview: normalizePassReviewData(passReview),
+    roomOverviewExpandedByRoom,
+    smartPromptExpandedByRoom,
+    expandedChecklistItems
   });
   const persistCurrentWalkthroughSession = () => {
     const id = activeWalkthroughId || `walkthrough-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -3329,7 +3432,7 @@ function App() {
       persistCurrentWalkthroughSession();
     }, 1000);
     return () => window.clearTimeout(timeout);
-  }, [activeWalkthroughId, client, answers, intake, dynamicRooms, sectionOrderState, itemOrderState, pinnedItems, roomCapture, passReview, walkthroughName]);
+  }, [activeWalkthroughId, client, answers, intake, dynamicRooms, sectionOrderState, itemOrderState, pinnedItems, roomCapture, passReview, roomOverviewExpandedByRoom, smartPromptExpandedByRoom, expandedChecklistItems, walkthroughName]);
   const applyWalkthroughData = (data) => {
     const clean = cleanWalkthroughData();
     setClient(data?.client || clean.client);
@@ -3341,9 +3444,11 @@ function App() {
     setPinnedItems(data?.pinnedItems || clean.pinnedItems);
     setRoomCapture(data?.roomCapture || clean.roomCapture);
     setPassReview(normalizePassReviewData(data?.passReview || clean.passReview));
-    setRoomItemFormOpen(false);
+    setRoomOverviewExpandedByRoom(data?.roomOverviewExpandedByRoom || clean.roomOverviewExpandedByRoom);
+    setSmartPromptExpandedByRoom(data?.smartPromptExpandedByRoom || clean.smartPromptExpandedByRoom);
+    setExpandedChecklistItems(data?.expandedChecklistItems || clean.expandedChecklistItems);
+    setRoomItemFormOpenByRoom({});
     setRoomItemDraft(EMPTY_ROOM_ITEM_DRAFT);
-    setExpandedChecklistItems({});
     setView('intake');
   };
   const startNewWalkthrough = () => {
@@ -3505,8 +3610,13 @@ function App() {
   };
   const roomRows = rows.filter(r => r.sectionKey === activeRoom);
   const currentRoomCapture = roomCaptureFor(activeRoom);
+  const currentRoomSummary = roomSummaryFor(rooms.find(r => r.key === activeRoom) || { key: activeRoom, label: activeRoom });
+  const currentRoomActionClass = currentRoomCapture.thaActionItem ? 'hasActionSelected' : (hasThaActionContext(currentRoomCapture) ? 'hasActionContext' : '');
+  const currentRoomRailClasses = `roomRail-${currentRoomSummary.rail.left} ${currentRoomSummary.rail.right === 'work-now' ? 'roomRail-pass roomRail-work-now' : currentRoomSummary.rail.right === 'pass' ? 'roomRail-pass' : ''} ${currentRoomActionClass}`.trim();
+  const roomItemFormOpen = Boolean(roomItemFormOpenByRoom[activeRoom]);
   const activeRoomLabel = rooms.find(r => r.key === activeRoom)?.label || activeRoom;
   const isRoomOverviewExpanded = Boolean(roomOverviewExpandedByRoom[activeRoom]);
+  const roomStatusCueClass = currentRoomCapture.status === 'Unknown' ? (currentRoomSummary.hasMinimumStatus ? 'statusReviewCue' : 'statusRequiredCue') : '';
   const isSmartPromptExpanded = Boolean(smartPromptExpandedByRoom[activeRoom]);
   const toggleRoomOverview = () => setRoomOverviewExpandedByRoom(prev => ({ ...prev, [activeRoom]: !prev[activeRoom] }));
   const toggleSmartPrompt = () => setSmartPromptExpandedByRoom(prev => ({ ...prev, [activeRoom]: !prev[activeRoom] }));
@@ -3530,14 +3640,15 @@ function App() {
     else if (includePMR(r.answer)) flags.push({ key: 'attention', className: 'attention', label: `Attention: ${r.answer.status}` });
     if (isIntakeFollowUp(r)) flags.push({ key: 'intake', className: r.answer.reviewStatus === 'Not Reviewed' ? 'attention' : 'info', label: `Intake: ${r.answer.reviewStatus}` });
     if (r.answer.thaActionItem) flags.push({ key: 'workOrder', className: 'workOrder', label: currentWorkOrderLabel(r.answer) || 'THA Action-Item' });
-    if (photoCount) flags.push({ key: 'photos', className: itemHasPhotoAttention(r.answer) ? 'attention' : 'info', label: `${photoCount} photo${photoCount === 1 ? '' : 's'}` });
-    if (r.answer.notes.trim()) flags.push({ key: 'notes', className: 'info', label: 'Notes' });
+    else if (thaActionTypeSelected(r.answer)) flags.push({ key: 'actionType', className: 'workOrder light', label: currentWorkOrderLabel(r.answer) });
+    if (photoCount) flags.push({ key: 'photos', className: itemHasPhotoAttention(r.answer) ? 'attention' : 'photo', label: `${photoCount} photo${photoCount === 1 ? '' : 's'}` });
+    if (r.answer.notes.trim()) flags.push({ key: 'notes', className: 'notes', label: 'Notes' });
     if (r.answer.photoRef.trim()) flags.push({ key: 'photoRef', className: 'info', label: 'Photo ref' });
     if (r.catchAll && r.answer.reassignTo) flags.push({ key: 'reassign', className: 'info', label: 'Reassign ready' });
     return flags;
   };
 
-  const roomSummaryFor = (section) => {
+  function roomSummaryFor(section) {
     const sectionRows = rows.filter(row => row.sectionKey === section.key);
     const capture = roomCaptureFor(section.key);
     const roomStatus = capture.status || ROOM_STATUS_OPTIONS[0];
@@ -3545,12 +3656,15 @@ function App() {
     const hasRoomEvidence = Boolean(capture.note.trim()) || capture.photos.length > 0 || roomItems.length > 0;
     const roomOverviewUnknown = roomStatus === 'Unknown';
     const unknownDetailCount = sectionRows.filter(row => (row.answer.status || 'Unknown') === 'Unknown').length;
+    const hasMinimumStatus = !roomOverviewUnknown || sectionRows.some(row => (row.answer.status || 'Unknown') !== 'Unknown');
     const roomSelection = passCareSelectionForRoom(section, passCareOutlook);
     const roomLevelPmcpPlacement = Boolean(capture.addToPmcpBuilder) || roomSelection.pmcpDecision === 'selected';
     const rowPmcpPlacement = sectionRows.some(row => Boolean(row.answer.addToPmcpBuilder) || passCareSelectionForRow(row, passCareOutlook).pmcpDecision === 'selected');
     const roomPmcpPlacement = roomLevelPmcpPlacement || rowPmcpPlacement;
     const hasActionItem = Boolean(capture.thaActionItem) || sectionRows.some(row => Boolean(row.answer.thaActionItem));
-    const railLeft = roomOverviewUnknown && unknownDetailCount > 0 ? 'unknown' : 'blue';
+    const hasActionContext = thaActionTypeSelected(capture) || sectionRows.some(row => thaActionTypeSelected(row.answer));
+    const hasFutureContext = roomStatusFutureContext(roomStatus);
+    const railLeft = hasMinimumStatus ? 'blue' : 'unknown';
     const railRight = hasActionItem
       ? 'work-now'
       : (roomPmcpPlacement ? 'pass' : 'none');
@@ -3579,7 +3693,7 @@ function App() {
       'Routine Care / PASS': 'PASS',
       'Homeowner Goal': 'Goal'
     }[roomStatus] || roomStatus;
-    const badges = isIntakeSection ? [] : [{ key: 'status', label: roomStatusLabel, tone: statusTone }];
+    const badges = isIntakeSection ? [] : [{ key: 'status', label: roomStatusLabel, tone: statusTone, statusClass: roomStatusPillClass(roomStatus) }];
     if (counts.intake) badges.push({ key: 'intake', label: `Intake ${counts.intake}`, tone: 'intake' });
     if (counts.pmr) badges.push({ key: 'pmr', label: `PMR ${counts.pmr}`, tone: immediateCount ? 'immediate' : 'attention' });
     if (counts.photos) badges.push({ key: 'photos', label: `Photos ${counts.photos}`, tone: 'info' });
@@ -3587,10 +3701,8 @@ function App() {
     if (counts.trade) badges.push({ key: 'trade', label: `Trade ${counts.trade}`, tone: 'attention' });
     if (counts.handy) badges.push({ key: 'handy', label: `Handy ${counts.handy}`, tone: 'handy' });
     if (counts.watch) badges.push({ key: 'watch', label: `Watch ${counts.watch}`, tone: 'watch' });
-    return { ...counts, rail: { left: railLeft, right: railRight }, badges, hasAttention, immediateCount };
-  };
-  const currentRoomSummary = roomSummaryFor(rooms.find(r => r.key === activeRoom) || { key: activeRoom, label: activeRoom });
-  const currentRoomRailClasses = `roomRail-${currentRoomSummary.rail.left} ${currentRoomSummary.rail.right === 'work-now' ? 'roomRail-pass roomRail-work-now' : currentRoomSummary.rail.right === 'pass' ? 'roomRail-pass' : ''}`.trim();
+    return { ...counts, rail: { left: railLeft, right: railRight }, badges, hasAttention, hasActionContext, hasFutureContext, hasMinimumStatus, immediateCount };
+  }
   const setupFieldState = (value) => isMissingProjectIdentityValue(value) ? 'setupMissing' : 'setupReady';
   const setupFieldHelp = (value, missingText) => isMissingProjectIdentityValue(value) ? missingText : 'Ready for PMR packet';
   const setupFieldIcon = (value) => isMissingProjectIdentityValue(value) ? '!' : '✓';
@@ -3781,7 +3893,7 @@ function App() {
         const isLastInGroup = !showGroupAddButton || index === rooms.length - 1 || rooms[index + 1]?.roomType !== groupType;
         const roomSummary = roomSummaryFor(r);
         const roomRailClasses = `roomRail-${roomSummary.rail.left} ${roomSummary.rail.right === 'work-now' ? 'roomRail-pass roomRail-work-now' : roomSummary.rail.right === 'pass' ? 'roomRail-pass' : ''}`.trim();
-        return <React.Fragment key={r.key}><div className="sectionNavRow" draggable onDragStart={()=>setDragSectionKey(r.key)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); moveSection(dragSectionKey, r.key); setDragSectionKey('');}} onDragEnd={()=>setDragSectionKey('')}><span className="sectionDragHandle" title="Drag to reorder walkthrough flow">⋮⋮</span><button className={`sectionSelect ${activeRoom===r.key?'active':''} ${roomRailClasses} ${roomSummary.hasAttention ? 'hasRoomAttention' : ''}`} onClick={()=>setActiveRoom(r.key)}><span className="sectionName">{r.label}</span><span className="roomSummaryBadges" aria-label={`${r.label} room summary`}>{roomSummary.badges.map(badge => <span key={badge.key} className={`roomSummaryBadge ${badge.tone}`}>{badge.label}</span>)}</span></button></div>{showGroupAddButton && isLastInGroup && <button type="button" className="sectionGroupAddButton" onClick={()=>addDynamicRoom(groupType)}>{groupType === 'Living / Family Rooms' ? '+ Add Living / Family Room' : groupType === 'Bedrooms' ? '+ Add Bedroom' : '+ Add Bathroom'}</button>}</React.Fragment>;
+        return <React.Fragment key={r.key}><div className="sectionNavRow" draggable onDragStart={()=>setDragSectionKey(r.key)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); moveSection(dragSectionKey, r.key); setDragSectionKey('');}} onDragEnd={()=>setDragSectionKey('')}><span className="sectionDragHandle" title="Drag to reorder walkthrough flow">⋮⋮</span><button className={`sectionSelect ${activeRoom===r.key?'active':''} ${roomRailClasses} ${roomSummary.hasAttention ? 'hasRoomAttention' : ''} ${roomSummary.hasActionContext ? 'hasActionContext' : ''} ${roomSummary.hasFutureContext ? 'hasFutureContext' : ''} ${!roomSummary.hasMinimumStatus ? 'needsStatusDecision' : ''}`} onClick={()=>setActiveRoom(r.key)}><span className="sectionName">{r.label}</span><span className="roomSummaryBadges" aria-label={`${r.label} room summary`}>{roomSummary.badges.map(badge => <span key={badge.key} className={`roomSummaryBadge ${badge.tone} ${badge.statusClass || ''}`}>{badge.label}</span>)}</span></button></div>{showGroupAddButton && isLastInGroup && <button type="button" className="sectionGroupAddButton" onClick={()=>addDynamicRoom(groupType)}>{groupType === 'Living / Family Rooms' ? '+ Add Living / Family Room' : groupType === 'Bedrooms' ? '+ Add Bedroom' : '+ Add Bathroom'}</button>}</React.Fragment>;
       })}<div className="hint"><Camera size={18}/> Prompt: Capture context, close-up, and detail photos. Store by room/item folder path.</div></aside>
       <section className="formPanel">
         <h1>{activeRoomLabel} HTC</h1>
@@ -3793,7 +3905,7 @@ function App() {
                 <strong>{activeRoomLabel} overview</strong>
               </div>
               <div className="roomOverviewSummary">
-                <span className="roomOverviewSummaryItem"><strong>Status</strong><small>{currentRoomCapture.status}</small></span>
+                <span className="roomOverviewSummaryItem"><strong>Status</strong><small className={`roomOverviewStatusValue statusBadge ${roomStatusPillClass(currentRoomCapture.status)}`}>{currentRoomCapture.status}</small></span>
                 <span className="roomOverviewSummaryItem"><strong>Note</strong><small>{currentRoomCapture.note.trim() ? 'Yes' : 'No'}</small></span>
                 <span className="roomOverviewSummaryItem"><strong>Photos</strong><small>{currentRoomCapture.photos.length}</small></span>
                 <span className="roomOverviewSummaryItem"><strong>Items</strong><small>{currentRoomCapture.items.length}</small></span>
@@ -3801,10 +3913,9 @@ function App() {
               <span className="roomOverviewToggleText">{isRoomOverviewExpanded ? 'Close overview' : 'Open overview'}</span>
             </button>
             {isRoomOverviewExpanded && <div className="roomOverviewBody">
-              <label className="roomOverviewField">Overall Room Status<select value={currentRoomCapture.status} onChange={e=>updateRoomCapture(activeRoom,{status:e.target.value})}>{ROOM_STATUS_OPTIONS.map(x=><option key={x}>{x}</option>)}</select></label>
+              <label className={`roomOverviewField statusControlField ${roomStatusCueClass} ${roomStatusPillClass(currentRoomCapture.status)}`}>Overall Room Status<select className={`roomOverviewStatusSelect ${roomStatusPillClass(currentRoomCapture.status)}`} value={currentRoomCapture.status} onChange={e=>updateRoomCapture(activeRoom,{status:e.target.value})}>{ROOM_STATUS_OPTIONS.map(x=><option key={x}>{x}</option>)}</select></label>
               <label className="passCandidateToggle"><input type="checkbox" checked={Boolean(currentRoomCapture.addToPmcpBuilder)} onChange={e=>setPmcpBuilderForRoom(rooms.find(room => room.key === activeRoom) || { key: activeRoom, label: activeRoom }, e.target.checked)}/><span><strong>Add to PMCP Builder</strong><small>Directly activates this room overview care topic for PMCP review and selection.</small></span></label>
-              <label className="workOrderToggle"><input type="checkbox" checked={Boolean(currentRoomCapture.thaActionItem)} onChange={e=>updateRoomCapture(activeRoom,{thaActionItem:e.target.checked})}/><span><strong>THA Action-Item</strong><small>Marks THA near-term follow-up responsibility for this room overview; this drives the purple rail.</small></span></label>
-              {currentRoomCapture.thaActionItem && <label>THA action type<select value={currentRoomCapture.thaActionType} onChange={e=>updateRoomCapture(activeRoom,{thaActionType:e.target.value})}>{THA_ACTION_TYPES.map(option => <option key={option}>{option}</option>)}</select></label>}
+              <div className={`workOrderActionPanel ${currentRoomCapture.thaActionItem ? 'actionSelected' : (thaActionTypeSelected(currentRoomCapture) || currentRoomCapture.note.trim() ? 'actionContext' : '')}`}><label className="workOrderToggle"><input type="checkbox" checked={Boolean(currentRoomCapture.thaActionItem)} onChange={e=>updateRoomCapture(activeRoom,{thaActionItem:e.target.checked})}/><span><strong>THA Action-Item</strong><small>Marks THA near-term follow-up responsibility for this room overview; this drives the purple rail.</small></span></label><label className="thaActionTypeField">THA Action Type<select value={currentRoomCapture.thaActionType} onChange={e=>updateRoomCapture(activeRoom,{thaActionType:e.target.value})}>{THA_ACTION_TYPES.map(option => <option key={option}>{option}</option>)}</select><small>Unknown until THA follow-up, research, repair, or trade handling is identified.</small></label></div>
               <label className="notes">Room Note / Voice Transcript<textarea value={currentRoomCapture.note} onChange={e=>updateRoomCapture(activeRoom,{note:e.target.value})} placeholder="Capture room-level context, voice transcript, or summary notes for this space."/></label>
               <div className="roomPhotoBox"><div className="photoBox"><Camera size={18}/><strong>Room Overview Photos:</strong><label className="uploadInline"><Upload size={16}/> Add Room Overview Photo<input type="file" accept="image/*" multiple onChange={e=>{addRoomPhotos(activeRoom, e.target.files); e.target.value='';}}/></label><span>{photoSummary(currentRoomCapture.photos, { emptyText: 'No room overview photos attached yet', labels: ROOM_PHOTO_LABELS })}</span></div>{currentRoomCapture.photos.length > 0 && <div className="thumbGrid roomThumbGrid">{currentRoomCapture.photos.map(photo => { const displaySrc = photoDisplaySrc(photo); return <div className="thumbCard" key={photo.id}><div className="thumb">{displaySrc ? <img src={displaySrc} alt={`Overview for ${activeRoomLabel}`}/> : <Image size={24}/>}</div><span>Overview</span><span title={photo.name}>{photo.name}</span><span className={`photoStatusBadge ${photo.uploadStatus || PHOTO_UPLOAD_STATUS.LOCAL}`}>{photoStatusLabel(photo)}</span><span className="photoStatusText">{photoStatusMessage(photo, Boolean(driveToken))}</span><button onClick={()=>removeRoomPhoto(activeRoom, photo.id)} aria-label="Remove room overview photo"><X size={14}/></button></div>; })}</div>}</div>
               <div className="roomItemsPlaceholder"><div className="roomOverviewSectionHeader"><h3>Room-level added items</h3><button type="button" onClick={openRoomItemForm}>Add Item</button></div>{roomItemFormOpen && <div className="roomItemForm"><div className="inputs roomItemInputs"><label>Item title<input value={roomItemDraft.title} onChange={e=>updateRoomItemDraft({title:e.target.value})} placeholder="e.g., Loose towel bar" autoFocus/></label><label>Item bucket/type<select value={roomItemDraft.bucket} onChange={e=>updateRoomItemDraft({bucket:e.target.value})}>{ROOM_ITEM_BUCKETS.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label></div><label className="discoveryCheck"><input type="checkbox" checked={roomItemDraft.isDiscovery} onChange={e=>updateRoomItemDraft({isDiscovery:e.target.checked})}/><span><strong>Discovery</strong><small>Unexpected, hidden, unusual, or out of the ordinary.</small></span></label><label className="notes">Notes<textarea value={roomItemDraft.notes} onChange={e=>updateRoomItemDraft({notes:e.target.value})} placeholder="Add room-level context, next step, or follow-up note."/></label><div className="roomItemActions"><button type="button" onClick={saveRoomItem} disabled={!roomItemDraft.title.trim()}>Save</button><button type="button" onClick={cancelRoomItemForm}>Cancel</button></div></div>}{currentRoomCapture.items.length > 0 ? <ul className="roomItemList">{currentRoomCapture.items.map(item=><li key={item.id} className="roomItemRow"><div><strong>{item.title}</strong><span>{roomItemBucketLabel(item.bucket)}{item.isDiscovery ? ' · Discovery' : ''}</span>{item.notes && <p>{item.notes}</p>}</div><button type="button" onClick={()=>removeRoomItem(activeRoom, item.id)} aria-label={`Remove ${item.title}`}><X size={14}/> Remove</button></li>)}</ul> : <p>No room-level items added yet.</p>}</div>
@@ -3820,22 +3931,25 @@ function App() {
           const flags = checklistSummaryFlags(r);
           const selection = passCareSelectionForRow(r, passCareOutlook);
           const rail = railStateFor(r.answer, { pmcpSelected: Boolean(r.answer.addToPmcpBuilder) || selection.pmcpDecision === 'selected', workOrderNow: r.answer.thaActionItem });
-          const pmrBadgeLabelValue = pmrReportLabel(r.answer);
+          const showPmrBadge = includePMRRow(r);
+          const pmrBadgeLabelValue = showPmrBadge ? pmrReportLabel(r.answer) : '';
           const pmrBadgeClassName = pmrReportPillClass(r.answer);
-          return <div className={`itemCard checklistItemCard categoryCard category-${meta.slug} ${isExpanded ? 'expanded' : 'collapsed'} ${flags.some(flag => flag.className === 'attention') ? 'needsAttention' : ''} rail-${rail.left} ${rail.right === 'work-now' ? 'rail-pass rail-work-now' : rail.right === 'pass' ? 'rail-pass' : ''}`} key={r.id}>
+          const actionClass = r.answer.thaActionItem ? 'hasActionSelected' : (hasThaActionContext(r.answer) ? 'hasActionContext' : '');
+          const statusCueClass = r.answer.status === 'Unknown' ? (currentRoomSummary.hasMinimumStatus ? 'statusReviewCue' : 'statusRequiredCue') : '';
+          return <div className={`itemCard checklistItemCard categoryCard category-${meta.slug} ${isExpanded ? 'expanded' : 'collapsed'} ${flags.some(flag => flag.className === 'attention') ? 'needsAttention' : ''} ${actionClass} rail-${rail.left} ${rail.right === 'work-now' ? 'rail-pass rail-work-now' : rail.right === 'pass' ? 'rail-pass' : ''}`} key={r.id}>
           <button type="button" className="checklistSummaryRow" onClick={()=>toggleChecklistItem(r.id)} aria-expanded={isExpanded} aria-controls={`item-detail-${r.id}`}>
             <span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span>
             <span className="checklistSummaryMain"><span className="itemTitleLine"><strong>{r.item}</strong><CategoryBadge category={category}/>{isIntakeFollowUp(r) && <span className="sourceBadge">Intake Follow-Up</span>}</span><span>{r.zone} · Suggested: {displayTradeLabel(r.trade)}</span></span>
-            <span className="checklistStatus"><span className={`statusBadge status-${r.answer.status.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>{r.answer.status}</span><span className={`pill ${pmrBadgeClassName}`}>{pmrBadgeLabelValue}</span></span>
+            <span className="checklistStatus"><span className={`statusBadge status-${r.answer.status.toLowerCase().replace(/[^a-z0-9]+/g, '-')} ${statusCueClass}`}>{r.answer.status}</span>{showPmrBadge && <span className={`pill ${pmrBadgeClassName}`}>{pmrBadgeLabelValue}</span>}</span>
             <span className="checklistSummaryFlags">{flags.length ? flags.map(flag => <span key={flag.key} className={`summaryFlag ${flag.className}`}>{flag.label}</span>) : <span className="summaryFlag quiet">No notes/photos</span>}</span>
             <span className="expandHint">{isExpanded ? 'Close' : 'Open'}</span>
           </button>
           {isExpanded && <div className="checklistDetailPanel" id={`item-detail-${r.id}`}>
-            <div className="itemHead expandedItemHead"><span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span><div><div className="itemTitleLine"><h2>{r.item}</h2><CategoryBadge category={category}/>{isIntakeFollowUp(r) && <span className="sourceBadge">Intake Follow-Up</span>}</div><p>{r.zone} · Suggested: {displayTradeLabel(r.trade)}</p></div>{!r.catchAll && !isIntakeFollowUp(r) && <div className="itemOrderTools"><button onClick={()=>moveItem(r.sectionKey, r.id, -1)} title="Move item up">↑</button><button onClick={()=>moveItem(r.sectionKey, r.id, 1)} title="Move item down">↓</button><button onClick={()=>togglePinItem(r.sectionKey, r.id)} title="Pin to top">{(pinnedItems[r.sectionKey] || []).includes(r.id) ? 'Pinned' : 'Pin'}</button></div>}<span className={`pill ${pmrBadgeClassName}`}>{pmrBadgeLabelValue}</span></div>
+            <div className="itemHead expandedItemHead"><span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span><div><div className="itemTitleLine"><h2>{r.item}</h2><CategoryBadge category={category}/>{isIntakeFollowUp(r) && <span className="sourceBadge">Intake Follow-Up</span>}</div><p>{r.zone} · Suggested: {displayTradeLabel(r.trade)}</p></div>{!r.catchAll && !isIntakeFollowUp(r) && <div className="itemOrderTools"><button onClick={()=>moveItem(r.sectionKey, r.id, -1)} title="Move item up">↑</button><button onClick={()=>moveItem(r.sectionKey, r.id, 1)} title="Move item down">↓</button><button onClick={()=>togglePinItem(r.sectionKey, r.id)} title="Pin to top">{(pinnedItems[r.sectionKey] || []).includes(r.id) ? 'Pinned' : 'Pin'}</button></div>}{showPmrBadge && <span className={`pill ${pmrBadgeClassName}`}>{pmrBadgeLabelValue}</span>}</div>
             <div className="prompt"><Search size={16}/><strong>Prompt:</strong> {r.prompt}</div>
             {isIntakeFollowUp(r) && <div className="intakeReviewNotes"><strong>Homeowner-reported:</strong> {r.intakeFieldLabel}: {r.intakeValue}<br/><span>Verify during HTC before PMR inclusion · Target: {r.roomName || r.room} · Source: {r.source}</span></div>}
             <div className="inputs">
-              <label>Status<select value={r.answer.status} onChange={e=>update(r.id,{status:e.target.value})}>{STATUS.map(x=><option key={x}>{x}</option>)}</select></label>
+              <label className={`statusControlField ${statusCueClass} status-${r.answer.status.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>Status<select value={r.answer.status} onChange={e=>update(r.id,{status:e.target.value})}>{STATUS.map(x=><option key={x}>{x}</option>)}</select></label>
               <label>Action Certainty<select value={actionCertaintyFor(r.answer)} onChange={e=>update(r.id,{actionCertainty:e.target.value})}>{ACTION_CERTAINTY.map(x=><option key={x}>{x}</option>)}</select></label>
               <label>Suggested Trade / Resource<select value={r.answer.trade} onChange={e=>update(r.id,{trade:e.target.value})}>{TRADE_OPTIONS.map(x=><option key={x} value={x}>{displayTradeLabel(x)}</option>)}</select></label>
               <label>Approx. Time<select value={r.answer.effort} onChange={e=>update(r.id,{effort:e.target.value})}>{EFFORT.map(x=><option key={x}>{x}</option>)}</select></label>
@@ -3844,8 +3958,7 @@ function App() {
               {isIntakeFollowUp(r) && <label className="intakeFollowUpReview">Review Status<select value={r.answer.reviewStatus} onChange={e=>update(r.id,{reviewStatus:e.target.value})}>{INTAKE_REVIEW_STATUSES.map(x=><option key={x}>{x}</option>)}</select></label>}
             </div>
             <label className="passCandidateToggle"><input type="checkbox" checked={Boolean(r.answer.addToPmcpBuilder)} onChange={e=>setPmcpBuilderForRow(r, e.target.checked)}/><span><strong>Add to PMCP Builder</strong><small>Direct field-action control that activates this canonical care topic for PMCP review/selection.</small></span></label>
-            <label className="workOrderToggle"><input type="checkbox" checked={Boolean(r.answer.thaActionItem)} onChange={e=>update(r.id,{thaActionItem:e.target.checked, workOrderNow:e.target.checked})}/><span><strong>THA Action-Item</strong><small>THA near-term follow-up responsibility; purple rail supersedes green while keeping PMCP selection active.</small></span></label>
-            {r.answer.thaActionItem && <label>THA action type<select value={r.answer.thaActionType} onChange={e=>update(r.id,{thaActionType:e.target.value})}>{THA_ACTION_TYPES.map(option=><option key={option}>{option}</option>)}</select></label>}
+            <div className={`workOrderActionPanel ${r.answer.thaActionItem ? 'actionSelected' : (hasThaActionContext(r.answer) ? 'actionContext' : '')}`}><label className="workOrderToggle"><input type="checkbox" checked={Boolean(r.answer.thaActionItem)} onChange={e=>update(r.id,{thaActionItem:e.target.checked, workOrderNow:e.target.checked})}/><span><strong>THA Action-Item</strong><small>THA near-term follow-up responsibility; purple rail supersedes green while keeping PMCP selection active.</small></span></label><label className="thaActionTypeField">THA Action Type<select value={r.answer.thaActionType} onChange={e=>update(r.id,{thaActionType:e.target.value})}>{THA_ACTION_TYPES.map(option=><option key={option}>{option}</option>)}</select><small>Unknown until THA follow-up, research, repair, or trade handling is identified.</small></label></div>
             <label className="notes">Notes for PMR detail<textarea value={r.answer.notes} onChange={e=>update(r.id,{notes:e.target.value})} placeholder="What do I see? What would I suggest? What needs confirmation? These notes sharpen the PMR language."/></label>
             <div className="photoBox"><Camera size={18}/><strong>Photo Capture:</strong><label className="uploadInline"><Upload size={16}/> Upload<input type="file" accept="image/*" multiple onChange={e=>{addPhotos(r.id, e.target.files); e.target.value='';}}/></label><span>{photoSummary(r.answer.photos)}</span></div>
             {r.answer.photos.length > 0 && <div className="thumbGrid">{r.answer.photos.map(photo => { const displaySrc = photoDisplaySrc(photo); return <div className="thumbCard" key={photo.id}><div className="thumb">{displaySrc ? <img src={displaySrc} alt={`${photo.label} for ${r.item}`}/> : <Image size={24}/>}</div><select value={photo.label} onChange={e=>updatePhoto(r.id, photo.id, {label:e.target.value})}>{PHOTO_LABELS.map(label=><option key={label}>{label}</option>)}</select><span title={photo.name}>{photo.name}</span><span className={`photoStatusBadge ${photo.uploadStatus || PHOTO_UPLOAD_STATUS.LOCAL}`}>{photoStatusLabel(photo)}</span><span className="photoStatusText">{photoStatusMessage(photo, Boolean(driveToken))}</span><button onClick={()=>removePhoto(r.id, photo.id)} aria-label="Remove photo"><X size={14}/></button></div>; })}</div>}
@@ -3856,7 +3969,7 @@ function App() {
       </section>
     </main>}
     {view === 'pmr' && <PMR client={client} intake={intake} rows={rows} pmr={pmr} counts={counts} quickHits={quickHits} passCareCandidates={passCareCandidates} passReview={passReview} passCareOutlook={passCareOutlook} roomCapture={roomCapture} sections={sections} />}
-    {view === 'pass' && <PASSWorkspace intake={intake} rows={rows} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={updatePassReview} />}
+    {view === 'pass' && <PASSWorkspace intake={intake} rows={rows} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={updatePassReview} roomCapture={roomCapture} sections={sections} />}
     {view === 'metrics' && <Metrics rows={rows} pmr={pmr} quickHits={quickHits} pass={pass}/>} 
   </div>
 }
@@ -4114,15 +4227,18 @@ function PMR({client, intake, rows = [], pmr, counts, quickHits, passCareCandida
   const tradeItems = pmr.filter(r => !['Handyman','Safety'].includes(r.answer.trade));
   const immediateItems = pmr.filter(r => r.answer.status === 'Immediate Concern');
   const handyItems = pmr.filter(r => r.answer.trade === 'Handyman');
-  const actionItems = rows.filter(r => r.answer.thaActionItem);
+  const actionItems = rows.filter(r => r.answer.thaActionItem || thaActionTypeSelected(r.answer));
+  const roomOverviewFindings = sections
+    .map(section => ({ section, capture: roomCapture?.[section.key] || {} }))
+    .filter(({ capture }) => includeRoomOverviewPMR(capture));
   const roomActionItems = sections
-    .filter(section => Boolean(roomCapture?.[section.key]?.thaActionItem))
+    .filter(section => Boolean(roomCapture?.[section.key]?.thaActionItem) || thaActionTypeSelected(roomCapture?.[section.key]))
     .map(section => ({
       id: `room-action-${section.key}`,
       roomName: section.label || section.roomName || section.key,
       item: 'Room overview follow-up',
       trade: 'Handyman',
-      actionType: THA_ACTION_TYPES.includes(roomCapture?.[section.key]?.thaActionType) ? roomCapture[section.key].thaActionType : 'Research',
+      actionType: THA_ACTION_TYPES.includes(roomCapture?.[section.key]?.thaActionType) ? roomCapture[section.key].thaActionType : 'Unknown',
       note: roomCapture?.[section.key]?.note || ''
     }));
   const roomIssueCounts = Object.entries(pmr.reduce((acc, r) => {
@@ -4169,7 +4285,8 @@ function PMR({client, intake, rows = [], pmr, counts, quickHits, passCareCandida
     <section className="pmrBlock frontSummary"><h2><ClipboardList size={20}/> Plain-English Summary</h2><p className="overallSummary">{overallSummary}</p><div className="summaryTypeGrid"><div><strong>{immediateItems.length}</strong><span>Immediate / higher concern</span></div><div><strong>{handyItems.length}</strong><span>Handy Services items</span></div><div><strong>{tradeItems.length}</strong><span>Trade items</span></div><div><strong>{passCareOutlook.length}</strong><span>PASS continued care / routine care</span></div></div></section>
     <section className="pmrBlock baselineCare"><h2>Baseline Home Care / Upkeep To-Dos</h2><p className="lede">No repair concern is implied by this section. These are baseline reminders and practical upkeep opportunities. The list becomes more tailored as Intake, HTC, PMCP Builder, and THA Action-Items are completed.</p>{Object.entries(baselineByGroup).length ? Object.entries(baselineByGroup).map(([groupName, items]) => <section className="passCalendarCareGroup" key={`baseline-${groupName}`}><h3>{groupName}</h3><div className="passCalendarTable">{items.map(item => <article className="passCalendarRow baseline" key={item.id}><div><strong>{item.title}</strong><small>{item.guidance}</small>{item.evidence.length > 0 && <small>Evidence: {item.evidence.join(' · ')}</small>}</div><span>Routine</span><span>Baseline</span><span className="nextWindow">{item.group}</span><span>{item.evidence.length ? 'Supported by intake/HTC context' : 'General homeowner care baseline'}</span><span><em className="passStatusChip baseline">Not a repair finding</em></span></article>)}</div></section>) : <p className="lede">No baseline topics generated.</p>}</section>
     <section className="pmrBlock passOutlook"><h2><ClipboardList size={20}/> Home-Specific Care Supported by Intake and/or HTC</h2><p className="lede">These care topics are supported by intake and/or walkthrough evidence and remain separate from repair findings and PMR priority counts.</p>{baselineModel.homeSpecificCare.length ? <div className="passOutlookGrid">{baselineModel.homeSpecificCare.map(item => <article className="passOutlookCard" key={`supported-care-${item.id}`}><div className="findTop"><TradeIcon trade="Handyman"/><div><h3>{item.careItem}</h3><p>{item.sourceLabel} · Intake/HTC supported care</p></div></div><div className="findGrid"><p><strong>Homeowner-facing reason:</strong><br/>{item.reason || 'Supported by intake and/or HTC context.'}</p><p><strong>Category:</strong><br/>Home-specific care supported by Intake and/or HTC</p></div></article>)}</div> : <p className="lede">No additional intake/HTC-supported care topics are pending outside PMCP selected items.</p>}</section>
-    {(actionItems.length > 0 || roomActionItems.length > 0) && <section className="pmrBlock workOrderSummary"><h2><ClipboardList size={20}/> THA Action-Items / Near-Term Follow-Up</h2><p className="lede">These THA action-items stay separate from ordinary repair findings. Purple supersedes green in rails while PMCP selections remain active underneath.</p><div className="findingTypeList"><article><h3>Detailed HTC line items</h3>{actionItems.length ? actionItems.map(r => <p key={`workorder-${r.id}`}>{r.roomName || r.room} — {r.item} · {displayTradeLabel(r.answer.trade)} · {r.answer.thaActionType || 'Research'}{includePMRRow(r) ? ` · ${pmrReportLabel(r.answer)}` : ''}</p>) : <p>No detailed line-item action-items recorded.</p>}</article><article><h3>Room overview action-items</h3>{roomActionItems.length ? roomActionItems.map(item => <p key={item.id}>{item.roomName} — {item.item} · {item.actionType}{item.note ? ` · ${item.note}` : ''}</p>) : <p>No room-overview action-items recorded.</p>}</article></div></section>}
+    {roomOverviewFindings.length > 0 && <section className="pmrBlock roomOverviewFindings"><h2><Home size={20}/> Room Overview Status Notes</h2><p className="lede">Room overview statuses that moved beyond Unknown / Looking Good are included as compact PMR context. Detailed checklist PMR findings remain counted separately.</p><div className="findingTypeList">{roomOverviewFindings.map(({ section, capture }) => <article key={`room-overview-pmr-${section.key}`}><h3>{section.label || section.roomName || section.key}</h3><p><strong>Status:</strong> {capture.status}</p>{capture.note && <p><strong>Notes/action detail:</strong> {capture.note}</p>}{thaActionTypeSelected(capture) && <p><strong>THA Action Type:</strong> {capture.thaActionType}</p>}{capture.thaActionItem && <p><strong>THA Action Item:</strong> Selected for THA work/follow-up.</p>}{photoList(capture).length > 0 && <p><strong>Photos:</strong> {photoList(capture).length} room overview photo{photoList(capture).length === 1 ? '' : 's'} linked in Photo Index.</p>}</article>)}</div></section>}
+    {(actionItems.length > 0 || roomActionItems.length > 0) && <section className="pmrBlock workOrderSummary"><h2><ClipboardList size={20}/> THA Action-Items / Near-Term Follow-Up</h2><p className="lede">These THA action-items stay separate from ordinary repair findings. Purple supersedes green in rails while PMCP selections remain active underneath.</p><div className="findingTypeList"><article><h3>Detailed HTC line items</h3>{actionItems.length ? actionItems.map(r => <p key={`workorder-${r.id}`}>{r.roomName || r.room} — {r.item} · {displayTradeLabel(r.answer.trade)} · {r.answer.thaActionType || 'Unknown'}{includePMRRow(r) ? ` · ${pmrReportLabel(r.answer)}` : ''}</p>) : <p>No detailed line-item action-items recorded.</p>}</article><article><h3>Room overview action-items</h3>{roomActionItems.length ? roomActionItems.map(item => <p key={item.id}>{item.roomName} — {item.item} · {item.actionType}{item.note ? ` · ${item.note}` : ''}</p>) : <p>No room-overview action-items recorded.</p>}</article></div></section>}
     <PassPlanSummary passCareOutlook={passCareOutlook} passReview={passReview} />
     <section className="pmrBlock roomIssueSummary"><h2><Home size={20}/> Room-by-Room Issue Count</h2><p className="lede">PMR counts only. PASS continued care stays separate and is not included in this chart.</p>{roomIssueCounts.length ? <div className="roomIssueChart">{roomIssueCounts.map(([room, count]) => <div className="roomIssueRow" key={room}><span>{room}</span><div className="roomIssueBar"><i style={{width: `${Math.max(8, (count / maxRoomIssueCount) * 100)}%`}}></i></div><strong>{count}</strong></div>)}</div> : <p className="lede">No repair issues recorded by room.</p>}</section>
     <section className="pmrBlock findingTypeSummary"><h2><AlertTriangle size={20}/> Summary by Finding Type</h2><div className="findingTypeList"><article><h3>Immediate / higher concern items</h3>{immediateItems.length ? immediateItems.map(r => <p key={`immediate-${r.id}`}>{r.roomName || r.room} — {r.item}</p>) : <p>No immediate higher-concern items recorded.</p>}</article><article><h3>Handy Services items</h3>{handyItems.length ? handyItems.map(r => <p key={`handy-${r.id}`}>{r.roomName || r.room} — {r.item}</p>) : <p>No Handy Services PMR items recorded.</p>}</article><article><h3>Trade items</h3>{tradeItems.length ? tradeItems.map(r => <p key={`trade-summary-${r.id}`}>{displayTradeLabel(r.answer.trade)}: {r.roomName || r.room} — {r.item}</p>) : <p>No trade PMR items recorded.</p>}</article><article><h3>PASS continued care / routine care</h3>{passCareOutlook.length ? passCareOutlook.map(item => <p key={`pass-summary-${item.id}`}>{item.careItem} · {item.resource}</p>) : <p>No homeowner-facing PASS continued-care items included.</p>}</article></div></section>
@@ -4245,9 +4362,12 @@ function PassReviewCard({ item, category, passReview, onPassReviewChange }) {
   const nextSuggestedWindow = review.nextSuggestedWindow ?? item.nextSuggestedWindow ?? '';
   const reason = review.reason ?? item.reason ?? '';
   const internalNote = review.internalNote ?? item.internalNote ?? '';
+  const thaActionItem = Boolean(review.thaActionItem ?? item.thaActionItem);
+  const thaActionType = THA_ACTION_TYPES.includes(review.thaActionType) ? review.thaActionType : (item.thaActionType || 'Unknown');
+  const pmcpDomain = item.pmcpDomain || item.careTopic || category;
 
   return <article className={`passReviewCard pmcp-${pmcpDecision} workflow-${workflow.visual} ${selected ? 'pmcp-selected' : ''}`}>
-    <div className="passReviewCardHeader">
+    <div className="passReviewCardHeader" onClick={() => setOpen(value => !value)} role="button" tabIndex={0} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(value => !value); } }}>
       <div className="passReviewTitle">
         <div className="passReviewBadgeRow">
           <CategoryBadge category={category}/>
@@ -4255,9 +4375,9 @@ function PassReviewCard({ item, category, passReview, onPassReviewChange }) {
           <span className="sourceBadge">{item.sourceEvidence?.label || (item.source === 'manual' ? 'HTC' : 'Supported')}</span>
         </div>
         <h4>{item.careItem}</h4>
-        <p className="passReviewSubline">{cadence} · {resource || 'Other'}</p>
+        <p className="passReviewSubline">{pmcpDomain} · {resource || 'Other'}</p><p className="passReviewCadence">{cadence} · {passSuggestedWindowText(targetWindow)}</p>
       </div>
-      <button type="button" className="passReviewCardToggle" onClick={() => setOpen(value => !value)}>{open ? 'Close' : 'Open'}</button>
+      <button type="button" className="passReviewCardToggle" onClick={e => { e.stopPropagation(); setOpen(value => !value); }}>{open ? 'Close' : 'Open'}</button>
     </div>
     {open && <>
       <div className="passReviewTop">
@@ -4270,10 +4390,11 @@ function PassReviewCard({ item, category, passReview, onPassReviewChange }) {
       <div className="passReviewTop">
         <label className="includeToggle">
           <input type="checkbox" checked={selected} onChange={e => onPassReviewChange(item.id, { pmcpDecision: e.target.checked ? 'selected' : 'pending' })}/>
-          <span><strong>Add to this homeowner’s Preventative Maintenance Care Plan</strong><small>Selected items appear in formal PMR and Drive/export PMCP output.</small></span>
+          <span><strong>Add to PMCP</strong><small>Selected items appear in formal PMR and Drive/export PMCP output.</small></span>
         </label>
         <button type="button" className="secondaryBtn" onClick={() => onPassReviewChange(item.id, { pmcpDecision: 'declined' })}>Not this year</button>
       </div>
+      <div className={`workOrderActionPanel ${thaActionItem ? 'actionSelected' : (thaActionTypeSelected({ thaActionType }) ? 'actionContext' : '')}`}><label className="workOrderToggle"><input type="checkbox" checked={thaActionItem} onChange={e => onPassReviewChange(item.id, { thaActionItem: e.target.checked })}/><span><strong>THA Action Item</strong><small>Adds this PMCP service to THA's primary internal to-do list.</small></span></label><label className="thaActionTypeField">THA Action Type<select value={thaActionType} onChange={e => onPassReviewChange(item.id, { thaActionType: e.target.value })}>{THA_ACTION_TYPES.map(option => <option key={option}>{option}</option>)}</select><small>Use for research, scheduling, trade consultation, estimates, or follow-up context.</small></label></div>
       <div className="passReviewDetailsToggle">
         <button type="button" className="secondaryBtn" onClick={() => setDetailsOpen(value => !value)}>{detailsOpen ? 'Close planning details' : 'Open planning details'}</button>
       </div>
@@ -4292,6 +4413,126 @@ function PassReviewCard({ item, category, passReview, onPassReviewChange }) {
   </article>;
 }
 
+
+function actionTodoDetail(todo = {}) {
+  if (todo.notes) return todo.notes;
+  const type = todo.actionType && todo.actionType !== 'Unknown' ? todo.actionType : 'THA action';
+  return `${type} — ${todo.roomName}: ${todo.sourceTitle}`;
+}
+
+function buildThaActionTodoGroups({ rows = [], roomCapture = {}, sections = [], passItems = [] } = {}) {
+  const grouped = new Map();
+  const ensureRoom = (roomName = 'General') => {
+    if (!grouped.has(roomName)) grouped.set(roomName, { roomName, primary: [], context: [] });
+    return grouped.get(roomName);
+  };
+  const addTodo = (todo) => {
+    const group = ensureRoom(todo.roomName);
+    const bucket = todo.thaActionItem ? group.primary : group.context;
+    bucket.push(todo);
+  };
+
+  rows.forEach(row => {
+    const answer = row.answer || {};
+    const thaActionItem = Boolean(answer.thaActionItem || answer.workOrderNow);
+    const hasActionType = thaActionTypeSelected(answer);
+    if (!thaActionItem && !hasActionType) return;
+    addTodo({
+      id: `line-${row.id}`,
+      source: 'Checklist line item',
+      roomName: row.roomName || row.room || 'General',
+      sourceTitle: row.item || 'Checklist item',
+      status: answer.status || 'Unknown',
+      resource: displayTradeLabel(answer.trade || row.trade || 'Review / Assign Later'),
+      actionType: THA_ACTION_TYPES.includes(answer.thaActionType) ? answer.thaActionType : 'Unknown',
+      thaActionItem,
+      notes: String(answer.notes || '').trim(),
+      photoCount: photoList(answer).length,
+      pmrIncluded: includePMRRow(row)
+    });
+  });
+
+  sections.forEach(section => {
+    const capture = roomCapture?.[section.key] || {};
+    const thaActionItem = Boolean(capture.thaActionItem || capture.workOrderNow);
+    const hasActionType = thaActionTypeSelected(capture);
+    if (!thaActionItem && !hasActionType) return;
+    addTodo({
+      id: `room-${section.key}`,
+      source: 'Room Overview',
+      roomName: section.label || section.roomName || section.key,
+      sourceTitle: 'Room Overview',
+      status: capture.status || 'Unknown',
+      resource: 'THA room overview',
+      actionType: THA_ACTION_TYPES.includes(capture.thaActionType) ? capture.thaActionType : 'Unknown',
+      thaActionItem,
+      notes: String(capture.note || '').trim(),
+      photoCount: photoList(capture).length,
+      pmrIncluded: false
+    });
+  });
+
+
+  passItems.forEach(item => {
+    const review = item || {};
+    const thaActionItem = Boolean(review.thaActionItem);
+    const hasActionType = thaActionTypeSelected(review);
+    if (!thaActionItem && !hasActionType) return;
+    addTodo({
+      id: `pmcp-${item.id}`,
+      source: 'PMCP catalog service',
+      roomName: 'PMCP / Care Plan',
+      sourceTitle: item.careItem || 'PMCP care service',
+      status: passPlanningStatusText(item.followUpStatus || 'Not Scheduled'),
+      resource: item.resource || 'Handy Services',
+      actionType: THA_ACTION_TYPES.includes(item.thaActionType) ? item.thaActionType : 'Unknown',
+      thaActionItem,
+      notes: String(item.internalNote || item.reason || '').trim(),
+      photoCount: 0,
+      pmrIncluded: false
+    });
+  });
+
+  return Array.from(grouped.values())
+    .map(group => ({
+      ...group,
+      primary: group.primary.sort((a, b) => a.sourceTitle.localeCompare(b.sourceTitle)),
+      context: group.context.sort((a, b) => a.sourceTitle.localeCompare(b.sourceTitle))
+    }))
+    .sort((a, b) => a.roomName.localeCompare(b.roomName));
+}
+
+function ThaActionTodoList({ rows = [], roomCapture = {}, sections = [], passItems = [] }) {
+  const groups = buildThaActionTodoGroups({ rows, roomCapture, sections, passItems });
+  const totalCount = groups.reduce((sum, group) => sum + group.primary.length + group.context.length, 0);
+  const renderTodo = (todo) => <article className={`thaTodoItem ${todo.thaActionItem ? 'primaryAction' : 'contextAction'}`} key={todo.id}>
+    <div className="thaTodoHeader">
+      <div><span className="thaTodoSource">{todo.source}</span><h4>{todo.sourceTitle}</h4></div>
+      <span className={`thaTodoPriority ${todo.thaActionItem ? 'primary' : 'context'}`}>{todo.thaActionItem ? 'THA Action Item' : 'Follow-up context'}</span>
+    </div>
+    <p className="thaTodoDetail">{actionTodoDetail(todo)}</p>
+    <div className="thaTodoMeta">
+      <span><strong>Room:</strong> {todo.roomName}</span>
+      <span><strong>Status:</strong> {todo.status}</span>
+      <span><strong>Resource:</strong> {todo.resource}</span>
+      <span><strong>Action type:</strong> {todo.actionType || 'Unknown'}</span>
+      <span><strong>THA checkbox:</strong> {todo.thaActionItem ? 'Checked' : 'Not checked'}</span>
+      {todo.photoCount > 0 && <span><strong>Photos:</strong> {todo.photoCount}</span>}
+      {todo.pmrIncluded && <span className="thaTodoPmrBadge">{pmrReportLabel({ status: todo.status })}</span>}
+    </div>
+  </article>;
+
+  return <section className="pmrBlock thaActionTodoList">
+    <h2><ClipboardList size={20}/> THA Action To-Do List</h2>
+    <p className="lede">Internal THA follow-up items pulled from checked THA Action Items and selected THA Action Types. These remain separate from PMR repair findings and PASS routine-care items.</p>
+    {totalCount ? <div className="thaTodoGroups">{groups.map(group => <section className="thaTodoRoomGroup" key={group.roomName}>
+      <h3>{group.roomName} <span>{group.primary.length + group.context.length} to-do{group.primary.length + group.context.length === 1 ? '' : 's'}</span></h3>
+      <div className="thaTodoBucket primary"><h4>THA Action Items</h4>{group.primary.length ? group.primary.map(renderTodo) : <p className="thaTodoEmptyBucket">No checked THA Action Items in this room.</p>}</div>
+      <div className="thaTodoBucket context"><h4>Action Type / Follow-Up Context</h4>{group.context.length ? group.context.map(renderTodo) : <p className="thaTodoEmptyBucket">No action-type-only follow-up context in this room.</p>}</div>
+    </section>)}</div> : <p className="lede thaTodoEmpty">No THA action to-dos yet. Check THA Action Item or select a THA Action Type during the walkthrough to build this list.</p>}
+  </section>;
+}
+
 function PassReviewControls({ intake = {}, rows = [], passCareOutlook = [], passReview = {}, onPassReviewChange = () => {} }) {
   const groupedCandidates = useMemo(() => {
     const catalogItems = PASS_CARE_RULES.map(rule => buildPassCatalogItem(rule, intake, rows, passReview, passCareOutlook));
@@ -4305,7 +4546,7 @@ function PassReviewControls({ intake = {}, rows = [], passCareOutlook = [], pass
   const selectedCount = allCatalogItems.filter(item => passReviewState(item, passReview).selected).length;
   return <CollapsibleBlock title="Preventative Maintenance Care Plan Builder" summary={`${PASS_CARE_RULES.length} catalog items · ${supportedCount} supported · ${selectedCount} selected`} defaultOpen={true} className="passReviewPanel noPrint">
     <p><strong>PASS → PMCP:</strong> PASS is The Homeowner Advocate’s framework for turning a full preventative-maintenance catalog into a homeowner’s Preventative Maintenance Care Plan (PMCP). Intake and HTC only enrich, highlight, or activate catalog items; they do not hide unrelated topics.</p>
-    <div className="passCategoryGroups">{groupedCandidates.map(group => { const meta = categoryInfo(group.category); const Icon = meta.Icon; const selectedCount = group.items.filter(item => passReviewState(item, passReview).selected).length; return <section className={`passCategoryGroup ${selectedCount ? 'hasPmcpSelected' : ''}`} key={group.category}><header className="passCategoryHeader"><div className="passCategoryTitle"><span className="passCategoryIcon"><Icon size={18}/></span><h3>{group.category}</h3></div><span className="passCategoryCount">{group.items.length} possibilities · {selectedCount} selected</span></header><div className="passReviewGrid">{group.items.map(item => <PassReviewCard key={`review-${item.id}`} item={item} category={group.category} passReview={passReview} onPassReviewChange={onPassReviewChange}/>)}</div></section>; })}</div>
+    <div className="passCategoryGroups">{groupedCandidates.map(group => { const meta = categoryInfo(group.category); const Icon = meta.Icon; const selectedCount = group.items.filter(item => passReviewState(item, passReview).selected).length; const domainGroups = group.category === 'Handy Services' ? groupPassCalendar(group.items, item => item.pmcpDomain || 'Seasonal Home Care') : { [group.category]: group.items }; return <section className={`passCategoryGroup ${selectedCount ? 'hasPmcpSelected' : ''}`} key={group.category}><header className="passCategoryHeader"><div className="passCategoryTitle"><span className="passCategoryIcon"><Icon size={18}/></span><h3>{group.category}</h3></div><span className="passCategoryCount">{group.items.length} possibilities · {selectedCount} selected</span></header>{Object.entries(domainGroups).map(([domain, items]) => <section className="passDomainGroup" key={`${group.category}-${domain}`}><h4>{domain}</h4><div className="passReviewGrid">{items.map(item => <PassReviewCard key={`review-${item.id}`} item={item} category={group.category} passReview={passReview} onPassReviewChange={onPassReviewChange}/>)}</div></section>)}</section>; })}</div>
     {!groupedCandidates.length && <p className="lede">No PASS catalog items are available yet.</p>}
   </CollapsibleBlock>;
 }
@@ -4349,11 +4590,12 @@ function PassPlanSummary({ passCareOutlook = [], passReview = {} }) {
   </section>;
 }
 
-function PASSWorkspace({ intake = {}, rows = [], passCareOutlook = [], passReview = {}, onPassReviewChange = () => {} }) {
+function PASSWorkspace({ intake = {}, rows = [], passCareOutlook = [], passReview = {}, onPassReviewChange = () => {}, roomCapture = {}, sections = [] }) {
+  const passCatalogItems = PASS_CARE_RULES.map(rule => buildPassCatalogItem(rule, intake, rows, passReview, passCareOutlook));
   const catalogCount = PASS_CARE_RULES.length;
   const selectedCount = passCareOutlook.length;
-  const supportedCount = PASS_CARE_RULES.filter(rule => buildPassCatalogItem(rule, intake, rows, passReview, passCareOutlook).sourceEvidence?.label !== 'Catalog only').length;
-  return <PassErrorBoundary onReturnToPmr={() => window.dispatchEvent(new CustomEvent('tha:set-view', { detail: 'pmr' }))}><main className="pmr passWorkspace"><div className="pmrHeader"><div><THALogo variant="full"/><p className="eyebrow">PASS — Preventative Maintenance Care Plan</p><h1>Preventative Maintenance Care Plan Builder</h1><p>PASS → PMCP: PASS is The Homeowner Advocate’s framework for turning a full preventative-maintenance catalog into a homeowner’s Preventative Maintenance Care Plan (PMCP). Intake and HTC enrich the catalog, while selected items become formal PMCP output.</p></div><div className="compassCard"><CalendarDays size={48}/><span>PMCP builder</span></div></div><StatusKey mode="workflow" title="PASS workflow status" /><section className="pmrBlock frontSummary"><h2><CalendarDays size={20}/> In-app Preventative Maintenance Care Plan</h2><p className="lede">The full catalog stays visible here. Intake and HTC highlight entries, while only selected items are included in formal PMR and Drive/export PMCP output.</p><div className="summaryTypeGrid"><div><strong>{catalogCount}</strong><span>Catalog items</span></div><div><strong>{supportedCount}</strong><span>Supported right now</span></div><div><strong>{selectedCount}</strong><span>Selected for PMCP</span></div></div></section><PassReviewControls intake={intake} rows={rows} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={onPassReviewChange}/><PassPlanSummary passCareOutlook={passCareOutlook} passReview={passReview}/></main></PassErrorBoundary>;
+  const supportedCount = passCatalogItems.filter(item => item.sourceEvidence?.label !== 'Catalog only').length;
+  return <PassErrorBoundary onReturnToPmr={() => window.dispatchEvent(new CustomEvent('tha:set-view', { detail: 'pmr' }))}><main className="pmr passWorkspace"><div className="pmrHeader"><div><THALogo variant="full"/><p className="eyebrow">PASS — Preventative Maintenance Care Plan</p><h1>Preventative Maintenance Care Plan Builder</h1><p>PASS → PMCP: PASS is The Homeowner Advocate’s framework for turning a full preventative-maintenance catalog into a homeowner’s Preventative Maintenance Care Plan (PMCP). Intake and HTC enrich the catalog, while selected items become formal PMCP output.</p></div><div className="compassCard"><CalendarDays size={48}/><span>PMCP builder</span></div></div><StatusKey mode="workflow" title="PASS workflow status" /><section className="pmrBlock frontSummary"><h2><CalendarDays size={20}/> In-app Preventative Maintenance Care Plan</h2><p className="lede">The full catalog stays visible here. Intake and HTC highlight entries, while only selected items are included in formal PMR and Drive/export PMCP output.</p><div className="summaryTypeGrid"><div><strong>{catalogCount}</strong><span>Catalog items</span></div><div><strong>{supportedCount}</strong><span>Supported right now</span></div><div><strong>{selectedCount}</strong><span>Selected for PMCP</span></div></div></section><PassReviewControls intake={intake} rows={rows} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={onPassReviewChange}/><PassPlanSummary passCareOutlook={passCareOutlook} passReview={passReview}/><ThaActionTodoList rows={rows} roomCapture={roomCapture} sections={sections} passItems={passCatalogItems}/></main></PassErrorBoundary>;
 }
 
 class PassErrorBoundary extends React.Component {

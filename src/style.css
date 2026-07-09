@@ -519,3 +519,188 @@
 .homeownerIntakeSectionCard .homeownerImportDetails{grid-column:1/-1;justify-self:stretch;min-width:0;max-width:none;margin-left:0;margin-right:0}
 .homeownerIntakeSectionCard .homeownerImportDetails>summary{width:100%;box-sizing:border-box}
 .homeownerIntakeSectionCard .clientIntakeWorkflowStep{min-width:0;max-width:none}
+
+/* V3.2 required vs attention signal system: red is reserved for blocking output; orange is recommended/attention-only. */
+:root{--required-red:#c6281d;--required-red-soft:#fff1ef;--required-red-line:#efb4aa;--attention-orange:#c95f0b;--attention-orange-soft:#fff4e8;--attention-orange-line:#f2a45f}
+.summaryItem.setupMissing{background:var(--required-red-soft);border-color:var(--required-red-line);box-shadow:inset 4px 0 0 var(--required-red)}
+.summaryItem.setupMissing small{color:var(--required-red)}
+.requiredSetupField.setupMissing{border-color:var(--required-red-line);background:var(--required-red-soft);box-shadow:inset 4px 0 0 var(--required-red)}
+.requiredSetupField.setupMissing input{border-color:var(--required-red);box-shadow:0 0 0 3px rgba(198,40,29,.14)}
+.requiredSetupField.setupMissing small{color:var(--required-red)}
+.workflowCue.setupMissing{background:var(--required-red-soft);border-color:var(--required-red-line);color:var(--required-red);box-shadow:inset 4px 0 0 var(--required-red)}
+.workflowCue.setupMissing small{color:var(--required-red)}
+.workflowCue.warning{background:var(--attention-orange-soft);border-color:var(--attention-orange-line);color:var(--attention-orange);box-shadow:inset 4px 0 0 var(--attention-orange)}
+.workflowCue.warning small{color:var(--attention-orange)}
+.controlAttentionPill{background:var(--attention-orange-soft);color:var(--attention-orange);border-color:var(--attention-orange-line)}
+.controlAttentionPill.setupAttention{background:var(--required-red-soft);color:var(--required-red);border-color:var(--required-red-line)}
+.walkthroughSetupCard.setupNeedsInput,.homeownerOutputCard:has(button:disabled){background:var(--required-red-soft);border-color:var(--required-red-line);border-left:7px solid var(--required-red)}
+.businessRecordsCard.driveAttentionCard{background:var(--attention-orange-soft);border-color:var(--attention-orange-line);border-left:7px solid var(--attention-orange)}
+
+/* PR #68 follow-up: PMCP Builder is care-plan green; yellow/amber is reserved for watch/attention cues. */
+:root{--pmcp-green:#52aa4b;--pmcp-green-soft:#f3fbf1;--pmcp-green-line:#c8e7c2;--pmcp-green-active:#e5f6e3;--pmcp-green-active-line:#94cf8d;--work-purple:#7c3aed;--work-purple-soft:#f4efff;--work-purple-line:#d9cdf9}
+.passCandidateToggle{background:var(--pmcp-green-soft);border:1px solid var(--pmcp-green-line);box-shadow:inset 4px 0 0 rgba(82,170,75,.35)}
+.passCandidateToggle:has(input:checked){background:var(--pmcp-green-active);border-color:var(--pmcp-green-active-line);box-shadow:inset 6px 0 0 var(--pmcp-green),0 0 0 2px rgba(82,170,75,.10)}
+.passCandidateToggle:has(input:checked) strong{color:#285c30}
+.passCandidateToggle:has(input:checked) small{color:#356f31}
+.workOrderToggle{background:var(--work-purple-soft);border:1px solid var(--work-purple-line);box-shadow:inset 4px 0 0 rgba(124,58,237,.34)}
+.workOrderToggle:has(input:checked){box-shadow:inset 6px 0 0 var(--work-purple),0 0 0 2px rgba(124,58,237,.10)}
+
+/* PR #68 line-item status/action language refinement. */
+:root{--status-gray:#6b7280;--status-gray-soft:#f3f4f6;--status-gray-line:#d1d5db;--status-green:#2e7d32;--status-green-soft:#eaf7e9;--status-green-line:#b9d9ad;--status-amber:#a66c00;--status-amber-soft:#fff1c6;--status-amber-line:#f1d37a;--status-orange:#c95f0b;--status-orange-soft:#fff4e8;--status-orange-line:#f2a45f;--status-red:#c6281d;--status-red-soft:#fff1ef;--status-red-line:#efb4aa;--reviewed-blue:#8bb9d6;--reviewed-blue-soft:#f6fbfe}
+.statusBadge.status-unknown{background:var(--status-gray-soft);border-color:var(--status-gray-line);color:#4b5563}
+.statusBadge.status-good{background:var(--status-green-soft);border-color:var(--status-green-line);color:var(--status-green)}
+.statusBadge.status-monitor,.statusBadge.status-watch,.statusBadge.status-upcoming{background:var(--status-amber-soft);border-color:var(--status-amber-line);color:var(--status-amber)}
+.statusBadge.status-needs-attention{background:var(--status-orange-soft);border-color:var(--status-orange-line);color:var(--status-orange)}
+.statusBadge.status-immediate-concern,.statusBadge.status-now,.statusBadge.status-urgent{background:var(--status-red-soft);border-color:var(--status-red-line);color:var(--status-red)}
+.checklistItemCard.rail-unknown::before,.roomOverviewCard.roomRail-unknown::before,.sectionSelect.roomRail-unknown::before{background:var(--status-gray-line)}
+.checklistItemCard.rail-reviewed::before,.roomOverviewCard.roomRail-reviewed::before,.sectionSelect.roomRail-reviewed::before{background:var(--reviewed-blue)}
+.checklistItemCard.rail-reviewed,.roomOverviewCard.roomRail-reviewed{box-shadow:inset 3px 0 0 rgba(139,185,214,.28)}
+.checklistItemCard.needsAttention.collapsed{box-shadow:0 6px 16px rgba(13,44,73,.05)}
+.checklistItemCard.hasActionContext,.roomOverviewCard.hasActionContext{box-shadow:inset 0 0 0 2px rgba(124,58,237,.08),0 6px 16px rgba(13,44,73,.04)}
+.checklistItemCard.hasActionSelected,.roomOverviewCard.hasActionSelected{box-shadow:inset 0 0 0 2px rgba(124,58,237,.16),0 8px 18px rgba(13,44,73,.06)}
+.workOrderActionPanel{border:1px solid var(--work-purple-line);border-radius:16px;background:#fbf9ff;padding:10px;margin:10px 0;box-shadow:inset 4px 0 0 rgba(124,58,237,.20)}
+.workOrderActionPanel.actionContext{background:var(--work-purple-soft);box-shadow:inset 5px 0 0 rgba(124,58,237,.45)}
+.workOrderActionPanel.actionSelected{background:#f0e9ff;border-color:#c5b5f3;box-shadow:inset 7px 0 0 var(--work-purple),0 0 0 2px rgba(124,58,237,.10)}
+.thaActionTypeField{margin-top:8px;padding:9px;border:1px solid #dfd6f8;border-radius:12px;background:#fff;color:#4c2f87}
+.thaActionTypeField small{display:block;color:#6f5aa5;font-weight:800;margin-top:2px}
+.summaryFlag.workOrder.light{background:#fbf9ff;color:#6746a4;border-color:#dfd6f8}
+
+/* Keep stoplight colors on pills/details only; rails remain reviewed/path indicators. */
+.roomOverviewSummaryItem .statusBadge{padding:4px 8px;font-size:11px}
+.roomOverviewSummaryItem .status-good{background:var(--status-green-soft);border-color:var(--status-green-line);color:var(--status-green)}
+.roomOverviewSummaryItem .status-monitor{background:var(--status-amber-soft);border-color:var(--status-amber-line);color:var(--status-amber)}
+.roomOverviewSummaryItem .status-needs-attention{background:var(--status-orange-soft);border-color:var(--status-orange-line);color:var(--status-orange)}
+.roomOverviewSummaryItem .status-immediate-concern{background:var(--status-red-soft);border-color:var(--status-red-line);color:var(--status-red)}
+.roomOverviewSummaryItem .status-unknown{background:var(--status-gray-soft);border-color:var(--status-gray-line);color:#4b5563}
+.summaryFlag.notes{background:#e8f1f8;color:#1f5d82;border-color:#bdd4e6}
+.summaryFlag.photo{background:#e4f5f7;color:#12616c;border-color:#a9dce2}
+
+/* Final rail language: orange means needs review; blue means reviewed; gray is reserved for inactive/empty. */
+:root{--review-needed-orange:#e97919;--review-needed-soft:#fff7ef;--inactive-gray:#cfd6dc}
+.checklistItemCard.rail-unknown::before,.roomOverviewCard.roomRail-unknown::before,.sectionSelect.roomRail-unknown::before{background:var(--review-needed-orange)}
+.checklistItemCard.rail-empty::before,.roomOverviewCard.roomRail-empty::before,.sectionSelect.roomRail-empty::before{background:var(--inactive-gray)}
+.summaryItem.setupMissing{background:var(--attention-orange-soft);border-color:var(--attention-orange-line);box-shadow:inset 4px 0 0 var(--attention-orange)}
+.summaryItem.setupMissing small{color:var(--attention-orange)}
+.requiredSetupField.setupMissing{border-color:var(--attention-orange-line);background:var(--attention-orange-soft);box-shadow:inset 4px 0 0 var(--attention-orange)}
+.requiredSetupField.setupMissing input{border-color:var(--attention-orange);box-shadow:0 0 0 3px rgba(201,95,11,.14)}
+.requiredSetupField.setupMissing small{color:var(--attention-orange)}
+.controlAttentionPill.setupAttention{background:var(--attention-orange-soft);color:var(--attention-orange);border-color:var(--attention-orange-line)}
+.walkthroughSetupCard.setupNeedsInput{background:var(--required-red-soft);border-color:var(--required-red-line);border-left:7px solid var(--required-red)}
+
+/* Walkthrough section tiles get light purple context when THA Action Type is selected in that room. */
+.sectionSelect.hasActionContext{background:#fbf9ff;border-color:#dfd6f8;box-shadow:inset 0 0 0 2px rgba(124,58,237,.08)}
+.sectionSelect.hasActionContext:not(.active){background:#fbf9ff}
+.sectionSelect.hasActionContext .sectionName{color:#4c2f87}
+.sectionSelect.hasActionContext .roomSummaryBadge{border-color:#dfd6f8}
+
+/* Room-level minimum status requirement: red cue until any status decision exists in the room. */
+.statusControlField{position:relative}
+.statusControlField.statusRequiredCue{border:1px solid var(--required-red-line);border-left:5px solid var(--required-red);border-radius:14px;background:var(--required-red-soft);padding:9px}
+.statusControlField.statusRequiredCue::after{content:"Pick at least one room status";display:block;margin-top:4px;color:var(--required-red);font-size:11px;font-weight:900;line-height:1.2}
+.statusControlField.statusReviewCue{border:1px solid var(--attention-orange-line);border-left:5px solid var(--attention-orange);border-radius:14px;background:var(--attention-orange-soft);padding:9px}
+.statusControlField.statusReviewCue::after{content:"Still review if needed";display:block;margin-top:4px;color:var(--attention-orange);font-size:11px;font-weight:900;line-height:1.2}
+.statusBadge.statusRequiredCue{box-shadow:0 0 0 2px rgba(198,40,29,.18);outline:2px solid var(--required-red-line);outline-offset:1px}
+.statusBadge.statusReviewCue{box-shadow:0 0 0 2px rgba(201,95,11,.16);outline:2px solid var(--attention-orange-line);outline-offset:1px}
+.sectionSelect.needsStatusDecision{background:var(--required-red-soft);border-color:var(--required-red-line);box-shadow:inset 0 0 0 2px rgba(198,40,29,.12)}
+.sectionSelect.needsStatusDecision::before{background:var(--required-red)}
+.sectionSelect.needsStatusDecision .sectionName{color:var(--required-red)}
+
+/* Future/context room statuses are light purple context, not unknown gray or strong THA action. */
+.statusBadge.status-future-context{background:#fbf9ff;border-color:#dfd6f8;color:#4c2f87}
+.roomOverviewSummaryItem .status-future-context{background:#fbf9ff;border-color:#dfd6f8;color:#4c2f87}
+.sectionSelect.hasFutureContext{background:#fbf9ff;border-color:#dfd6f8;box-shadow:inset 0 0 0 2px rgba(124,58,237,.08)}
+.sectionSelect.hasFutureContext:not(.active){background:#fbf9ff}
+.sectionSelect.hasFutureContext .sectionName{color:#4c2f87}
+
+/* Overall Room Status select uses the same status palette as its collapsed pill. */
+.statusControlField.statusRequiredCue,.statusControlField.statusReviewCue{background:#fff;border-color:var(--attention-orange-line);border-left-color:var(--attention-orange)}
+.statusControlField.statusRequiredCue::after{content:"Status required";display:inline-flex;width:max-content;margin-top:5px;border:1px solid var(--required-red-line);border-radius:999px;background:var(--required-red-soft);color:var(--required-red);padding:3px 7px;font-size:11px;font-weight:900;line-height:1.1}
+.statusControlField.statusReviewCue::after{content:"Still review if needed";color:var(--attention-orange)}
+.statusControlField.status-good select{background:var(--status-green-soft);border-color:var(--status-green-line);color:var(--status-green);font-weight:900}
+.statusControlField.status-monitor select{background:var(--status-amber-soft);border-color:var(--status-amber-line);color:var(--status-amber);font-weight:900}
+.statusControlField.status-needs-attention select{background:var(--status-orange-soft);border-color:var(--status-orange-line);color:var(--status-orange);font-weight:900}
+.statusControlField.status-future-context select{background:#fbf9ff;border-color:#dfd6f8;color:#4c2f87;font-weight:900}
+.statusControlField.status-unknown select{background:var(--status-gray-soft);border-color:var(--status-gray-line);color:#4b5563;font-weight:900}
+.roomSummaryBadge.status-good{background:var(--status-green-soft);border-color:var(--status-green-line);color:var(--status-green)}
+.roomSummaryBadge.status-monitor{background:var(--status-amber-soft);border-color:var(--status-amber-line);color:var(--status-amber)}
+.roomSummaryBadge.status-needs-attention{background:var(--status-orange-soft);border-color:var(--status-orange-line);color:var(--status-orange)}
+.roomSummaryBadge.status-future-context{background:#fbf9ff;border-color:#dfd6f8;color:#4c2f87}
+.roomSummaryBadge.status-unknown{background:var(--status-gray-soft);border-color:var(--status-gray-line);color:#4b5563}
+
+/* Targeted fix: Overall Room Status value colors must not be overridden by required cues. */
+.roomOverviewSummaryItem .statusBadge.status-unknown{background:var(--status-gray-soft)!important;border-color:var(--status-gray-line)!important;color:#4b5563!important;box-shadow:none;outline:0}
+.roomOverviewField.statusControlField.status-unknown select{background:var(--status-gray-soft)!important;border-color:var(--status-gray-line)!important;color:#4b5563!important;box-shadow:none!important;outline:0!important}
+.roomOverviewField.statusControlField.statusRequiredCue.status-unknown,.roomOverviewField.statusControlField.statusReviewCue.status-unknown{background:#fff;border-color:var(--attention-orange-line);border-left-color:var(--attention-orange)}
+.roomOverviewField.statusControlField.statusRequiredCue.status-unknown::after{content:"Status required";display:inline-flex;width:max-content;margin-top:5px;border:1px solid var(--required-red-line);border-radius:999px;background:var(--required-red-soft);color:var(--required-red);padding:3px 7px;font-size:11px;font-weight:900;line-height:1.1}
+
+/* Single-value override: Room Overview Unknown answer value is always gray, never required red. */
+.roomOverviewStatusValue.status-unknown{background:#f3f4f6!important;border:1px solid #d1d5db!important;color:#4b5563!important;box-shadow:none!important;outline:0!important}
+.roomOverviewStatusSelect.status-unknown{background:#f3f4f6!important;border-color:#d1d5db!important;color:#4b5563!important;box-shadow:none!important;outline:0!important}
+
+/* THA Action To-Do List in PMCP workflow: purple action/follow-up context only. */
+.thaActionTodoList{border-color:var(--work-purple-line);background:#fbf9ff;box-shadow:inset 6px 0 0 rgba(124,58,237,.28)}
+.thaActionTodoList h2{color:#4c2f87}
+.thaTodoGroups{display:flex;flex-direction:column;gap:16px;margin-top:12px}
+.thaTodoRoomGroup{border:1px solid #dfd6f8;border-radius:18px;background:#fff;padding:14px;box-shadow:0 8px 20px rgba(76,47,135,.06)}
+.thaTodoRoomGroup>h3{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;color:#4c2f87}
+.thaTodoRoomGroup>h3 span{font-size:12px;color:#6f5aa5;background:#fbf9ff;border:1px solid #dfd6f8;border-radius:999px;padding:4px 8px}
+.thaTodoBucket{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.thaTodoBucket>h4{margin:0;color:var(--navy);font-size:14px;text-transform:uppercase;letter-spacing:.04em}
+.thaTodoItem{border:1px solid #e5ddfb;border-radius:14px;background:#fff;padding:12px;box-shadow:inset 4px 0 0 rgba(124,58,237,.24)}
+.thaTodoItem.primaryAction{background:#f4efff;border-color:#cdbdf5;box-shadow:inset 7px 0 0 var(--work-purple),0 0 0 2px rgba(124,58,237,.08)}
+.thaTodoItem.contextAction{background:#fbf9ff;box-shadow:inset 5px 0 0 rgba(124,58,237,.36)}
+.thaTodoHeader{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.thaTodoHeader h4{margin:2px 0 0;color:#2f2356}
+.thaTodoSource{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:#6f5aa5}
+.thaTodoPriority{border:1px solid #dfd6f8;border-radius:999px;padding:5px 8px;font-size:11px;font-weight:900;white-space:nowrap;color:#4c2f87;background:#fff}
+.thaTodoPriority.primary{background:#ede5ff;border-color:#c5b5f3;color:#4c2f87}
+.thaTodoPriority.context{background:#fbf9ff;color:#6746a4}
+.thaTodoDetail{margin:8px 0;color:#493b68;font-weight:800}
+.thaTodoMeta{display:flex;flex-wrap:wrap;gap:7px}
+.thaTodoMeta span{border:1px solid #eee8fb;border-radius:999px;background:#fff;padding:5px 8px;font-size:12px;color:#493b68}
+.thaTodoPmrBadge{border-color:#c6d4f5!important;background:#eef3ff!important;color:#405b92!important;font-weight:900}
+.thaTodoEmpty,.thaTodoEmptyBucket{color:#6f5aa5;background:#fff;border:1px dashed #dfd6f8;border-radius:12px;padding:10px;margin:0}
+
+/* PMCP builder practical grid cards and Handy Services domain grouping. */
+.passCategoryGroup{border:1px solid #dce4e8;border-radius:20px;padding:16px;background:#fff}
+.passCategoryGroup:first-child{border-top:1px solid #dce4e8;padding-top:16px}
+.passDomainGroup{margin-top:14px}
+.passDomainGroup>h4{margin:0 0 10px;color:#356f31;font-size:13px;text-transform:uppercase;letter-spacing:.06em}
+.passReviewGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;align-items:start}
+.passReviewCard{min-height:0;padding:12px;gap:8px}
+.passReviewCardHeader{cursor:pointer;align-items:flex-start}
+.passReviewTitle{min-width:0}
+.passReviewTitle h4{font-size:15px;line-height:1.25}
+.passReviewSubline,.passReviewCadence{margin:3px 0 0;color:#53616c;font-size:12px;line-height:1.35}
+.passReviewCadence{color:#6c7a84}
+.passReviewTop{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.passReviewDetailsToggle{margin-top:2px}
+.passReviewFields{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+
+/* Rail/accent cleanup: PMCP green and THA purple live on the right; left remains status/review/required only. */
+.passCandidateToggle{box-shadow:inset -4px 0 0 rgba(82,170,75,.35)}
+.passCandidateToggle:has(input:checked){box-shadow:inset -6px 0 0 var(--pmcp-green),0 0 0 2px rgba(82,170,75,.10)}
+.includeToggle:has(input:checked){border:1px solid var(--pmcp-green-line);border-radius:14px;background:var(--pmcp-green-soft);padding:10px;box-shadow:inset -6px 0 0 var(--pmcp-green),0 0 0 2px rgba(82,170,75,.10)}
+.workOrderToggle{box-shadow:inset -4px 0 0 rgba(124,58,237,.34)}
+.workOrderToggle:has(input:checked){box-shadow:inset -6px 0 0 var(--work-purple),0 0 0 2px rgba(124,58,237,.10)}
+.workOrderActionPanel{box-shadow:inset -4px 0 0 rgba(124,58,237,.20)}
+.workOrderActionPanel.actionContext{box-shadow:inset -5px 0 0 rgba(124,58,237,.45)}
+.workOrderActionPanel.actionSelected{box-shadow:inset -7px 0 0 var(--work-purple),0 0 0 2px rgba(124,58,237,.10)}
+.thaActionTypeField{box-shadow:inset -4px 0 0 rgba(124,58,237,.16)}
+.thaActionTodoList{box-shadow:inset -6px 0 0 rgba(124,58,237,.28)}
+.thaTodoItem{box-shadow:inset -4px 0 0 rgba(124,58,237,.24)}
+.thaTodoItem.primaryAction{box-shadow:inset -7px 0 0 var(--work-purple),0 0 0 2px rgba(124,58,237,.08)}
+.thaTodoItem.contextAction{box-shadow:inset -5px 0 0 rgba(124,58,237,.36)}
+.statusControlField.status-immediate-concern select{background:var(--status-red-soft);border-color:var(--status-red-line);color:var(--status-red);font-weight:900}
+.statusControlField.status-needs-attention select{background:var(--status-orange-soft);border-color:var(--status-orange-line);color:var(--status-orange);font-weight:900}
+.statusControlField.status-monitor select{background:var(--status-amber-soft);border-color:var(--status-amber-line);color:var(--status-amber);font-weight:900}
+.statusControlField.status-good select{background:var(--status-green-soft);border-color:var(--status-green-line);color:var(--status-green);font-weight:900}
+.statusControlField.status-unknown select{background:var(--status-gray-soft);border-color:var(--status-gray-line);color:#4b5563;font-weight:900}
+
+/* Expanded checklist cleanup: only the review rail may color the left edge. */
+.checklistItemCard.categoryCard{border-left:1px solid var(--line)}
+.checklistItemCard.rail-reviewed{box-shadow:0 6px 16px rgba(13,44,73,.05)}
+.checklistItemCard.expanded.rail-reviewed,.checklistItemCard.expanded.rail-unknown{box-shadow:0 8px 18px rgba(13,44,73,.06)}
+.checklistItemCard.hasActionContext,.checklistItemCard.hasActionSelected{box-shadow:0 8px 18px rgba(13,44,73,.06)}
+.checklistItemCard.needsAttention{border-color:var(--line)}
+.checklistItemCard.needsAttention.collapsed{box-shadow:0 6px 16px rgba(13,44,73,.05)}
