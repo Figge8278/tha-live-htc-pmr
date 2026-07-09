@@ -3943,7 +3943,7 @@ function App() {
       </section>
     </main>}
     {view === 'pmr' && <PMR client={client} intake={intake} rows={rows} pmr={pmr} counts={counts} quickHits={quickHits} passCareCandidates={passCareCandidates} passReview={passReview} passCareOutlook={passCareOutlook} roomCapture={roomCapture} sections={sections} />}
-    {view === 'pass' && <PASSWorkspace intake={intake} rows={rows} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={updatePassReview} />}
+    {view === 'pass' && <PASSWorkspace intake={intake} rows={rows} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={updatePassReview} roomCapture={roomCapture} sections={sections} />}
     {view === 'metrics' && <Metrics rows={rows} pmr={pmr} quickHits={quickHits} pass={pass}/>} 
   </div>
 }
@@ -4383,6 +4383,105 @@ function PassReviewCard({ item, category, passReview, onPassReviewChange }) {
   </article>;
 }
 
+
+function actionTodoDetail(todo = {}) {
+  if (todo.notes) return todo.notes;
+  const type = todo.actionType && todo.actionType !== 'Unknown' ? todo.actionType : 'THA action';
+  return `${type} — ${todo.roomName}: ${todo.sourceTitle}`;
+}
+
+function buildThaActionTodoGroups({ rows = [], roomCapture = {}, sections = [] } = {}) {
+  const grouped = new Map();
+  const ensureRoom = (roomName = 'General') => {
+    if (!grouped.has(roomName)) grouped.set(roomName, { roomName, primary: [], context: [] });
+    return grouped.get(roomName);
+  };
+  const addTodo = (todo) => {
+    const group = ensureRoom(todo.roomName);
+    const bucket = todo.thaActionItem ? group.primary : group.context;
+    bucket.push(todo);
+  };
+
+  rows.forEach(row => {
+    const answer = row.answer || {};
+    const thaActionItem = Boolean(answer.thaActionItem || answer.workOrderNow);
+    const hasActionType = thaActionTypeSelected(answer);
+    if (!thaActionItem && !hasActionType) return;
+    addTodo({
+      id: `line-${row.id}`,
+      source: 'Checklist line item',
+      roomName: row.roomName || row.room || 'General',
+      sourceTitle: row.item || 'Checklist item',
+      status: answer.status || 'Unknown',
+      resource: displayTradeLabel(answer.trade || row.trade || 'Review / Assign Later'),
+      actionType: THA_ACTION_TYPES.includes(answer.thaActionType) ? answer.thaActionType : 'Unknown',
+      thaActionItem,
+      notes: String(answer.notes || '').trim(),
+      photoCount: photoList(answer).length,
+      pmrIncluded: includePMRRow(row)
+    });
+  });
+
+  sections.forEach(section => {
+    const capture = roomCapture?.[section.key] || {};
+    const thaActionItem = Boolean(capture.thaActionItem || capture.workOrderNow);
+    const hasActionType = thaActionTypeSelected(capture);
+    if (!thaActionItem && !hasActionType) return;
+    addTodo({
+      id: `room-${section.key}`,
+      source: 'Room Overview',
+      roomName: section.label || section.roomName || section.key,
+      sourceTitle: 'Room Overview',
+      status: capture.status || 'Unknown',
+      resource: 'THA room overview',
+      actionType: THA_ACTION_TYPES.includes(capture.thaActionType) ? capture.thaActionType : 'Unknown',
+      thaActionItem,
+      notes: String(capture.note || '').trim(),
+      photoCount: photoList(capture).length,
+      pmrIncluded: false
+    });
+  });
+
+  return Array.from(grouped.values())
+    .map(group => ({
+      ...group,
+      primary: group.primary.sort((a, b) => a.sourceTitle.localeCompare(b.sourceTitle)),
+      context: group.context.sort((a, b) => a.sourceTitle.localeCompare(b.sourceTitle))
+    }))
+    .sort((a, b) => a.roomName.localeCompare(b.roomName));
+}
+
+function ThaActionTodoList({ rows = [], roomCapture = {}, sections = [] }) {
+  const groups = buildThaActionTodoGroups({ rows, roomCapture, sections });
+  const totalCount = groups.reduce((sum, group) => sum + group.primary.length + group.context.length, 0);
+  const renderTodo = (todo) => <article className={`thaTodoItem ${todo.thaActionItem ? 'primaryAction' : 'contextAction'}`} key={todo.id}>
+    <div className="thaTodoHeader">
+      <div><span className="thaTodoSource">{todo.source}</span><h4>{todo.sourceTitle}</h4></div>
+      <span className={`thaTodoPriority ${todo.thaActionItem ? 'primary' : 'context'}`}>{todo.thaActionItem ? 'THA Action Item' : 'Follow-up context'}</span>
+    </div>
+    <p className="thaTodoDetail">{actionTodoDetail(todo)}</p>
+    <div className="thaTodoMeta">
+      <span><strong>Room:</strong> {todo.roomName}</span>
+      <span><strong>Status:</strong> {todo.status}</span>
+      <span><strong>Resource:</strong> {todo.resource}</span>
+      <span><strong>Action type:</strong> {todo.actionType || 'Unknown'}</span>
+      <span><strong>THA checkbox:</strong> {todo.thaActionItem ? 'Checked' : 'Not checked'}</span>
+      {todo.photoCount > 0 && <span><strong>Photos:</strong> {todo.photoCount}</span>}
+      {todo.pmrIncluded && <span className="thaTodoPmrBadge">{pmrReportLabel({ status: todo.status })}</span>}
+    </div>
+  </article>;
+
+  return <section className="pmrBlock thaActionTodoList">
+    <h2><ClipboardList size={20}/> THA Action To-Do List</h2>
+    <p className="lede">Internal THA follow-up items pulled from checked THA Action Items and selected THA Action Types. These remain separate from PMR repair findings and PASS routine-care items.</p>
+    {totalCount ? <div className="thaTodoGroups">{groups.map(group => <section className="thaTodoRoomGroup" key={group.roomName}>
+      <h3>{group.roomName} <span>{group.primary.length + group.context.length} to-do{group.primary.length + group.context.length === 1 ? '' : 's'}</span></h3>
+      <div className="thaTodoBucket primary"><h4>THA Action Items</h4>{group.primary.length ? group.primary.map(renderTodo) : <p className="thaTodoEmptyBucket">No checked THA Action Items in this room.</p>}</div>
+      <div className="thaTodoBucket context"><h4>Action Type / Follow-Up Context</h4>{group.context.length ? group.context.map(renderTodo) : <p className="thaTodoEmptyBucket">No action-type-only follow-up context in this room.</p>}</div>
+    </section>)}</div> : <p className="lede thaTodoEmpty">No THA action to-dos yet. Check THA Action Item or select a THA Action Type during the walkthrough to build this list.</p>}
+  </section>;
+}
+
 function PassReviewControls({ intake = {}, rows = [], passCareOutlook = [], passReview = {}, onPassReviewChange = () => {} }) {
   const groupedCandidates = useMemo(() => {
     const catalogItems = PASS_CARE_RULES.map(rule => buildPassCatalogItem(rule, intake, rows, passReview, passCareOutlook));
@@ -4440,11 +4539,11 @@ function PassPlanSummary({ passCareOutlook = [], passReview = {} }) {
   </section>;
 }
 
-function PASSWorkspace({ intake = {}, rows = [], passCareOutlook = [], passReview = {}, onPassReviewChange = () => {} }) {
+function PASSWorkspace({ intake = {}, rows = [], passCareOutlook = [], passReview = {}, onPassReviewChange = () => {}, roomCapture = {}, sections = [] }) {
   const catalogCount = PASS_CARE_RULES.length;
   const selectedCount = passCareOutlook.length;
   const supportedCount = PASS_CARE_RULES.filter(rule => buildPassCatalogItem(rule, intake, rows, passReview, passCareOutlook).sourceEvidence?.label !== 'Catalog only').length;
-  return <PassErrorBoundary onReturnToPmr={() => window.dispatchEvent(new CustomEvent('tha:set-view', { detail: 'pmr' }))}><main className="pmr passWorkspace"><div className="pmrHeader"><div><THALogo variant="full"/><p className="eyebrow">PASS — Preventative Maintenance Care Plan</p><h1>Preventative Maintenance Care Plan Builder</h1><p>PASS → PMCP: PASS is The Homeowner Advocate’s framework for turning a full preventative-maintenance catalog into a homeowner’s Preventative Maintenance Care Plan (PMCP). Intake and HTC enrich the catalog, while selected items become formal PMCP output.</p></div><div className="compassCard"><CalendarDays size={48}/><span>PMCP builder</span></div></div><StatusKey mode="workflow" title="PASS workflow status" /><section className="pmrBlock frontSummary"><h2><CalendarDays size={20}/> In-app Preventative Maintenance Care Plan</h2><p className="lede">The full catalog stays visible here. Intake and HTC highlight entries, while only selected items are included in formal PMR and Drive/export PMCP output.</p><div className="summaryTypeGrid"><div><strong>{catalogCount}</strong><span>Catalog items</span></div><div><strong>{supportedCount}</strong><span>Supported right now</span></div><div><strong>{selectedCount}</strong><span>Selected for PMCP</span></div></div></section><PassReviewControls intake={intake} rows={rows} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={onPassReviewChange}/><PassPlanSummary passCareOutlook={passCareOutlook} passReview={passReview}/></main></PassErrorBoundary>;
+  return <PassErrorBoundary onReturnToPmr={() => window.dispatchEvent(new CustomEvent('tha:set-view', { detail: 'pmr' }))}><main className="pmr passWorkspace"><div className="pmrHeader"><div><THALogo variant="full"/><p className="eyebrow">PASS — Preventative Maintenance Care Plan</p><h1>Preventative Maintenance Care Plan Builder</h1><p>PASS → PMCP: PASS is The Homeowner Advocate’s framework for turning a full preventative-maintenance catalog into a homeowner’s Preventative Maintenance Care Plan (PMCP). Intake and HTC enrich the catalog, while selected items become formal PMCP output.</p></div><div className="compassCard"><CalendarDays size={48}/><span>PMCP builder</span></div></div><StatusKey mode="workflow" title="PASS workflow status" /><section className="pmrBlock frontSummary"><h2><CalendarDays size={20}/> In-app Preventative Maintenance Care Plan</h2><p className="lede">The full catalog stays visible here. Intake and HTC highlight entries, while only selected items are included in formal PMR and Drive/export PMCP output.</p><div className="summaryTypeGrid"><div><strong>{catalogCount}</strong><span>Catalog items</span></div><div><strong>{supportedCount}</strong><span>Supported right now</span></div><div><strong>{selectedCount}</strong><span>Selected for PMCP</span></div></div></section><ThaActionTodoList rows={rows} roomCapture={roomCapture} sections={sections}/><PassReviewControls intake={intake} rows={rows} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={onPassReviewChange}/><PassPlanSummary passCareOutlook={passCareOutlook} passReview={passReview}/></main></PassErrorBoundary>;
 }
 
 class PassErrorBoundary extends React.Component {
