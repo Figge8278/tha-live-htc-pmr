@@ -13,9 +13,9 @@
       .passWorkspace .passCategoryGroup{padding:14px!important;border-radius:18px!important}
       .passWorkspace .passDomainGroup{margin-top:12px!important}
       .passWorkspace .passDomainGroup>h4{margin:0 0 8px!important;font-size:12px!important;letter-spacing:.05em!important;text-transform:uppercase!important;color:#356f31!important}
-      .passWorkspace .passReviewGrid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(178px,1fr))!important;gap:10px!important;align-items:start!important;width:100%!important}
-      @media(min-width:980px){.passWorkspace .passReviewGrid{grid-template-columns:repeat(auto-fill,minmax(205px,1fr))!important}}
-      @media(max-width:540px){.passWorkspace .passReviewGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}}
+      .passWorkspace .passReviewGrid,.tha-pmcp-grid-parent{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(178px,1fr))!important;gap:10px!important;align-items:start!important;width:100%!important}
+      @media(min-width:980px){.passWorkspace .passReviewGrid,.tha-pmcp-grid-parent{grid-template-columns:repeat(auto-fill,minmax(205px,1fr))!important}}
+      @media(max-width:540px){.passWorkspace .passReviewGrid,.tha-pmcp-grid-parent{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}}
 
       .passReviewCardHeader{position:relative!important;cursor:pointer!important;gap:8px!important;align-items:flex-start!important}
       .passReviewCardToggle{display:none!important}
@@ -49,12 +49,33 @@
       .passReviewCard.pmcp-selected:has(.workOrderToggle input:checked) .passReviewCardHeader{box-shadow:inset -5px 0 0 rgba(124,58,237,.55)!important}
       .tha-hidden-catalog-only{display:none!important}
 
+      /* Anything specifically selected/notated should scan as cards, not as a vertical list. */
+      .passWorkspace .passPlanSummary .passCalendarTable,
+      .passWorkspace .passCalendarTable.tha-notation-grid,
+      .pmr .passPlanSummary .passCalendarTable,
+      .pmr .passCalendarTable.tha-notation-grid,
+      .pmr .passOutlookGrid,
+      .passWorkspace .passOutlookGrid,
+      .pmr .findingTypeList,
+      .passWorkspace .findingTypeList,
+      .pmr .roomIssueChart,
+      .passWorkspace .thaTodoGroups,
+      .pmr .thaTodoGroups{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))!important;gap:12px!important;align-items:start!important}
+      .passWorkspace .thaTodoBucket,.pmr .thaTodoBucket{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))!important;gap:10px!important;align-items:start!important}
+      .passWorkspace .thaTodoBucket>h4,.pmr .thaTodoBucket>h4{grid-column:1/-1!important}
+      .pmr .findingTypeList>article,.passWorkspace .findingTypeList>article,.pmr .passOutlookCard,.passWorkspace .passOutlookCard,.pmr .roomIssueRow,.passWorkspace .thaTodoRoomGroup,.pmr .thaTodoRoomGroup{min-width:0!important;border-radius:16px!important;box-shadow:0 8px 18px rgba(23,62,87,.06)!important}
+      .pmr .passCalendarRow,.passWorkspace .passCalendarRow{min-width:0!important;border-radius:14px!important;box-shadow:0 6px 14px rgba(23,62,87,.05)!important}
+      .pmr .passCalendarTable.tha-notation-grid .passCalendarRow,.passWorkspace .passCalendarTable.tha-notation-grid .passCalendarRow{display:block!important;padding:12px!important}
+      .pmr .passCalendarTable.tha-notation-grid .passCalendarRow>div,.passWorkspace .passCalendarTable.tha-notation-grid .passCalendarRow>div{margin:0 0 8px!important}
+      .pmr .passCalendarTable.tha-notation-grid .passCalendarRow>span,.passWorkspace .passCalendarTable.tha-notation-grid .passCalendarRow>span,.pmr .passCalendarTable.tha-notation-grid .passCalendarRow em,.passWorkspace .passCalendarTable.tha-notation-grid .passCalendarRow em{display:inline-flex!important;margin:3px 4px 0 0!important;border:1px solid #e2e8ed!important;border-radius:999px!important;background:#fff!important;color:#53616c!important;padding:4px 7px!important;font-size:10px!important;font-style:normal!important;font-weight:850!important;line-height:1.15!important}
+
       @media(max-width:720px){
         .passReviewCardHeader{flex-wrap:nowrap!important}
         .tha-pmcp-quick-select{width:auto!important;min-width:0!important;padding:6px 7px!important;font-size:10px!important}
         .tha-pmcp-details-needed{font-size:9px!important;padding:3px 6px!important}
         .passReviewCard.tha-pmcp-expanded{padding:13px!important}
         .passReviewCard.tha-pmcp-expanded .passReviewTop,.passReviewCard.tha-pmcp-expanded .passReviewFields{grid-template-columns:1fr!important}
+        .pmr .findingTypeList,.passWorkspace .findingTypeList,.pmr .passOutlookGrid,.passWorkspace .passOutlookGrid,.passWorkspace .passPlanSummary .passCalendarTable,.pmr .passPlanSummary .passCalendarTable,.passWorkspace .thaTodoGroups,.pmr .thaTodoGroups,.passWorkspace .thaTodoBucket,.pmr .thaTodoBucket{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
       }
     `;
     document.head.append(style);
@@ -165,11 +186,23 @@
     if (input) input.checked = cardSelected(card);
   }
 
+  function enhanceGridContainers(root = document) {
+    root.querySelectorAll?.('.passReviewCard').forEach(card => {
+      const parent = card.parentElement;
+      if (parent) parent.classList.add('tha-pmcp-grid-parent');
+    });
+    root.querySelectorAll?.('.passCalendarRow').forEach(row => {
+      const parent = row.parentElement;
+      if (parent) parent.classList.add('tha-notation-grid');
+    });
+  }
+
   function enhanceCards(root = document) {
     root.querySelectorAll?.('.passReviewCard').forEach(card => {
       card.setAttribute(ENHANCED_ATTR, 'true');
       syncCard(card);
     });
+    enhanceGridContainers(root);
   }
 
   function start() {
@@ -184,6 +217,7 @@
         });
       }
       document.querySelectorAll(`.passReviewCard[${ENHANCED_ATTR}]`).forEach(syncCard);
+      enhanceGridContainers();
     });
     observer.observe(document.body, { childList: true, subtree: true });
   }
