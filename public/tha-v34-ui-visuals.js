@@ -88,6 +88,17 @@
         border-bottom-color:rgba(224,184,77,.28)!important;
       }
 
+      /* Walkthrough Setup & Records order: 1 Setup, 2 Homeowner Intake, 3 Work Session, 4 Records. */
+      .walkthroughControlsPanel .walkthroughControlsBody{
+        grid-template-areas:"setup intakeImport" "workSession businessRecords" "advanced advanced"!important;
+      }
+
+      @media(max-width:900px){
+        .walkthroughControlsPanel .walkthroughControlsBody{
+          grid-template-areas:"setup" "intakeImport" "workSession" "businessRecords" "advanced"!important;
+        }
+      }
+
       @media(max-width:720px){
         #root .tha-open-close-ring,
         main .tha-open-close-ring{box-shadow:0 0 0 1.5px rgba(47,128,237,.18),0 1px 0 rgba(21,87,153,.08)!important}
@@ -201,8 +212,22 @@
     button.setAttribute(MARK_ATTR, complete ? 'save-complete' : 'save-pending');
   }
 
+  function setHeading(element, label) {
+    if (element && textOf(element) !== label) element.textContent = label;
+  }
+
+  function applySetupRecordsOrder(root = document) {
+    root.querySelectorAll?.('.walkthroughControlsPanel').forEach(panel => {
+      setHeading(panel.querySelector('.tha-walkthrough-setup-card h3, .sessionCard:not(.localWorkCard):not(.intakeImportLaunchCard) h3'), '1. Walkthrough Setup');
+      setHeading(panel.querySelector('.intakeImportCard.tha-import-in-controls .intakeImportHeader h2, .intakeImportPanel .intakeImportHeader h2'), '2. Homeowner Intake');
+      setHeading(panel.querySelector('.localWorkCard .controlGroupTitle h3, .localWorkCard h3'), '3. Work Session');
+      setHeading(panel.querySelector('.businessRecordsCard .driveSetupHeader h3, .businessRecordsCard h3'), '4. Business Records & Drive');
+    });
+  }
+
   function applyVisuals(root = document) {
     installStyles();
+    applySetupRecordsOrder(root);
     root.querySelectorAll?.(APP_CONTROL_SELECTOR).forEach(classifyOpenClose);
     root.querySelectorAll?.('button').forEach(simplifySaveButton);
     root.querySelectorAll?.('span, small, strong, em, b, p, div, button').forEach(element => {
