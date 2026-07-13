@@ -8,9 +8,19 @@
   const LEGACY_GOOGLE_CLIENT_ID_KEY = 'tha-google-client-id';
   const DRIVE_QUEUE_KEY = 'tha-drive-pending-queue';
   const DRIVE_META_KEY = 'tha-drive-meta';
+  const PHOTO_CACHE_DB = 'tha-photo-safety-cache-v1';
+  const PHOTO_CACHE_STORE = 'photos';
+  const PHOTO_CACHE_META_KEY = 'tha-photo-safety-cache-meta';
+
+  let cacheSnapshot = { supported: 'indexedDB' in window, cachedCount: 0, cachedDataKb: 0, lastCachedAt: '', status: 'checking', error: '' };
+  let cacheRunning = false;
 
   function textOf(element) {
     return String(element?.textContent || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function escapeHtml(value = '') {
+    return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
   }
 
   function readJson(key, fallback) {
@@ -18,6 +28,14 @@
       return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback;
     } catch {
       return fallback;
+    }
+  }
+
+  function writeJson(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      /* helpful, not required */
     }
   }
 
@@ -65,13 +83,36 @@
     if (photo.dataUrl) stats.rooms[room].withDataUrl += 1;
   }
 
+  function collectPhotos(data = {}) {
+    const photos = [];
+    Object.entries(data.roomCapture || {}).forEach(([roomName, capture]) => {
+      asPhotoList(capture).forEach((photo, index) => photos.push({
+        key: `room:${roomName}:${photo.id || photo.name || index}`,
+        source: 'room',
+        room: roomName || 'Room overview',
+        item: 'Room overview',
+        photo
+      }));
+    });
+    Object.entries(data.answers || {}).forEach(([answerKey, answer]) => {
+      asPhotoList(answer).forEach((photo, index) => photos.push({
+        key: `item:${answerKey}:${photo.id || photo.name || index}`,
+        source: 'checklist',
+        room: answer.roomName || answer.room || 'Checklist item photos',
+        item: answer.item || answerKey,
+        photo
+      }));
+    });
+    return photos;
+  }
+
   function photoStats(data = {}) {
     const stats = { total: 0, local: 0, pending: 0, uploaded: 0, failed: 0, metadata: 0, withDataUrl: 0, dataUrlChars: 0, thumbnailChars: 0, rooms: {} };
     Object.entries(data.roomCapture || {}).forEach(([roomName, capture]) => {
       asPhotoList(capture).forEach(photo => addPhotoStats(stats, photo, roomName));
     });
     Object.values(data.answers || {}).forEach(answer => {
-      asPhotoList(answer).forEach(photo => addPhotoStats(stats, photo, 'Checklist item photos'));
+      asPhotoList(answer).forEach(photo => addPhotoStats(stats, photo, answer?.roomName || answer?.room || 'Checklist item photos'));
     });
     return stats;
   }
@@ -86,6 +127,105 @@
       return Math.round((total * 2) / 1024);
     } catch {
       return null;
+    }
+  }
+
+  function openPhotoDb() {
+    return new Promise((resolve, reject) => {
+      if (!('indexedDB' in window)) {
+        reject(new Error('IndexedDB is not available in this browser.'));
+        return;
+      }
+      const request = indexedDB.open(PHOTO_CACHE_DB, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(PHOTO_CACHE_STORE)) {
+          db.createObjectStore(PHOTO_CACHE_STORE, { keyPath: 'key' });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('Unable to open photo safety cache.'));
+    });
+  }
+
+  function putRecords(db, records) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(PHOTO_CACHE_STORE, 'readwrite');
+      const store = tx.objectStore(PHOTO_CACHE_STORE);
+      records.forEach(record => store.put(record));
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('Photo safety cache write failed.'));
+    });
+  }
+
+  function countRecords(db) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(PHOTO_CACHE_STORE, 'readonly');
+      const store = tx.objectStore(PHOTO_CACHE_STORE);
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error || new Error('Unable to read photo safety cache.'));
+    });
+  }
+
+  function updateCacheSnapshot(next) {
+    cacheSnapshot = { ...cacheSnapshot, ...next };
+    writeJson(PHOTO_CACHE_META_KEY, cacheSnapshot);
+  }
+
+  function loadCacheMeta() {
+    const saved = readJson(PHOTO_CACHE_META_KEY, null);
+    if (saved) cacheSnapshot = { ...cacheSnapshot, ...saved, supported: 'indexedDB' in window };
+  }
+
+  function kbFromBase64Chars(chars) {
+    return Math.max(0, Math.round((chars * 0.75) / 1024));
+  }
+
+  async function refreshPhotoSafetyCache({ force = false } = {}) {
+    if (cacheRunning) return;
+    const session = currentSession();
+    const photos = collectPhotos(session?.data || {}).filter(entry => entry.photo?.dataUrl);
+    if (!photos.length && !force) {
+      updateCacheSnapshot({ supported: 'indexedDB' in window, cachedCount: 0, cachedDataKb: 0, status: 'empty', error: '', lastCachedAt: cacheSnapshot.lastCachedAt || '' });
+      return;
+    }
+    cacheRunning = true;
+    updateCacheSnapshot({ supported: 'indexedDB' in window, status: 'caching', error: '' });
+    schedule();
+    try {
+      const db = await openPhotoDb();
+      const records = photos.map(entry => ({
+        key: entry.key,
+        source: entry.source,
+        room: entry.room,
+        item: entry.item,
+        name: entry.photo.name || 'photo.jpg',
+        type: entry.photo.type || 'image/jpeg',
+        dataUrl: entry.photo.dataUrl,
+        thumbnailDataUrl: entry.photo.thumbnailDataUrl || '',
+        uploadStatus: photoStatus(entry.photo),
+        driveFileId: entry.photo.driveFileId || '',
+        driveViewLink: entry.photo.driveViewLink || entry.photo.webViewLink || '',
+        cachedAt: new Date().toISOString()
+      }));
+      if (records.length) await putRecords(db, records);
+      const all = await countRecords(db);
+      db.close?.();
+      const dataChars = all.reduce((sum, record) => sum + String(record.dataUrl || '').length, 0);
+      updateCacheSnapshot({
+        supported: true,
+        cachedCount: all.length,
+        cachedDataKb: kbFromBase64Chars(dataChars),
+        lastCachedAt: new Date().toISOString(),
+        status: records.length ? 'cached' : 'empty',
+        error: ''
+      });
+    } catch (error) {
+      updateCacheSnapshot({ supported: 'indexedDB' in window, status: 'error', error: error?.message || 'Photo safety cache unavailable.' });
+    } finally {
+      cacheRunning = false;
+      schedule();
     }
   }
 
@@ -107,18 +247,24 @@
     return { configured: configured || connected || domState === 'configured', connected, error, queueCount: Array.isArray(queue) ? queue.length : Object.keys(queue || {}).length, lastError: meta.lastError || '' };
   }
 
-  function kbFromBase64Chars(chars) {
-    return Math.max(0, Math.round((chars * 0.75) / 1024));
-  }
-
   function riskLevel(stats, storageKb) {
     if (stats.failed || storageKb > 4300 || stats.withDataUrl >= 10 || kbFromBase64Chars(stats.dataUrlChars) > 3500) return 'high';
     if (stats.pending || stats.local >= 5 || stats.withDataUrl >= 5 || storageKb > 3000) return 'medium';
     return 'low';
   }
 
+  function cacheStatusLabel(stats) {
+    if (!cacheSnapshot.supported) return 'Photo cache unavailable';
+    if (cacheSnapshot.status === 'caching') return 'Photo cache updating…';
+    if (cacheSnapshot.status === 'error') return 'Photo cache error';
+    if (!stats.withDataUrl) return 'No local photos to cache';
+    if (cacheSnapshot.cachedCount >= stats.withDataUrl) return `${cacheSnapshot.cachedCount} cached safely`;
+    return `${cacheSnapshot.cachedCount || 0}/${stats.withDataUrl} cached safely`;
+  }
+
   function summaryMessage({ stats, drive, online, storageKb }) {
     if (!online) return 'Offline field mode: capture stays local. Do not clear browser data. Reconnect, then save the Drive package before relying on this from another device.';
+    if (cacheSnapshot.supported && stats.withDataUrl && cacheSnapshot.cachedCount < stats.withDataUrl) return 'Photo safety cache needs updating. Cache photos locally, then connect Drive and save the package when service is available.';
     if (!drive.configured) return 'Drive is not configured yet. You can test locally, but Drive package export will not be dependable until Google Drive is configured and connected.';
     if (!drive.connected) return 'Drive appears configured, but not connected in this browser session. Connect Drive before sending a test package or relying on tablet-to-computer handoff.';
     if (stats.local || stats.pending) return 'Drive is connected. Local or pending photos still need a Drive package save before they are safe for client delivery or cross-device handoff.';
@@ -146,6 +292,7 @@
       .tha-field-room-pill{border:1px solid #d9e6ed!important;border-radius:12px!important;background:#fff!important;padding:7px 8px!important;color:#3b5563!important;font-size:11px!important;font-weight:850!important;line-height:1.25!important}
       .tha-field-sync-actions{display:flex!important;flex-wrap:wrap!important;gap:7px!important;align-items:center!important}
       .tha-field-sync-actions button{border:1px solid #9fc7ff!important;border-radius:999px!important;background:#fff!important;color:#155799!important;padding:7px 10px!important;font-size:11px!important;font-weight:950!important;cursor:pointer!important}
+      .tha-field-sync-actions button.cache{border-color:#9ecf93!important;color:#285c30!important;background:#f4fbf1!important}
       .tha-field-sync-footnote{font-size:11px!important;color:#697985!important;font-weight:750!important}
       @media(max-width:720px){.tha-field-sync-panel{padding:10px!important}.tha-field-room-list{grid-template-columns:repeat(2,minmax(0,1fr))!important}.tha-field-sync-chip{font-size:10px!important;padding:5px 7px!important}}
       @media print{.tha-field-sync-panel{display:none!important}}
@@ -154,7 +301,7 @@
   }
 
   function chip(label, state = '') {
-    return `<span class="tha-field-sync-chip ${state}">${label}</span>`;
+    return `<span class="tha-field-sync-chip ${state}">${escapeHtml(label)}</span>`;
   }
 
   function roomHtml(stats) {
@@ -166,7 +313,7 @@
       if (room.pending) flags.push(`${room.pending} pending`);
       if (room.uploaded) flags.push(`${room.uploaded} Drive`);
       if (room.failed) flags.push(`${room.failed} failed`);
-      return `<div class="tha-field-room-pill"><strong>${room.room}</strong><br>${room.total} photo${room.total === 1 ? '' : 's'} · ${flags.join(' · ') || 'metadata only'}</div>`;
+      return `<div class="tha-field-room-pill"><strong>${escapeHtml(room.room)}</strong><br>${room.total} photo${room.total === 1 ? '' : 's'} · ${escapeHtml(flags.join(' · ') || 'metadata only')}</div>`;
     }).join('')}</div>`;
   }
 
@@ -182,10 +329,11 @@
     const photoState = stats.failed ? 'bad' : (stats.local || stats.pending || stats.withDataUrl >= 5) ? 'warn' : 'good';
     const onlineState = online ? 'good' : 'warn';
     const storageState = storageKb > 4300 ? 'bad' : storageKb > 3000 ? 'warn' : 'good';
+    const cacheState = !cacheSnapshot.supported || cacheSnapshot.status === 'error' ? 'bad' : cacheSnapshot.status === 'caching' || (stats.withDataUrl && cacheSnapshot.cachedCount < stats.withDataUrl) ? 'warn' : 'good';
     return `
       <section class="tha-field-sync-panel ${risk}" ${PANEL_ATTR}="${location}">
         <header>
-          <div><h3>${location === 'intake' ? 'Field Sync Readiness' : 'Business Records & Drive Readiness'}</h3><p>${summaryMessage({ stats, drive, online, storageKb })}</p></div>
+          <div><h3>${location === 'intake' ? 'Field Sync Readiness' : 'Business Records & Drive Readiness'}</h3><p>${escapeHtml(summaryMessage({ stats, drive, online, storageKb }))}</p></div>
         </header>
         <div class="tha-field-sync-chip-row">
           ${chip(online ? 'Online' : 'Offline / queued only', onlineState)}
@@ -193,11 +341,13 @@
           ${chip(`${stats.total} photo${stats.total === 1 ? '' : 's'}`, photoState)}
           ${chip(`${stats.local + stats.pending} local/pending`, stats.local || stats.pending ? 'warn' : 'good')}
           ${chip(`${stats.uploaded} on Drive`, stats.uploaded ? 'good' : '')}
+          ${chip(cacheStatusLabel(stats), cacheState)}
+          ${chip(`Cache ~${cacheSnapshot.cachedDataKb || 0} KB`, cacheState)}
           ${chip(`Local storage ~${storageKb} KB`, storageState)}
         </div>
         ${roomHtml(stats)}
-        <div class="tha-field-sync-actions"><button type="button" data-tha-sync-open-records>Open records / Drive</button><button type="button" data-tha-sync-open-pmr>Open PMR</button></div>
-        <p class="tha-field-sync-footnote">Field rule: when service is available, save the Drive package before relying on another device. When service is unavailable, keep the browser/app data intact until the queued local photos are synced or exported.</p>
+        <div class="tha-field-sync-actions"><button type="button" class="cache" data-tha-sync-cache-photos>Cache photos locally</button><button type="button" data-tha-sync-open-records>Open records / Drive</button><button type="button" data-tha-sync-open-pmr>Open PMR</button></div>
+        <p class="tha-field-sync-footnote">Field rule: when service is available, save the Drive package before relying on another device. When service is unavailable, keep the browser/app data intact until the queued local photos are synced or exported. The safety cache mirrors current photo data outside the main walkthrough save; the next native pass will move new photo storage there directly.</p>
       </section>`;
   }
 
@@ -219,6 +369,11 @@
   }
 
   function wireButtons() {
+    document.querySelectorAll('[data-tha-sync-cache-photos]').forEach(button => {
+      if (button.dataset.wired) return;
+      button.dataset.wired = 'true';
+      button.addEventListener('click', () => refreshPhotoSafetyCache({ force: true }));
+    });
     document.querySelectorAll('[data-tha-sync-open-records]').forEach(button => {
       if (button.dataset.wired) return;
       button.dataset.wired = 'true';
@@ -248,6 +403,7 @@
     const recordsHeader = document.querySelector('.walkthroughControlsPanel .businessRecordsCard .driveSetupHeader');
     placePanel(recordsHeader, 'records', 'after');
     wireButtons();
+    refreshPhotoSafetyCache();
   }
 
   let scheduled = false;
@@ -262,6 +418,7 @@
   }
 
   function start() {
+    loadCacheMeta();
     render();
     new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class', 'aria-expanded'] });
     window.addEventListener('storage', schedule);
