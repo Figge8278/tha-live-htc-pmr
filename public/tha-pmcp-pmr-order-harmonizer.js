@@ -22,14 +22,28 @@
         background:#fbf9ff!important;
         box-shadow:inset 6px 0 0 rgba(116,90,145,.22)!important;
       }
+      .tha-pmr-supporting-output h2{display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:wrap!important}
+      .tha-pmr-supporting-output h2::after{content:"optional / accessory"!important;display:inline-flex!important;border:1px solid #d7c4ef!important;border-radius:999px!important;background:#fff!important;color:#5b4674!important;padding:4px 8px!important;font-size:11px!important;font-weight:950!important;letter-spacing:.02em!important;text-transform:uppercase!important}
       .tha-pmr-supporting-output .tha-supporting-toolbar,
       .tha-pmr-supporting-output .tha-supporting-builder-note,
       .tha-pmr-supporting-output .tha-supporting-send-control,
       .tha-pmr-supporting-output .tha-supporting-empty{display:none!important}
       .tha-pmr-supporting-output .passCalendarRow.baseline:not(.tha-supporting-selected){display:none!important}
       .tha-pmr-supporting-output .passCalendarRow.baseline.tha-supporting-selected{opacity:1!important;background:#fff!important;border-color:#d7c4ef!important;box-shadow:none!important}
+      .tha-pmr-supporting-output.tha-output-collapsed .passCalendarCareGroup,
+      .tha-pmr-supporting-output.tha-output-collapsed .passCalendarTable,
+      .tha-pmr-supporting-output.tha-output-collapsed .passCalendarRow.baseline,
+      .tha-pmr-supporting-output.tha-output-collapsed .tha-supporting-none-selected{display:none!important}
+      .tha-pmr-supporting-output-toggle{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;border:1px solid #b9aacd!important;border-radius:999px!important;background:#fff!important;color:#4e3470!important;padding:8px 11px!important;font-size:12px!important;font-weight:950!important;cursor:pointer!important;margin:8px 0 12px!important}
+      .tha-pmr-supporting-output-note{margin:8px 0 10px!important;padding:10px 12px!important;border:1px solid #e1d6ee!important;border-radius:12px!important;background:#fff!important;color:#5b4674!important;font-size:12px!important;font-weight:850!important;line-height:1.35!important}
       .tha-pass-supporting-anchor-note{margin:10px 0 0!important;padding:10px 12px!important;border:1px solid #d7c4ef!important;border-radius:12px!important;background:#fff!important;color:#5b4674!important;font-size:12px!important;font-weight:850!important;line-height:1.35!important}
       .tha-order-spacer{margin-top:18px!important}
+      @media print{
+        .tha-pmr-supporting-output-toggle,.tha-pmr-supporting-output-note{display:none!important}
+        .tha-pmr-supporting-output.tha-output-collapsed .passCalendarCareGroup,
+        .tha-pmr-supporting-output.tha-output-collapsed .passCalendarTable,
+        .tha-pmr-supporting-output.tha-output-collapsed .passCalendarRow.baseline.tha-supporting-selected{display:block!important}
+      }
     `;
     document.head.append(style);
   }
@@ -91,15 +105,44 @@
     }
   }
 
+  function ensurePmrSupportingToggle(section) {
+    if (!section || section.querySelector('.tha-pmr-supporting-output-toggle')) return;
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'tha-pmr-supporting-output-toggle noPrint';
+    const sync = () => {
+      toggle.textContent = section.classList.contains('tha-output-collapsed') ? 'Open supporting info' : 'Collapse supporting info';
+      toggle.setAttribute('aria-expanded', String(!section.classList.contains('tha-output-collapsed')));
+    };
+    section.classList.add('tha-output-collapsed');
+    toggle.addEventListener('click', () => {
+      section.classList.toggle('tha-output-collapsed');
+      sync();
+    });
+    sync();
+
+    const note = document.createElement('p');
+    note.className = 'tha-pmr-supporting-output-note';
+    note.textContent = 'Accessory reference material only. This belongs low in the PMR and does not replace the room-by-room, trade-by-trade, or PMCP action sections.';
+
+    const lede = section.querySelector('.lede');
+    if (lede) lede.after(note, toggle);
+    else section.prepend(toggle);
+  }
+
   function convertPmrSupportingToOutput(pmrMain) {
     const section = pmrMain?.querySelector?.('.baselineCare.tha-supporting-builder');
     if (!section) return;
     section.classList.remove('tha-supporting-collapsed');
     section.classList.add('tha-pmr-supporting-output', 'tha-order-spacer');
-    setHeading(section, 'Supporting Home Care Info Sent');
-    setLede(section, 'These are optional homeowner-care notes selected from the PASS / PMCP supporting info builder. Only selected topics belong in the client-facing PMR packet.');
-    const passAnchor = findSectionByHeading(pmrMain, [/PASS Continued Care/i, /PMCP/i, /PASS Maintenance Calendar/i]) || pmrMain.querySelector('[data-tha-care-forecast-panel="pmr"]');
-    if (passAnchor?.parentElement && section.previousElementSibling !== passAnchor && passAnchor !== section) passAnchor.after(section);
+    setHeading(section, 'Optional Supporting Home Care Info');
+    setLede(section, 'Extra homeowner-care reference material included in the PMR only when selected. This is accessory information, not an action list or project-management section.');
+    ensurePmrSupportingToggle(section);
+    if (pmrMain && section.parentElement === pmrMain && section.nextElementSibling) {
+      pmrMain.append(section);
+    } else if (pmrMain && section.parentElement !== pmrMain) {
+      pmrMain.append(section);
+    }
   }
 
   function addPassSupportingPlacementNote(passMain) {
@@ -108,7 +151,7 @@
     if (!anchor?.parentElement) return;
     const note = document.createElement('p');
     note.className = 'tha-pass-supporting-anchor-note tha-order-spacer';
-    note.textContent = 'Supporting Home Care Info Builder belongs here, low in the PASS / PMCP workflow. Selected topics become the lower supporting-info section in the PMR.';
+    note.textContent = 'Supporting Home Care Info Builder belongs low in the PASS / PMCP workflow. PMR only receives the selected supporting reference items as an accessory section near the bottom.';
     anchor.after(note);
   }
 
