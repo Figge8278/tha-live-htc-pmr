@@ -59,14 +59,16 @@
     const connected = /drive connected|ready to export/.test(text) || Boolean(meta.hasConnected || meta.connected || meta.driveConnected);
     const configured = connected || configuredByLocal || /drive configured/.test(text);
     const error = /drive error|unable to connect google drive|origin_mismatch|authorization error/.test(text) || Boolean(meta.lastError);
+    const originBlocked = /origin_mismatch|authorization error|access blocked/.test(text) || /origin/i.test(meta.lastError || '');
     const notConfigured = !configured && /drive not configured|google drive setup required|missing google oauth client/i.test(text);
     return {
       configured,
       connected,
       error,
+      originBlocked,
       notConfigured,
       lastError: meta.lastError || '',
-      source: connected ? 'Connected session' : configuredByLocal ? 'Saved/fallback Client ID' : configured ? 'App/environment Client ID likely present' : 'No Client ID detected yet'
+      source: connected ? 'Connected session' : configuredByLocal ? 'Saved/fallback Client ID' : configured ? 'App/environment Client ID present' : 'No Client ID detected yet'
     };
   }
 
@@ -102,19 +104,27 @@
       .tha-drive-test-actions{display:flex!important;flex-wrap:wrap!important;gap:8px!important}
       .tha-drive-test-actions button,.tha-drive-origin-row button{border:1px solid #61a9b5!important;border-radius:999px!important;background:#fff!important;color:#075564!important;padding:8px 11px!important;font-size:12px!important;font-weight:950!important;cursor:pointer!important}
       .tha-drive-test-actions button.primary{background:#07859a!important;color:#fff!important;border-color:#07859a!important}
+      .tha-drive-test-actions button.connect-needed{background:#fff7ed!important;border-color:#f97316!important;color:#9a3412!important;box-shadow:0 0 0 4px rgba(249,115,22,.18),0 0 18px rgba(249,115,22,.36)!important;animation:thaDrivePulse 1.8s ease-in-out infinite!important}
+      .tha-drive-test-actions button.connect-ready{background:#15803d!important;border-color:#15803d!important;color:#fff!important;box-shadow:0 0 0 4px rgba(21,128,61,.14)!important;animation:none!important}
+      @keyframes thaDrivePulse{0%,100%{box-shadow:0 0 0 4px rgba(249,115,22,.16),0 0 12px rgba(249,115,22,.28)}50%{box-shadow:0 0 0 7px rgba(249,115,22,.22),0 0 22px rgba(249,115,22,.45)}}
       .tha-drive-test-stats{display:flex!important;flex-wrap:wrap!important;gap:6px!important}
       .tha-drive-test-chip{display:inline-flex!important;border:1px solid #b7dce2!important;border-radius:999px!important;background:#fff!important;color:#075564!important;padding:5px 8px!important;font-size:11px!important;font-weight:950!important;line-height:1!important}
       .tha-drive-test-chip.good{border-color:#a8d5a1!important;background:#f2fbf0!important;color:#285c30!important}
       .tha-drive-test-chip.warn{border-color:#f2c094!important;background:#fff4e8!important;color:#a85107!important}
       .tha-drive-test-chip.bad{border-color:#efb4a9!important;background:#fff1f0!important;color:#b42318!important}
+      .tha-drive-field-status{display:grid!important;gap:8px!important;border:1px solid #d5e5ea!important;border-radius:14px!important;background:#fff!important;padding:10px 12px!important}
+      .tha-drive-field-status strong{font-size:13px!important;color:#0f4f5b!important}
+      .tha-drive-field-status.good{border-color:#a8d5a1!important;background:#f2fbf0!important}.tha-drive-field-status.good strong{color:#285c30!important}
+      .tha-drive-field-status.warn{border-color:#f2c094!important;background:#fff4e8!important}.tha-drive-field-status.warn strong{color:#9a3412!important}
+      .tha-drive-field-status.bad{border-color:#efb4a9!important;background:#fff1f0!important}.tha-drive-field-status.bad strong{color:#b42318!important}
       .tha-drive-tree{border:1px solid #c7e2e6!important;border-radius:14px!important;background:#fff!important;padding:10px 12px!important;font-size:12px!important;line-height:1.45!important;color:#284b55!important;font-weight:800!important}
       .tha-drive-tree ul{margin:5px 0 0 18px!important;padding:0!important}
       .tha-drive-tree li{margin:2px 0!important}
       .tha-drive-test-note{border:1px dashed #9fcfd7!important;border-radius:12px!important;background:#fff!important;padding:9px 10px!important;color:#3c5c64!important;font-size:12px!important;font-weight:820!important}
-      .tha-drive-setup-box{border:1px solid #f0c5bc!important;border-radius:14px!important;background:#fff!important;padding:10px 12px!important;color:#65433e!important;display:grid!important;gap:8px!important;font-size:12px!important;font-weight:820!important;line-height:1.35!important}
-      .tha-drive-setup-box strong{color:#b42318!important}
-      .tha-drive-setup-box code,.tha-drive-origin-value{font-family:ui-monospace,SFMono-Regular,Menlo,monospace!important;background:#fff4f1!important;border:1px solid #f0c5bc!important;border-radius:8px!important;padding:3px 5px!important;color:#55302a!important;word-break:break-all!important}
-      .tha-drive-origin-row{display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:wrap!important}
+      .tha-drive-admin-details{border:1px solid #cbdfea!important;border-radius:14px!important;background:#fff!important;padding:9px 11px!important;color:#405b63!important;font-size:12px!important;font-weight:800!important}
+      .tha-drive-admin-details summary{cursor:pointer!important;font-weight:950!important;color:#254c5a!important}
+      .tha-drive-admin-details code,.tha-drive-origin-value{font-family:ui-monospace,SFMono-Regular,Menlo,monospace!important;background:#f5f8fa!important;border:1px solid #d7e3e8!important;border-radius:8px!important;padding:3px 5px!important;color:#2d3d46!important;word-break:break-all!important}
+      .tha-drive-origin-row{display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:wrap!important;margin-top:8px!important}
       .tha-drive-origin-row button{padding:6px 9px!important;font-size:11px!important}
       @media(max-width:760px){.tha-drive-test-grid{grid-template-columns:1fr!important}.tha-drive-test-actions button{font-size:11px!important;padding:7px 9px!important}}
       @media print{.tha-drive-test-panel{display:none!important}}
@@ -132,15 +142,26 @@
     return 'needs-setup';
   }
 
-  function originHelpBlock() {
-    const origin = currentOrigin();
-    return `<div class="tha-drive-origin-row"><span>Add this exact Authorized JavaScript origin:</span><code class="tha-drive-origin-value">${escapeHtml(origin)}</code><button type="button" data-tha-drive-click="copyOrigin">Copy origin</button></div>`;
+  function fieldStatus(drive) {
+    if (drive.connected) {
+      return { tone: 'good', title: 'Google Drive is connected', body: 'You can sync photos, save the PMR package, and test print/download from this browser session.' };
+    }
+    if (drive.originBlocked) {
+      return { tone: 'bad', title: 'Admin setup needed before Drive can connect', body: 'Google is blocking this preview link. Field users should stop here and ask the app/admin owner to approve this app URL.' };
+    }
+    if (drive.configured) {
+      return { tone: 'warn', title: 'Google Drive is ready to connect', body: 'Press the orange Connect Google Drive button and sign in. Once connected, this turns green.' };
+    }
+    return { tone: 'bad', title: 'Drive setup is missing', body: 'This browser/app does not yet have a usable Google Drive Client ID. Field users should not troubleshoot this; admin setup is needed.' };
   }
 
-  function setupBox(drive) {
-    if (drive.connected) return `<p class="tha-drive-test-note">Drive is connected for this browser session. Next: sync pending photos, save the PMR package, then open Google Drive to confirm the file tree.</p>`;
-    if (drive.configured) return `<div class="tha-drive-setup-box"><strong>Drive is configured, but Google is blocking this browser origin if you see 400: origin_mismatch.</strong><span>In Google Cloud Console, open the OAuth Web Client and add this Vercel preview origin under Authorized JavaScript origins. Do not paste the long Google sign-in URL; use only this origin.</span>${originHelpBlock()}<span>After saving in Google Cloud, wait a minute, refresh this app, then press Connect Drive again.</span></div>`;
-    return `<div class="tha-drive-setup-box"><strong>Drive setup is the likely blocker.</strong><span>Add a Google OAuth Web Client ID to Vercel as <code>VITE_GOOGLE_OAUTH_CLIENT_ID</code>, or paste the fallback Client ID inside Business Records & Drive. The OAuth client also needs this deployed app URL listed as an authorized JavaScript origin.</span>${originHelpBlock()}<span>After that: redeploy, open this build, and use Connect Drive.</span></div>`;
+  function originHelpBlock() {
+    const origin = currentOrigin();
+    return `<div class="tha-drive-origin-row"><span>Authorized JavaScript origin:</span><code class="tha-drive-origin-value">${escapeHtml(origin)}</code><button type="button" data-tha-drive-click="copyOrigin">Copy origin</button></div>`;
+  }
+
+  function adminDetails(drive) {
+    return `<details class="tha-drive-admin-details"><summary>Admin setup details</summary><p>Only the app/admin owner should use this. If Google shows <strong>400: origin_mismatch</strong>, add this exact origin to the OAuth Web Client in Google Cloud under Authorized JavaScript origins. Do not paste the long Google sign-in URL.</p>${originHelpBlock()}<p>Long-term fix: use a stable app URL/custom domain so field users never see preview-origin setup.</p></details>`;
   }
 
   function renderPanel() {
@@ -148,37 +169,37 @@
     const clientName = stats.client.name || 'Client Name';
     const address = stats.client.address || 'Project Address';
     const drive = stats.drive;
+    const status = fieldStatus(drive);
+    const connectClass = drive.connected ? 'connect-ready' : 'connect-needed';
     return `
       <section class="tha-drive-test-panel ${panelTone(drive)}" ${PANEL_ATTR}="true">
         <header>
-          <h3>Drive Package Test Workflow</h3>
-          <p>Use this to prove the full path: connect Drive, sync photos, save the PMR package, download/print it, and confirm what the client-facing packet looks like.</p>
+          <h3>Google Drive Connection Center</h3>
+          <p>Connect once, then sync photos and save the PMR package. Admin setup details are hidden unless something is blocked.</p>
         </header>
+        <div class="tha-drive-field-status ${status.tone}"><strong>${escapeHtml(status.title)}</strong><p>${escapeHtml(status.body)}</p></div>
         <div class="tha-drive-test-stats">
-          ${chip(drive.connected ? 'Drive connected' : drive.configured ? 'Drive configured — connect needed' : 'Drive setup needed', drive.connected ? 'good' : drive.configured ? 'warn' : 'bad')}
-          ${chip(drive.source, drive.connected ? 'good' : drive.configured ? 'warn' : 'bad')}
-          ${chip(`Origin: ${currentOrigin()}`, drive.connected ? 'good' : 'warn')}
+          ${chip(drive.connected ? 'Connected' : drive.configured ? 'Configured — connect needed' : 'Setup needed', drive.connected ? 'good' : drive.configured ? 'warn' : 'bad')}
           ${chip(`${stats.total} photos`)}
           ${chip(`${stats.localPending} local/pending`, stats.localPending ? 'warn' : 'good')}
           ${chip(`${stats.uploaded} on Drive`, stats.uploaded ? 'good' : '')}
-          ${chip(`${stats.fullData} full payloads active`)}
           ${chip(`Photo guard: ${stats.guard.state || 'unknown'}`, stats.guard.state === 'error' ? 'bad' : stats.guard.state === 'slimmed' || stats.guard.state === 'restored' ? 'good' : '')}
         </div>
-        ${setupBox(drive)}
         <div class="tha-drive-test-grid">
           <div>
             <div class="tha-drive-test-actions">
-              <button type="button" class="primary" data-tha-drive-click="connect">1. Connect Drive</button>
-              <button type="button" data-tha-drive-click="sync">2. Sync pending photos</button>
-              <button type="button" data-tha-drive-click="restore">Restore cached photos</button>
-              <button type="button" class="primary" data-tha-drive-click="save">3. Save PMR package</button>
+              <button type="button" class="primary ${connectClass}" data-tha-drive-click="connect">${drive.connected ? 'Drive Connected' : 'Connect Google Drive'}</button>
+              <button type="button" data-tha-drive-click="sync">Sync pending photos</button>
+              <button type="button" class="primary" data-tha-drive-click="save">Save PMR package</button>
               <button type="button" data-tha-drive-click="download">Download PMR HTML</button>
               <button type="button" data-tha-drive-click="print">Print PMR</button>
+              <button type="button" data-tha-drive-click="restore">Restore cached photos</button>
             </div>
-            <p class="tha-drive-test-note">Recommended test path: fill client name/address/date, add a few room photos, connect Drive, sync pending photos, save the PMR package, then open Drive and confirm the folder tree below. If offline, capture locally and wait to save the package until reconnected.</p>
+            <p class="tha-drive-test-note">Recommended field path: connect Drive, sync pending photos, save the PMR package, then print or download the PMR. If offline, capture locally and sync/save once reconnected.</p>
+            ${adminDetails(drive)}
           </div>
           <div class="tha-drive-tree">
-            <strong>Expected Drive file tree</strong>
+            <strong>Expected Drive folder</strong>
             <ul>
               <li>THA Clients</li>
               <li>_HTC PMR Incoming</li>
@@ -243,7 +264,7 @@
       button.addEventListener('click', () => {
         const action = button.getAttribute('data-tha-drive-click');
         if (action === 'copyOrigin') copyOrigin();
-        if (action === 'connect') clickButton([/connect google drive/i, /^connect drive$/i, /reconnect drive/i], 'Open Business Records & Drive, then use Connect Google Drive. If Google reports 400 origin_mismatch, copy the origin shown here into Authorized JavaScript origins for the OAuth Web Client.');
+        if (action === 'connect') clickButton([/connect google drive/i, /^connect drive$/i, /reconnect drive/i], 'Open Business Records & Drive, then use Connect Google Drive. If Google reports 400 origin_mismatch, admin setup is needed.');
         if (action === 'sync') clickButton([/sync pending photos/i, /sync photos/i], 'No Sync pending photos button was found on this screen. Connect Drive and open Business Records & Drive.');
         if (action === 'save') clickButton([/save pmr package/i, /save drive package/i, /upload drive package/i, /save package/i], 'No Save PMR package button was found. Complete client setup and connect Drive first.');
         if (action === 'download') clickButton([/download styled pmr/i, /download pmr/i, /pmr html/i], 'No PMR download button was found. Complete client setup first.');
