@@ -31,7 +31,7 @@
   }
 
   function markDemoAreas() {
-    const buttons = Array.from(document.querySelectorAll('button,[role="button"'));
+    const buttons = Array.from(document.querySelectorAll('button,[role="button"]'));
     buttons.forEach(button => {
       const label = textOf(button);
       if (/load client delivery demo/i.test(label)) {
