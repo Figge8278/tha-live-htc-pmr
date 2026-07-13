@@ -5,6 +5,8 @@
   const MODE_KEY = 'tha-drive-upload-mode';
   const SUBMITTED_BY_KEY = 'tha-drive-submitted-by';
   const CURRENT_WALKTHROUGH_ID_KEY = 'tha-current-walkthrough-id';
+  const DEFAULT_THA_APP_CLIENTS_FOLDER_ID = '1f4UhtzE-nA0mcusxeMCEdGi-1jYtyhlZ';
+  const DEFAULT_THA_APP_CLIENTS_LABEL = 'THA App Clients';
 
   const nativeFetch = window.fetch.bind(window);
   const destinationParentIds = new Set();
@@ -18,11 +20,11 @@
   }
 
   function readRootId() {
-    return storageValue(ROOT_KEY);
+    return storageValue(ROOT_KEY) || DEFAULT_THA_APP_CLIENTS_FOLDER_ID;
   }
 
   function readRootLabel() {
-    return storageValue(ROOT_LABEL_KEY) || 'THA Shared Drive Root';
+    return storageValue(ROOT_LABEL_KEY) || DEFAULT_THA_APP_CLIENTS_LABEL;
   }
 
   function uploadMode() {
@@ -77,6 +79,9 @@
         modeLabel: modeLabel(),
         submittedBy: submittedBy(),
         folderPath: folderPathParts().join(' / '),
+        rootId: readRootId(),
+        rootLabel: readRootLabel(),
+        defaultRoot: !storageValue(ROOT_KEY),
         ...patch,
         updatedAt: new Date().toISOString()
       }));
@@ -247,7 +252,7 @@
     const url = typeof input === 'string' ? input : input?.url;
 
     if (rootId && isTopLevelThaClientsFolderQuery(url)) {
-      writeStatus({ state: 'targeting-shared-root', rootId, rootLabel: readRootLabel(), message: 'Using configured THA Drive Root Folder instead of connected user My Drive root.' });
+      writeStatus({ state: 'targeting-shared-root', rootId, rootLabel: readRootLabel(), message: 'Using configured THA App Clients folder instead of connected user My Drive root.' });
       return jsonResponse({ files: [{ id: rootId, name: readRootLabel() }] });
     }
 
@@ -292,10 +297,15 @@
       if (label) localStorage.setItem(ROOT_LABEL_KEY, String(label || '').trim());
       writeStatus({ state: 'configured', rootId: clean, rootLabel: label || readRootLabel(), message: 'THA Drive Root Folder configured.' });
     },
+    resetToDefaultRoot() {
+      localStorage.removeItem(ROOT_KEY);
+      localStorage.setItem(ROOT_LABEL_KEY, DEFAULT_THA_APP_CLIENTS_LABEL);
+      writeStatus({ state: 'default-configured', rootId: readRootId(), rootLabel: readRootLabel(), message: 'Using default THA App Clients folder.' });
+    },
     clearRootId() {
       localStorage.removeItem(ROOT_KEY);
       localStorage.removeItem(ROOT_LABEL_KEY);
-      writeStatus({ state: 'cleared', message: 'THA Drive Root Folder cleared. Uploads will use connected user Drive root unless reset.' });
+      writeStatus({ state: 'cleared', message: 'THA Drive Root Folder cleared. Uploads will use the default THA App Clients folder unless a different target is set.' });
     },
     status() {
       try {
@@ -306,7 +316,9 @@
     }
   };
 
-  writeStatus(readRootId()
-    ? { state: 'configured', rootId: readRootId(), rootLabel: readRootLabel(), message: `Shared Drive root targeting ready. Default destination: ${folderPathParts().join(' / ')}.` }
-    : { state: 'not-configured', message: 'No THA Drive Root Folder set yet.' });
+  if (!storageValue(ROOT_LABEL_KEY)) {
+    try { localStorage.setItem(ROOT_LABEL_KEY, DEFAULT_THA_APP_CLIENTS_LABEL); } catch {}
+  }
+
+  writeStatus({ state: 'configured', rootId: readRootId(), rootLabel: readRootLabel(), message: `THA App Clients targeting ready. Default destination: ${folderPathParts().join(' / ')}.` });
 })();
