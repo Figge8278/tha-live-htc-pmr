@@ -2,10 +2,6 @@
   const STYLE_ID = 'tha-v35-production-readiness-styles';
   const PANEL_ATTR = 'data-tha-production-readiness';
 
-  function textOf(element) {
-    return String(element?.textContent || '').replace(/\s+/g, ' ').trim();
-  }
-
   function installStyles() {
     if (document.getElementById(STYLE_ID)) return;
     const style = document.createElement('style');
@@ -24,7 +20,9 @@
       .tha-prod-pill.orange{border-color:#f2c094!important;background:#fff4e8!important;color:#a85107!important}
       .tha-prod-pill.blue{border-color:#a9cfff!important;background:#f2f8ff!important;color:#155799!important}
       .tha-prod-pill.purple{border-color:#d7c7ef!important;background:#f8f4ff!important;color:#5e3f91!important}
+      .tha-prod-pill.gold{border-color:#e7cb81!important;background:#fff9e8!important;color:#7a5504!important}
       .tha-prod-callout{border:1px dashed #bad6e2!important;border-radius:14px!important;background:#fff!important;padding:10px!important;color:#3f5d69!important;font-size:12px!important;font-weight:820!important;line-height:1.4!important}
+      .tha-prod-callout.gold{border-color:#e7cb81!important;background:#fffdf5!important;color:#60470d!important}
       .tha-prod-callout strong{color:#173e57!important}
       @media(print){.tha-production-readiness{display:none!important}}
     `;
@@ -37,7 +35,7 @@
         <header>
           <span class="tha-prod-pill blue">Production readiness</span>
           <h3>Stable Field URL + Access + Media Guide</h3>
-          <p>This is the clean field-use target: one stable app URL, one Drive authorization setup, simple photo capture, careful video handling, and clear rules for who can upload into the THA Drive folder.</p>
+          <p>This is the clean field-use target: one stable app URL, one Drive authorization setup, staged upload buffers, simple photo capture, careful video handling, and clear rules for who can upload into the THA Drive folder.</p>
         </header>
         <div class="tha-prod-grid">
           <article class="tha-prod-card">
@@ -59,6 +57,16 @@
             </ul>
           </article>
           <article class="tha-prod-card">
+            <span class="tha-prod-pill gold">Buffer first</span>
+            <h4>Incoming before final</h4>
+            <ul>
+              <li>Default app exports land in <strong>01_Incoming Field Uploads</strong>.</li>
+              <li>Use separate incoming folders by submitter: Rick, subcontractor, demo tester, etc.</li>
+              <li>Review the upload before moving/promoting it into the Airtable-linked final client folder.</li>
+              <li>The Airtable client folder should point to the curated final folder, not raw field uploads.</li>
+            </ul>
+          </article>
+          <article class="tha-prod-card">
             <span class="tha-prod-pill purple">Access rule</span>
             <h4>Who can upload to THA Drive?</h4>
             <ul>
@@ -73,9 +81,9 @@
             <h4>Subcontractors, Rick, family testers</h4>
             <ul>
               <li>Same basic process: stable app URL + Google Drive connection.</li>
-              <li>For upload testing, also share the THA app/upload folder with them.</li>
+              <li>For upload testing, also share the right incoming/sandbox folder with them.</li>
               <li>For view-only app testing, do not share the Drive folder unless they need to upload packages.</li>
-              <li>Use a separate test folder for family/friend testers when client privacy matters.</li>
+              <li>Use Demo / Sandbox Upload for family/friend testers when client privacy matters.</li>
             </ul>
           </article>
           <article class="tha-prod-card">
@@ -97,6 +105,7 @@
             </ul>
           </article>
         </div>
+        <p class="tha-prod-callout gold"><strong>Airtable folder rule:</strong> Airtable should link to the final reviewed client folder. Incoming app uploads are a buffer for field collection, testing, subcontractor input, and review. After review, move/promote approved material into the final client folder and use that final folder URL in Airtable.</p>
         <p class="tha-prod-callout"><strong>Simple access formula:</strong> stable app URL + Drive folder shared with that person + that person connects Google Drive in the app = they can upload into the THA shared folder. Do not share Figge’s personal Google login. Revoke access later by removing that person from the shared Drive folder.</p>
         <p class="tha-prod-callout"><strong>Field rule:</strong> photos belong in the app workflow now. Videos should be a Drive-linked media add-on, not part of the normal local walkthrough save. That keeps tablet performance stable and still gives clients richer documentation when needed.</p>
       </section>`;
