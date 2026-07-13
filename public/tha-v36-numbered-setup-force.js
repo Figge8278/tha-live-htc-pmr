@@ -3,30 +3,24 @@
   const COLLAPSED_KEY = 'tha-walkthrough-controls-collapsed';
 
   function installStyles() {
-    const old = document.getElementById(STYLE_ID);
-    if (old) old.remove();
+    if (document.getElementById(STYLE_ID)) return;
     const style = document.createElement('style');
     style.id = STYLE_ID;
     style.textContent = `
       .walkthroughControlsPanel{display:block!important;visibility:visible!important;opacity:1!important;max-height:none!important;height:auto!important;overflow:visible!important;max-width:1180px!important;margin:16px auto!important;padding:0 20px!important}
       .walkthroughControlsPanel .walkthroughControlsHeader{display:flex!important;visibility:visible!important;opacity:1!important}
       .walkthroughControlsPanel .walkthroughControlsBody{display:grid!important;visibility:visible!important;opacity:1!important;max-height:none!important;height:auto!important;overflow:visible!important}
-      .walkthroughControlsPanel.expanded .walkthroughControlsBody{display:grid!important}
-      .walkthroughControlsPanel.collapsed .walkthroughControlsBody{display:grid!important}
-      .walkthroughControlsPanel .workflowCueStrip{display:none!important;visibility:hidden!important}
-      .walkthroughControlsPanel .walkthroughControlsSummary{display:none!important}
-      .walkthroughControlsPanel .homeownerOutputCard{display:none!important}
+      .walkthroughControlsPanel.expanded .walkthroughControlsBody,.walkthroughControlsPanel.collapsed .walkthroughControlsBody{display:grid!important}
+      .walkthroughControlsPanel .workflowCueStrip,.walkthroughControlsPanel .walkthroughControlsSummary,.walkthroughControlsPanel .homeownerOutputCard{display:none!important;visibility:hidden!important}
       .walkthroughControlsPanel .walkthroughControlsBody{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-areas:"setup intakeImport" "workSession businessRecords" "advanced advanced"!important;gap:16px!important;align-items:start!important}
       .walkthroughControlsPanel .walkthroughSetupCard,.walkthroughControlsPanel .tha-walkthrough-setup-card{grid-area:setup!important;display:block!important}
       .walkthroughControlsPanel .intakeImportCard,.walkthroughControlsPanel .homeownerIntakeSectionCard{grid-area:intakeImport!important;display:block!important}
       .walkthroughControlsPanel .localWorkCard{grid-area:workSession!important;display:block!important}
       .walkthroughControlsPanel .businessRecordsCard{grid-area:businessRecords!important;display:block!important;visibility:visible!important;opacity:1!important;max-height:none!important;height:auto!important;overflow:visible!important}
-      .walkthroughControlsPanel .advancedPanel{grid-area:advanced!important}
-      .walkthroughControlsPanel .businessRecordsCard>*{visibility:visible!important;opacity:1!important}
+      .walkthroughControlsPanel .advancedPanel{grid-area:advanced!important;margin-top:2px!important}
       .walkthroughControlsPanel .driveSetupGrid{display:grid!important}
       .walkthroughControlsPanel .driveSetupActions{display:flex!important}
       .walkthroughControlsPanel .driveMetaRow{display:flex!important;flex-wrap:wrap!important;gap:8px!important}
-      .walkthroughControlsPanel .advancedPanel{margin-top:2px!important}
       .walkthroughControlsPanel .advancedPanel>summary{font-size:13px!important;font-weight:950!important;color:#315568!important}
       .walkthroughControlsPanel .demoScenarioCard,.walkthroughControlsPanel .releaseNoteInline{display:none!important}
       .walkthroughControlsPanel [data-tha-production-readiness],.walkthroughControlsPanel [data-tha-client-delivery-demo],.walkthroughControlsPanel [data-tha-drive-test-workflow],.walkthroughControlsPanel [data-tha-shared-drive-admin]{display:none!important}
@@ -63,8 +57,9 @@
     });
   }
 
-  function forceOpenPanel() {
+  function applySetupLayout() {
     safeSetOpen();
+    installStyles();
     const panel = document.querySelector('.walkthroughControlsPanel');
     if (!panel) return;
 
@@ -77,63 +72,34 @@
     panel.classList.remove('collapsed');
     panel.classList.add('expanded');
     panel.removeAttribute('hidden');
-    panel.style.display = 'block';
-    panel.style.visibility = 'visible';
-    panel.style.opacity = '1';
 
     const cueStrip = panel.querySelector('.workflowCueStrip');
-    if (cueStrip) {
-      cueStrip.setAttribute('hidden', 'true');
-      cueStrip.style.display = 'none';
-    }
+    if (cueStrip) cueStrip.setAttribute('hidden', 'true');
 
     const body = panel.querySelector('.walkthroughControlsBody');
-    if (body) {
-      body.removeAttribute('hidden');
-      body.style.display = 'grid';
-      body.style.visibility = 'visible';
-      body.style.opacity = '1';
-    }
+    if (body) body.removeAttribute('hidden');
 
     const business = panel.querySelector('.businessRecordsCard');
     if (business) {
       business.classList.remove('tha-records-collapsed');
       business.classList.add('tha-records-expanded');
       business.removeAttribute('hidden');
-      business.style.display = 'block';
-      business.style.visibility = 'visible';
-      business.style.opacity = '1';
-      business.style.maxHeight = 'none';
-      business.style.overflow = 'visible';
-      business.querySelectorAll('[hidden]').forEach(node => {
-        if (!node.classList?.contains('workflowCueStrip')) node.removeAttribute('hidden');
-      });
     }
 
     const output = panel.querySelector('.homeownerOutputCard');
-    if (output) {
-      output.setAttribute('hidden', 'true');
-      output.style.display = 'none';
-    }
+    if (output) output.setAttribute('hidden', 'true');
 
     renameHeadings(panel);
     cleanBusinessRecordsCopy(panel);
   }
 
-  let scheduled = false;
-  function schedule() {
-    if (scheduled) return;
-    scheduled = true;
-    requestAnimationFrame(() => {
-      scheduled = false;
-      installStyles();
-      forceOpenPanel();
-    });
+  function start() {
+    applySetupLayout();
+    window.setTimeout(applySetupLayout, 250);
+    window.setTimeout(applySetupLayout, 900);
   }
 
   safeSetOpen();
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', schedule, { once: true });
-  else schedule();
-  new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
-  window.setInterval(schedule, 2500);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+  else start();
 })();
