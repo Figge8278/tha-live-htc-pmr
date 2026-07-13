@@ -19,10 +19,21 @@
       .walkthroughControlsPanel .businessRecordsCard{grid-area:businessRecords!important;display:block!important;visibility:visible!important;opacity:1!important;max-height:none!important;height:auto!important;overflow:visible!important}
       .walkthroughControlsPanel .advancedPanel{grid-area:advanced!important;margin-top:2px!important}
       .walkthroughControlsPanel .driveSetupGrid,.walkthroughControlsPanel .driveMetaRow{display:none!important;visibility:hidden!important}
-      .walkthroughControlsPanel .driveSetupActions{display:flex!important;flex-wrap:wrap!important;gap:8px!important;margin-top:10px!important}
-      .walkthroughControlsPanel .driveSetupActions button,.walkthroughControlsPanel .driveSetupActions a{min-height:38px!important}
+      .walkthroughControlsPanel .driveSetupActions{display:flex!important;flex-wrap:wrap!important;gap:8px!important;margin-top:10px!important;align-items:center!important}
+      .walkthroughControlsPanel .driveSetupActions button,.walkthroughControlsPanel .driveSetupActions a{min-height:38px!important;border-radius:999px!important;font-weight:950!important}
+      .walkthroughControlsPanel .tha-drive-connect-needed{border:2px solid #d97706!important;background:#fffaf0!important;color:#8a4b08!important;box-shadow:0 0 0 4px rgba(217,119,6,.12)!important}
+      .walkthroughControlsPanel .tha-drive-connected{border:2px solid #1d4ed8!important;background:#eff6ff!important;color:#1e3a8a!important;box-shadow:0 0 0 4px rgba(37,99,235,.12)!important}
+      .walkthroughControlsPanel .tha-drive-configured{border:2px solid #2563eb!important;background:#eff6ff!important;color:#1e3a8a!important}
+      .walkthroughControlsPanel .tha-drive-sync-attention{border:2px solid #eab308!important;background:#fefce8!important;color:#854d0e!important;box-shadow:0 0 0 4px rgba(234,179,8,.12)!important}
+      .walkthroughControlsPanel .tha-drive-save-primary{border:2px solid #15803d!important;background:#15803d!important;color:#fff!important;box-shadow:0 0 0 4px rgba(21,128,61,.13)!important}
+      .walkthroughControlsPanel .tha-drive-open-folder{border:1px solid #93c5fd!important;background:#eff6ff!important;color:#1e3a8a!important}
+      .walkthroughControlsPanel .tha-drive-hidden-duplicate{display:none!important}
       .walkthroughControlsPanel .tha-drive-simple-guide{display:grid!important;gap:5px!important;margin-top:10px!important;padding:10px 11px!important;border:1px solid #d8e4ea!important;border-radius:13px!important;background:#fbfdfe!important;color:#315568!important;font-size:12px!important;font-weight:850!important;line-height:1.35!important}
+      .walkthroughControlsPanel .tha-drive-simple-guide.not-connected{border-color:#efc17f!important;background:#fffaf0!important;color:#74460a!important}
+      .walkthroughControlsPanel .tha-drive-simple-guide.connected{border-color:#bfdbfe!important;background:#eff6ff!important;color:#1e3a8a!important}
       .walkthroughControlsPanel .tha-drive-simple-guide strong{color:#173e57!important}
+      .walkthroughControlsPanel .driveSetupNote{display:block!important;margin-top:8px!important;padding:8px 10px!important;border-radius:11px!important;background:#fff7ed!important;border:1px solid #fed7aa!important;color:#9a3412!important;font-weight:850!important}
+      .walkthroughControlsPanel .driveSetupNote.tha-drive-status-connected{background:#eff6ff!important;border-color:#bfdbfe!important;color:#1e3a8a!important}
       .walkthroughControlsPanel .advancedPanel>summary{font-size:13px!important;font-weight:950!important;color:#315568!important}
       .walkthroughControlsPanel .demoScenarioCard,.walkthroughControlsPanel .releaseNoteInline{display:none!important}
       .walkthroughControlsPanel [data-tha-production-readiness],.walkthroughControlsPanel [data-tha-client-delivery-demo],.walkthroughControlsPanel [data-tha-drive-test-workflow],.walkthroughControlsPanel [data-tha-shared-drive-admin]{display:none!important}
@@ -34,6 +45,10 @@
 
   function safeSetOpen() {
     try { localStorage.setItem(COLLAPSED_KEY, 'false'); } catch { /* Field helper only. */ }
+  }
+
+  function textOf(element) {
+    return String(element?.textContent || '').replace(/\s+/g, ' ').trim();
   }
 
   function renameHeadings(panel) {
@@ -49,6 +64,62 @@
     rename([/^Drive \/ Business Records$/i, /^3\. Drive \/ Business Records$/i, /^Business Records & Drive$/i, /^4\. Business Records & Drive$/i], '4. Business Records & Drive');
   }
 
+  function classifyDriveActions(business) {
+    const actions = Array.from(business.querySelectorAll('.driveSetupActions button,.driveSetupActions a'));
+    const connectButton = actions.find(node => /connect google drive|drive connected|connecting/i.test(textOf(node)));
+    const connected = Boolean(connectButton && /drive connected/i.test(textOf(connectButton)));
+    const configured = Boolean(connectButton && !/not configured/i.test(textOf(business)));
+    let saveSeen = false;
+
+    actions.forEach(node => {
+      const label = textOf(node).toLowerCase();
+      node.classList.remove('tha-drive-connect-needed','tha-drive-connected','tha-drive-configured','tha-drive-sync-attention','tha-drive-save-primary','tha-drive-open-folder','tha-drive-hidden-duplicate');
+
+      if (/connect google drive|drive connected|connecting/.test(label)) {
+        node.classList.add(connected ? 'tha-drive-connected' : 'tha-drive-connect-needed');
+        if (!connected && /connected/i.test(node.textContent || '')) node.textContent = 'Connect Google Drive';
+        return;
+      }
+
+      if (/save.*(drive|pmr).*package|save package|upload drive package/.test(label)) {
+        if (saveSeen) node.classList.add('tha-drive-hidden-duplicate');
+        else {
+          saveSeen = true;
+          node.classList.add('tha-drive-save-primary');
+        }
+        return;
+      }
+
+      if (/sync pending photos|sync photos/.test(label)) {
+        node.classList.add('tha-drive-sync-attention');
+        return;
+      }
+
+      if (/open.*folder|last drive folder/.test(label)) {
+        node.classList.add('tha-drive-open-folder');
+        return;
+      }
+
+      if (/configured|folder set|root folder|setup/.test(label)) node.classList.add('tha-drive-configured');
+    });
+
+    return { connected, configured };
+  }
+
+  function cleanDriveStatusText(business, connected) {
+    const note = business.querySelector('.driveSetupNote');
+    if (!note) return;
+    note.classList.toggle('tha-drive-status-connected', connected);
+    const current = textOf(note);
+    if (connected) {
+      note.textContent = 'Google Drive is connected for this session. You can save the Drive package.';
+      return;
+    }
+    if (/connected|ready to export/i.test(current)) {
+      note.textContent = 'Google Drive is configured, but not connected for this browser session yet. Click Connect Google Drive first.';
+    }
+  }
+
   function cleanBusinessRecordsCopy(panel) {
     const business = panel.querySelector('.businessRecordsCard');
     if (!business) return;
@@ -56,14 +127,23 @@
     const headerP = business.querySelector('.driveSetupHeader p');
     if (headerP) headerP.textContent = 'Use this only for the internal business package and Drive backup. Homeowner PMR delivery stays on the PMR screen.';
 
-    if (!business.querySelector('.tha-drive-simple-guide')) {
-      const guide = document.createElement('div');
+    const { connected } = classifyDriveActions(business);
+
+    let guide = business.querySelector('.tha-drive-simple-guide');
+    if (!guide) {
+      guide = document.createElement('div');
       guide.className = 'tha-drive-simple-guide';
-      guide.innerHTML = '<strong>Next:</strong><span>Connect Google Drive, then save the Drive package. Use Open Last Drive Folder only after saving.</span>';
       const header = business.querySelector('.driveSetupHeader');
       if (header) header.after(guide);
       else business.prepend(guide);
     }
+    guide.classList.toggle('connected', connected);
+    guide.classList.toggle('not-connected', !connected);
+    guide.innerHTML = connected
+      ? '<strong>Drive connected:</strong><span>Save the Drive package when the walkthrough is ready. Use Open Last Drive Folder after saving.</span>'
+      : '<strong>Next:</strong><span>Connect Google Drive first. Then save the Drive package. Sync pending photos only when photos need upload attention.</span>';
+
+    cleanDriveStatusText(business, connected);
   }
 
   function applySetupLayout() {
