@@ -3,7 +3,8 @@
   const COLLAPSED_KEY = 'tha-walkthrough-controls-collapsed';
 
   function installStyles() {
-    if (document.getElementById(STYLE_ID)) return;
+    const old = document.getElementById(STYLE_ID);
+    if (old) old.remove();
     const style = document.createElement('style');
     style.id = STYLE_ID;
     style.textContent = `
@@ -19,10 +20,11 @@
       .walkthroughControlsPanel .walkthroughSetupCard,.walkthroughControlsPanel .tha-walkthrough-setup-card{grid-area:setup!important;display:block!important}
       .walkthroughControlsPanel .intakeImportCard,.walkthroughControlsPanel .homeownerIntakeSectionCard{grid-area:intakeImport!important;display:block!important}
       .walkthroughControlsPanel .localWorkCard{grid-area:workSession!important;display:block!important}
-      .walkthroughControlsPanel .businessRecordsCard{grid-area:businessRecords!important;display:block!important}
+      .walkthroughControlsPanel .businessRecordsCard{grid-area:businessRecords!important;display:block!important;visibility:visible!important;opacity:1!important;max-height:none!important;height:auto!important;overflow:visible!important}
       .walkthroughControlsPanel .advancedPanel{grid-area:advanced!important}
-      .walkthroughControlsPanel .businessRecordsCard.tha-records-collapsed>:not(.driveSetupHeader){display:none!important}
-      .walkthroughControlsPanel .businessRecordsCard:not(.tha-records-collapsed)>*{display:revert!important}
+      .walkthroughControlsPanel .businessRecordsCard>*{visibility:visible!important;opacity:1!important}
+      .walkthroughControlsPanel .businessRecordsCard .tha-business-drive-command{display:grid!important;visibility:visible!important;opacity:1!important;max-height:none!important;height:auto!important;overflow:visible!important}
+      .walkthroughControlsPanel .businessRecordsCard .tha-drive-substep-list{display:grid!important}
       @media(max-width:900px){.walkthroughControlsPanel .walkthroughControlsBody{grid-template-columns:1fr!important;grid-template-areas:"setup" "intakeImport" "workSession" "businessRecords" "advanced"!important}.walkthroughControlsPanel{padding:0 12px!important}}
       @media print{.walkthroughControlsPanel{display:none!important}}
     `;
@@ -76,6 +78,21 @@
       body.style.display = 'grid';
       body.style.visibility = 'visible';
       body.style.opacity = '1';
+    }
+
+    const business = panel.querySelector('.businessRecordsCard');
+    if (business) {
+      business.classList.remove('tha-records-collapsed');
+      business.classList.add('tha-records-expanded');
+      business.removeAttribute('hidden');
+      business.style.display = 'block';
+      business.style.visibility = 'visible';
+      business.style.opacity = '1';
+      business.style.maxHeight = 'none';
+      business.style.overflow = 'visible';
+      business.querySelectorAll('[hidden]').forEach(node => {
+        if (!node.classList?.contains('workflowCueStrip')) node.removeAttribute('hidden');
+      });
     }
 
     renameHeadings(panel);
