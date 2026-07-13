@@ -18,9 +18,11 @@
       .walkthroughControlsPanel .localWorkCard{grid-area:workSession!important;display:block!important}
       .walkthroughControlsPanel .businessRecordsCard{grid-area:businessRecords!important;display:block!important;visibility:visible!important;opacity:1!important;max-height:none!important;height:auto!important;overflow:visible!important}
       .walkthroughControlsPanel .advancedPanel{grid-area:advanced!important;margin-top:2px!important}
-      .walkthroughControlsPanel .driveSetupGrid{display:grid!important}
-      .walkthroughControlsPanel .driveSetupActions{display:flex!important}
-      .walkthroughControlsPanel .driveMetaRow{display:flex!important;flex-wrap:wrap!important;gap:8px!important}
+      .walkthroughControlsPanel .driveSetupGrid,.walkthroughControlsPanel .driveMetaRow{display:none!important;visibility:hidden!important}
+      .walkthroughControlsPanel .driveSetupActions{display:flex!important;flex-wrap:wrap!important;gap:8px!important;margin-top:10px!important}
+      .walkthroughControlsPanel .driveSetupActions button,.walkthroughControlsPanel .driveSetupActions a{min-height:38px!important}
+      .walkthroughControlsPanel .tha-drive-simple-guide{display:grid!important;gap:5px!important;margin-top:10px!important;padding:10px 11px!important;border:1px solid #d8e4ea!important;border-radius:13px!important;background:#fbfdfe!important;color:#315568!important;font-size:12px!important;font-weight:850!important;line-height:1.35!important}
+      .walkthroughControlsPanel .tha-drive-simple-guide strong{color:#173e57!important}
       .walkthroughControlsPanel .advancedPanel>summary{font-size:13px!important;font-weight:950!important;color:#315568!important}
       .walkthroughControlsPanel .demoScenarioCard,.walkthroughControlsPanel .releaseNoteInline{display:none!important}
       .walkthroughControlsPanel [data-tha-production-readiness],.walkthroughControlsPanel [data-tha-client-delivery-demo],.walkthroughControlsPanel [data-tha-drive-test-workflow],.walkthroughControlsPanel [data-tha-shared-drive-admin]{display:none!important}
@@ -50,11 +52,18 @@
   function cleanBusinessRecordsCopy(panel) {
     const business = panel.querySelector('.businessRecordsCard');
     if (!business) return;
+
     const headerP = business.querySelector('.driveSetupHeader p');
-    if (headerP) headerP.textContent = 'Connect Google Drive and save the internal business package: PMR, editable copies, photos, and backup data.';
-    business.querySelectorAll('.originCard').forEach((card, index) => {
-      if (index > 0) card.style.display = 'none';
-    });
+    if (headerP) headerP.textContent = 'Use this only for the internal business package and Drive backup. Homeowner PMR delivery stays on the PMR screen.';
+
+    if (!business.querySelector('.tha-drive-simple-guide')) {
+      const guide = document.createElement('div');
+      guide.className = 'tha-drive-simple-guide';
+      guide.innerHTML = '<strong>Next:</strong><span>Connect Google Drive, then save the Drive package. Use Open Last Drive Folder only after saving.</span>';
+      const header = business.querySelector('.driveSetupHeader');
+      if (header) header.after(guide);
+      else business.prepend(guide);
+    }
   }
 
   function applySetupLayout() {
