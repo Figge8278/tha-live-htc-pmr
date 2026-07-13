@@ -2,11 +2,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/fireba
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 
 (() => {
@@ -99,10 +100,6 @@ import {
     removeStorage(AUTH_PROFILE_KEY);
   }
 
-  function currentOrigin() {
-    return window.location.origin;
-  }
-
   function currentDomain() {
     return window.location.hostname;
   }
@@ -115,7 +112,7 @@ import {
     const isBlocked = state === 'blocked';
     const bypass = isTemporaryBypassActive();
     const chipClass = isApproved || bypass ? 'good' : isBlocked ? 'bad' : 'warn';
-    const chipText = bypass ? 'Temporary bypass active' : isApproved ? 'Approved user' : isBlocked ? 'Not approved yet' : 'Sign-in needed';
+    const chipText = bypass ? 'Temporary bypass active' : isApproved ? 'Approved user' : isBlocked ? 'Not approved yet' : state === 'signing-in' ? 'Signing in' : 'Sign-in needed';
     const signedInText = user?.email ? `Signed in as ${escapeHtml(user.email)}` : 'No Google user signed in yet.';
     return `
       <section class="tha-firebase-auth-gate ${isApproved || bypass ? 'approved' : ''}" id="${OVERLAY_ID}" aria-live="polite">
@@ -221,19 +218,16 @@ import {
 
   function wire(root) {
     root.querySelector('[data-tha-firebase-login]')?.addEventListener('click', async () => {
-      writeStatus({ state: 'signing-in', message: 'Opening Google sign-in.', user: currentState.user || null, profile: currentState.profile || null });
+      writeStatus({ state: 'signing-in', message: 'Redirecting to Google sign-in. You will return to this app automatically.', user: currentState.user || null, profile: currentState.profile || null });
       render();
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
       try {
-        await signInWithPopup(auth, provider);
+        await setPersistence(auth, browserLocalPersistence);
+        await signInWithRedirect(auth, provider);
       } catch (error) {
-        if (/popup|blocked|closed/i.test(error?.code || error?.message || '')) {
-          await signInWithRedirect(auth, provider);
-        } else {
-          writeStatus({ state: 'error', message: error?.message || 'Google sign-in failed.', user: currentState.user || null, profile: currentState.profile || null });
-          render();
-        }
+        writeStatus({ state: 'error', message: error?.message || 'Google sign-in redirect failed.', user: currentState.user || null, profile: currentState.profile || null });
+        render();
       }
     });
 
@@ -271,7 +265,17 @@ import {
     try {
       const app = initializeApp(firebaseConfig);
       auth = getAuth(app);
-      await getRedirectResult(auth).catch(() => null);
+      await setPersistence(auth, browserLocalPersistence);
+      try {
+        const redirectResult = await getRedirectResult(auth);
+        if (redirectResult?.user?.email) {
+          writeStatus({ state: 'checking', message: `Google returned ${redirectResult.user.email}. Checking approved users.`, user: { email: redirectResult.user.email, displayName: redirectResult.user.displayName || '' }, profile: null });
+          render();
+        }
+      } catch (error) {
+        writeStatus({ state: 'error', message: error?.message || 'Google sign-in return could not be read.', user: null, profile: null });
+        render();
+      }
       onAuthStateChanged(auth, user => {
         if (!user?.email) {
           clearApprovedProfile();
