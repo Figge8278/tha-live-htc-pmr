@@ -58,11 +58,14 @@
         background:#fff4e8!important;
         color:#a85107!important;
         padding:5px 8px!important;
+        min-height:28px!important;
         font-size:10px!important;
         font-weight:950!important;
         line-height:1!important;
         white-space:nowrap!important;
         box-shadow:0 0 0 2px rgba(242,164,95,.12)!important;
+        flex:0 0 auto!important;
+        align-self:center!important;
       }
       .tha-care-time-marker::before{
         content:'🕒';
@@ -76,15 +79,56 @@
         box-shadow:0 0 0 2px rgba(82,170,75,.12)!important;
       }
       .tha-care-time-marker.is-filled::before{content:'✓';font-weight:950!important;color:#2f6a2b!important}
-      .tha-quick-header .tha-care-time-marker{flex:0 0 auto!important;margin-left:auto!important}
-      .tha-quick-header .tha-care-time-marker + .tha-quick-action{margin-left:0!important}
-      .intakeSubsection>h3 .tha-care-time-marker{margin-left:auto!important;margin-right:8px!important;vertical-align:middle!important}
+
+      /* Keep the time badge visually paired with the open/collapse control. */
+      .tha-quick-header{
+        display:flex!important;
+        align-items:center!important;
+        gap:8px!important;
+      }
+      .tha-quick-header .tha-quick-title{min-width:0!important;flex:1 1 auto!important}
+      .tha-quick-header .tha-care-time-marker{
+        margin-left:auto!important;
+        margin-right:0!important;
+        order:2!important;
+      }
+      .tha-quick-header .tha-quick-action{
+        order:3!important;
+        flex:0 0 auto!important;
+        align-self:center!important;
+        min-height:28px!important;
+        display:inline-flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+      }
+
+      .intakeSubsection>h3{
+        display:flex!important;
+        align-items:center!important;
+        gap:8px!important;
+        flex-wrap:wrap!important;
+      }
+      .intakeSubsection>h3 .tha-prep-completion{margin-left:auto!important}
+      .intakeSubsection>h3 .tha-care-time-marker{
+        margin-left:0!important;
+        margin-right:0!important;
+        vertical-align:middle!important;
+        order:8!important;
+      }
+      .intakeSubsection>h3 .tha-clean-prep-toggle{
+        order:9!important;
+        margin-left:0!important;
+        flex:0 0 auto!important;
+        align-self:center!important;
+      }
       .categoryQuestion>.tha-care-time-marker,
       label.notes>.tha-care-time-marker{margin-top:8px!important;justify-self:start!important}
       @media(max-width:720px){
-        .tha-care-time-marker{padding:4px 6px!important;font-size:9px!important}
+        .tha-care-time-marker{padding:4px 6px!important;font-size:9px!important;min-height:26px!important}
         .tha-care-time-marker::before{font-size:11px!important}
-        .tha-quick-header .tha-care-time-marker{margin-left:0!important}
+        .tha-quick-header{gap:6px!important;align-items:center!important}
+        .tha-quick-header .tha-care-time-marker{margin-left:auto!important}
+        .intakeSubsection>h3{gap:6px!important}
       }
     `;
     document.head.append(style);
@@ -114,8 +158,9 @@
       if (action && action.parentElement === target) target.insertBefore(marker, action);
       else target.append(marker);
     }
-    marker.classList.toggle('is-filled', timingFilled(container));
-    marker.textContent = timingFilled(container) ? 'Timed' : label;
+    const filled = timingFilled(container);
+    marker.classList.toggle('is-filled', filled);
+    marker.textContent = filled ? 'Timed' : label;
   }
 
   function markQuickIntakeCards(root = document) {
