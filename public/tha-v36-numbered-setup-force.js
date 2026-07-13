@@ -15,12 +15,12 @@
       .walkthroughControlsPanel.collapsed .walkthroughControlsBody{display:grid!important}
       .walkthroughControlsPanel .workflowCueStrip{display:none!important;visibility:hidden!important}
       .walkthroughControlsPanel .walkthroughControlsSummary{display:none!important}
-      .walkthroughControlsPanel .walkthroughControlsBody{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-areas:"setup intakeImport" "workSession businessRecords" "homeownerOutput homeownerOutput" "advanced advanced"!important;gap:16px!important;align-items:start!important}
+      .walkthroughControlsPanel .homeownerOutputCard{display:none!important}
+      .walkthroughControlsPanel .walkthroughControlsBody{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-areas:"setup intakeImport" "workSession businessRecords" "advanced advanced"!important;gap:16px!important;align-items:start!important}
       .walkthroughControlsPanel .walkthroughSetupCard,.walkthroughControlsPanel .tha-walkthrough-setup-card{grid-area:setup!important;display:block!important}
       .walkthroughControlsPanel .intakeImportCard,.walkthroughControlsPanel .homeownerIntakeSectionCard{grid-area:intakeImport!important;display:block!important}
       .walkthroughControlsPanel .localWorkCard{grid-area:workSession!important;display:block!important}
       .walkthroughControlsPanel .businessRecordsCard{grid-area:businessRecords!important;display:block!important;visibility:visible!important;opacity:1!important;max-height:none!important;height:auto!important;overflow:visible!important}
-      .walkthroughControlsPanel .homeownerOutputCard{grid-area:homeownerOutput!important;display:block!important;visibility:visible!important;opacity:1!important;max-height:none!important;height:auto!important;overflow:visible!important}
       .walkthroughControlsPanel .advancedPanel{grid-area:advanced!important}
       .walkthroughControlsPanel .businessRecordsCard>*{visibility:visible!important;opacity:1!important}
       .walkthroughControlsPanel .driveSetupGrid{display:grid!important}
@@ -30,7 +30,7 @@
       .walkthroughControlsPanel .advancedPanel>summary{font-size:13px!important;font-weight:950!important;color:#315568!important}
       .walkthroughControlsPanel .demoScenarioCard,.walkthroughControlsPanel .releaseNoteInline{display:none!important}
       .walkthroughControlsPanel [data-tha-production-readiness],.walkthroughControlsPanel [data-tha-client-delivery-demo],.walkthroughControlsPanel [data-tha-drive-test-workflow],.walkthroughControlsPanel [data-tha-shared-drive-admin]{display:none!important}
-      @media(max-width:900px){.walkthroughControlsPanel .walkthroughControlsBody{grid-template-columns:1fr!important;grid-template-areas:"setup" "intakeImport" "workSession" "businessRecords" "homeownerOutput" "advanced"!important}.walkthroughControlsPanel{padding:0 12px!important}}
+      @media(max-width:900px){.walkthroughControlsPanel .walkthroughControlsBody{grid-template-columns:1fr!important;grid-template-areas:"setup" "intakeImport" "workSession" "businessRecords" "advanced"!important}.walkthroughControlsPanel{padding:0 12px!important}}
       @media print{.walkthroughControlsPanel{display:none!important}}
     `;
     document.head.append(style);
@@ -51,7 +51,6 @@
     rename([/^Send \/ Import Homeowner Intake$/i, /^Homeowner Intake$/i, /^2\. Homeowner Intake$/i, /^3\. Homeowner Intake$/i], '2. Homeowner Intake');
     rename([/^Local Work \/ This Device$/i, /^1\. Local Work \/ This Device$/i, /^2\. Work Session$/i, /^Work Session$/i, /^3\. Work Session$/i], '3. Work Session');
     rename([/^Drive \/ Business Records$/i, /^3\. Drive \/ Business Records$/i, /^Business Records & Drive$/i, /^4\. Business Records & Drive$/i], '4. Business Records & Drive');
-    rename([/^Homeowner Output$/i, /^2\. Homeowner Output$/i, /^5\. Homeowner Output/i], '5. Homeowner Output / PMR Delivery');
   }
 
   function cleanBusinessRecordsCopy(panel) {
@@ -113,10 +112,8 @@
 
     const output = panel.querySelector('.homeownerOutputCard');
     if (output) {
-      output.removeAttribute('hidden');
-      output.style.display = 'block';
-      output.style.visibility = 'visible';
-      output.style.opacity = '1';
+      output.setAttribute('hidden', 'true');
+      output.style.display = 'none';
     }
 
     renameHeadings(panel);
