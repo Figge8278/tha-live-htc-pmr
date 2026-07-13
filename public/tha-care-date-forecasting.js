@@ -3,11 +3,12 @@
   const STORAGE_KEY = 'tha:care-date-forecasting:v1';
   const WIDGET_ATTR = 'data-tha-care-date-widget';
   const PANEL_ATTR = 'data-tha-care-forecast-panel';
+  const PANEL_SIG_ATTR = 'data-tha-care-forecast-signature';
 
   const CARE_RULES = [
     {
       key: 'furnace-filter',
-      match: ['furnace filter replacement', 'last furnace filter'],
+      match: ['furnace filter replacement', 'last furnace filter', 'furnace filter'],
       careItem: 'Furnace filter replacement',
       cadenceLabel: 'Every 1–3 months',
       cadenceMonths: 3,
@@ -17,17 +18,17 @@
     },
     {
       key: 'furnace-service',
-      match: ['furnace service history', 'last furnace servicing', 'furnace servicing'],
+      match: ['furnace service history', 'last furnace servicing', 'furnace servicing', 'furnace service'],
       careItem: 'Furnace service',
       cadenceLabel: 'Annual',
       cadenceMonths: 12,
       resource: 'HVAC',
-      batch: 'Good to forecast before heating season; THA can coordinate with filter and vent-path reminders.',
+      batch: 'Forecast before heating season; THA can coordinate with filter and vent-path reminders.',
       group: 'HVAC / Mechanical'
     },
     {
       key: 'ac-service',
-      match: ['a/c service history', 'a/c or heat pump servicing', 'ac service history'],
+      match: ['a/c service history', 'a/c or heat pump servicing', 'ac service history', 'heat pump service', 'cooling service'],
       careItem: 'A/C or heat-pump service',
       cadenceLabel: 'Annual',
       cadenceMonths: 12,
@@ -47,7 +48,7 @@
     },
     {
       key: 'sewer-scope',
-      match: ['sewer', 'sewer line scope', 'sewer / irrigation history'],
+      match: ['sewer / irrigation history', 'sewer line scope', 'sewer scope', 'sewer clean', 'sewer'],
       careItem: 'Sewer scope / clean-out history',
       cadenceLabel: 'Every 3–5 years or condition-based',
       cadenceMonths: 48,
@@ -57,7 +58,7 @@
     },
     {
       key: 'irrigation-service',
-      match: ['irrigation', 'sprinkler', 'sewer / irrigation history'],
+      match: ['sewer / irrigation history', 'irrigation', 'sprinkler', 'sprinkler service', 'winterization', 'blowout'],
       careItem: 'Irrigation turn-on / winterization',
       cadenceLabel: 'Seasonal',
       cadenceMonths: 6,
@@ -67,7 +68,7 @@
     },
     {
       key: 'dryer-vent',
-      match: ['dryer vent', 'dryer lint', 'dryer duct'],
+      match: ['dryer vent', 'dryer lint', 'dryer duct', 'laundry vent'],
       careItem: 'Dryer vent cleaning',
       cadenceLabel: 'Annual',
       cadenceMonths: 12,
@@ -87,7 +88,7 @@
     },
     {
       key: 'smoke-co',
-      match: ['smoke / co', 'smoke/co', 'smoke detector', 'co detector'],
+      match: ['smoke / co', 'smoke/co', 'smoke detector', 'co detector', 'smoke co'],
       careItem: 'Smoke / CO detector age and replacement check',
       cadenceLabel: 'Annual check · replace by manufacturer age',
       cadenceMonths: 12,
@@ -97,7 +98,7 @@
     },
     {
       key: 'fire-extinguishers',
-      match: ['fire extinguishers', 'extinguisher'],
+      match: ['fire extinguishers', 'fire extinguisher', 'extinguisher'],
       careItem: 'Fire extinguisher location / age check',
       cadenceLabel: 'Annual check',
       cadenceMonths: 12,
@@ -107,7 +108,7 @@
     },
     {
       key: 'exterior-paint-stain',
-      match: ['last exterior paint', 'paint / stain', 'paint stain', 'paint / stain'],
+      match: ['last exterior paint', 'exterior paint', 'paint / stain', 'paint stain', 'paint/stain', 'stain'],
       careItem: 'Exterior paint / stain planning',
       cadenceLabel: 'Condition-based · usually multi-year',
       cadenceMonths: 72,
@@ -117,7 +118,7 @@
     },
     {
       key: 'roof-age',
-      match: ['roof age', 'last replacement', 'known roof leaks'],
+      match: ['roof age', 'last replacement', 'known roof leaks', 'roof leaks', 'roof history'],
       careItem: 'Roof age / inspection planning',
       cadenceLabel: 'Annual visual review',
       cadenceMonths: 12,
@@ -144,11 +145,15 @@
 
   function writeStore(store) {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }
-    catch { /* non-critical */ }
+    catch { /* non-critical field-test storage */ }
   }
 
   function normalizedText(element) {
     return String(element?.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
+  function escapeHtml(value = '') {
+    return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
   }
 
   function addMonths(date, months) {
@@ -176,14 +181,12 @@
   function dateFromTimeframe(optionValue) {
     const option = TIMEFRAME_OPTIONS.find(entry => entry.value === optionValue);
     if (!option || option.monthsAgo == null) return null;
-    const now = new Date();
-    return addMonths(now, -option.monthsAgo);
+    return addMonths(new Date(), -option.monthsAgo);
   }
 
   function statusForNext(nextDate) {
     if (!(nextDate instanceof Date) || Number.isNaN(nextDate.getTime())) return { label: 'Needs baseline', tone: 'orange' };
-    const now = new Date();
-    const days = Math.round((nextDate.getTime() - now.getTime()) / 86400000);
+    const days = Math.round((nextDate.getTime() - Date.now()) / 86400000);
     if (days < -30) return { label: 'Due / overdue', tone: 'red' };
     if (days <= 30) return { label: 'Due now', tone: 'orange' };
     if (days <= 90) return { label: 'Upcoming', tone: 'gold' };
@@ -241,13 +244,13 @@
     document.head.append(style);
   }
 
-  function matchingRuleForLabel(label) {
+  function matchingRulesForLabel(label) {
     const text = normalizedText(label);
-    return CARE_RULES.find(rule => rule.match.some(token => text.includes(token)));
+    return CARE_RULES.filter(rule => rule.match.some(token => text.includes(token)));
   }
 
   function candidateLabels(root = document) {
-    return Array.from(root.querySelectorAll('.intakeLane label.categoryQuestion, .intakeLane .intakeQuestion, .intakeLane label.notes'));
+    return Array.from(root.querySelectorAll('.intakeLane label.categoryQuestion, .intakeLane .intakeQuestion, .intakeLane label.notes, .intakeLane .structuredPromptField'));
   }
 
   function buildWidget(rule) {
@@ -257,12 +260,12 @@
     widget.className = 'tha-care-date-widget';
     widget.setAttribute(WIDGET_ATTR, rule.key);
     widget.innerHTML = `
-      <strong>Care timing for PMR forecasting</strong>
+      <strong>${escapeHtml(rule.careItem)} — care timing</strong>
       <div class="tha-care-date-grid">
-        <label>Last done date, if known<input type="date" data-care-field="lastDate" value="${saved.lastDate || ''}" /></label>
-        <label>Approximate timeframe<select data-care-field="timeframe">${TIMEFRAME_OPTIONS.map(option => `<option value="${option.value}" ${saved.timeframe === option.value ? 'selected' : ''}>${option.label}</option>`).join('')}</select></label>
+        <label>Last done date, if known<input type="date" data-care-field="lastDate" value="${escapeHtml(saved.lastDate || '')}" /></label>
+        <label>Approximate timeframe<select data-care-field="timeframe">${TIMEFRAME_OPTIONS.map(option => `<option value="${escapeHtml(option.value)}" ${saved.timeframe === option.value ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}</select></label>
       </div>
-      <label>Scheduling / batching note<textarea data-care-field="note" placeholder="Example: bundle with spring handy visit, HVAC service, or dryer vent cleaning.">${saved.note || ''}</textarea></label>
+      <label>Scheduling / batching note<textarea data-care-field="note" placeholder="Example: bundle with spring handy visit, HVAC service, or dryer vent cleaning.">${escapeHtml(saved.note || '')}</textarea></label>
       <div class="tha-care-date-note">This does not create a repair finding. It helps the PMR forecast future upkeep and bundle Handy Services.</div>
     `;
     widget.addEventListener('click', event => event.stopPropagation());
@@ -279,15 +282,15 @@
     current[name] = field.value;
     store[key] = current;
     writeStore(store);
-    scheduleEnhance();
+    scheduleEnhance('field-change');
   }
 
   function enhanceIntakeFields(root = document) {
     candidateLabels(root).forEach(label => {
-      if (label.querySelector?.('.tha-care-date-widget')) return;
-      const rule = matchingRuleForLabel(label);
-      if (!rule) return;
-      label.append(buildWidget(rule));
+      matchingRulesForLabel(label).forEach(rule => {
+        if (label.querySelector?.(`[${WIDGET_ATTR}="${rule.key}"]`)) return;
+        label.append(buildWidget(rule));
+      });
     });
   }
 
@@ -303,6 +306,20 @@
       });
   }
 
+  function panelSignature(records, context) {
+    return JSON.stringify({
+      context,
+      records: records.map(record => ({
+        key: record.rule.key,
+        last: record.saved.lastDate || '',
+        timeframe: record.saved.timeframe || '',
+        note: record.saved.note || '',
+        next: record.nextDate ? record.nextDate.toISOString().slice(0, 10) : '',
+        status: record.status.label
+      }))
+    });
+  }
+
   function batchGroups(records) {
     const groups = new Map();
     records.forEach(record => {
@@ -314,14 +331,14 @@
     return Array.from(groups.entries()).filter(([, items]) => items.length > 1);
   }
 
-  function panelHtml(records, context) {
+  function panelHtml(records, context, signature) {
     const cards = records.map(record => {
       const rule = record.rule;
       const last = record.lastDate ? formatDate(record.lastDate) : (record.dateSource || 'Not captured');
       const next = record.nextDate ? `${formatDate(record.nextDate)} · ${seasonWindow(record.nextDate)}` : 'Establish baseline during walkthrough';
       const note = record.saved.note ? `<p><strong>THA note:</strong> ${escapeHtml(record.saved.note)}</p>` : '';
       return `<article class="tha-care-forecast-card">
-        <span class="tha-care-forecast-status ${record.status.tone}">${record.status.label}</span>
+        <span class="tha-care-forecast-status ${escapeHtml(record.status.tone)}">${escapeHtml(record.status.label)}</span>
         <h3>${escapeHtml(rule.careItem)}</h3>
         <div class="tha-care-forecast-meta"><span>${escapeHtml(rule.group)}</span><span>${escapeHtml(rule.resource)}</span><span>${escapeHtml(rule.cadenceLabel)}</span></div>
         <p><strong>Last known:</strong> ${escapeHtml(last)}</p>
@@ -334,50 +351,44 @@
     const groups = batchGroups(records);
     const batchHtml = groups.length ? `<div class="tha-care-batch-panel"><h3>Batching opportunities</h3><div class="tha-care-batch-grid">${groups.map(([key, items]) => `<div class="tha-care-batch-card"><strong>${escapeHtml(key)}</strong>${escapeHtml(items.join(' · '))}</div>`).join('')}</div></div>` : '';
 
-    return `<section class="pmrBlock tha-care-forecast-panel" ${PANEL_ATTR}="${context}">
+    return `<section class="pmrBlock tha-care-forecast-panel" ${PANEL_ATTR}="${escapeHtml(context)}" ${PANEL_SIG_ATTR}="${escapeHtml(signature)}">
       <h2>Care-Date Forecast</h2>
       <p class="lede">Timestamped intake answers create PMR forecasting without turning routine upkeep into repair findings. Use this to show what is due, what is coming up, and what can be bundled into Handy Services or trade visits.</p>
       ${records.length ? `<div class="tha-care-forecast-grid">${cards}</div>${batchHtml}` : `<p class="lede">No care dates or approximate timeframes captured yet. Add last-done timing in Intake to generate forecasted PMR reminders.</p>`}
     </section>`;
   }
 
-  function escapeHtml(value = '') {
-    return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+  function placePanel(main, context) {
+    if (!main) return;
+    const records = forecastRecords();
+    const signature = panelSignature(records, context);
+    const existing = main.querySelector(`[${PANEL_ATTR}="${context}"]`);
+    if (existing?.getAttribute(PANEL_SIG_ATTR) === signature) return;
+
+    const anchor = context === 'pmr'
+      ? main.querySelector('.frontSummary, .collapsibleBlock.passCalendar, .pmrBlock.passCalendar')
+      : main.querySelector('.frontSummary');
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = panelHtml(records, context, signature);
+    const panel = wrapper.firstElementChild;
+    if (existing) existing.replaceWith(panel);
+    else if (anchor?.parentElement) anchor.after(panel);
+    else main.prepend(panel);
   }
 
-  function insertForecastPanel() {
-    const records = forecastRecords();
-    document.querySelectorAll(`[${PANEL_ATTR}]`).forEach(panel => panel.remove());
-
-    const pmrMain = document.querySelector('main.pmr:not(.passWorkspace)');
-    if (pmrMain) {
-      const anchor = pmrMain.querySelector('.frontSummary, .collapsibleBlock.passCalendar, .pmrBlock.passCalendar');
-      const wrapper = document.createElement('div');
-      wrapper.innerHTML = panelHtml(records, 'pmr');
-      const panel = wrapper.firstElementChild;
-      if (anchor?.parentElement) anchor.after(panel);
-      else pmrMain.prepend(panel);
-    }
-
-    const passMain = document.querySelector('main.pmr.passWorkspace');
-    if (passMain) {
-      const anchor = passMain.querySelector('.frontSummary');
-      const wrapper = document.createElement('div');
-      wrapper.innerHTML = panelHtml(records, 'pass');
-      const panel = wrapper.firstElementChild;
-      if (anchor?.parentElement) anchor.after(panel);
-      else passMain.prepend(panel);
-    }
+  function insertForecastPanels() {
+    placePanel(document.querySelector('main.pmr:not(.passWorkspace)'), 'pmr');
+    placePanel(document.querySelector('main.pmr.passWorkspace'), 'pass');
   }
 
   function run() {
     installStyles();
     enhanceIntakeFields(document);
-    insertForecastPanel();
+    insertForecastPanels();
   }
 
   let scheduled = false;
-  function scheduleEnhance() {
+  function scheduleEnhance(reason = '') {
     if (scheduled) return;
     scheduled = true;
     window.requestAnimationFrame(() => {
@@ -386,11 +397,20 @@
     });
   }
 
+  function shouldIgnoreMutation(mutation) {
+    const target = mutation.target instanceof Element ? mutation.target : mutation.target?.parentElement;
+    return Boolean(target?.closest?.('.tha-care-forecast-panel'));
+  }
+
   function start() {
     run();
-    const observer = new MutationObserver(scheduleEnhance);
+    const observer = new MutationObserver(mutations => {
+      if (mutations.every(shouldIgnoreMutation)) return;
+      scheduleEnhance('mutation');
+    });
     observer.observe(document.body, { childList: true, subtree: true });
     window.addEventListener('tha:set-view', () => window.setTimeout(run, 150));
+    window.addEventListener('storage', event => { if (event.key === STORAGE_KEY) scheduleEnhance('storage'); });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
