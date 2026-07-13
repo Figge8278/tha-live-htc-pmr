@@ -80,7 +80,7 @@
       }
       .tha-care-time-marker.is-filled::before{content:'✓';font-weight:950!important;color:#2f6a2b!important}
 
-      /* Keep the time badge visually paired with the open/collapse control. */
+      /* Quick Intake: title expands, then Time, then Open/Collapse. */
       .tha-quick-header{
         display:flex!important;
         align-items:center!important;
@@ -102,22 +102,30 @@
         justify-content:center!important;
       }
 
+      /* Field Prep: keep Open fields far right, with Time/Timed immediately to its left. */
       .intakeSubsection>h3{
         display:flex!important;
         align-items:center!important;
         gap:8px!important;
-        flex-wrap:wrap!important;
+        flex-wrap:nowrap!important;
+        width:100%!important;
       }
-      .intakeSubsection>h3 .tha-prep-completion{margin-left:auto!important}
+      .intakeSubsection>h3 .tha-prep-completion{
+        order:7!important;
+        margin-left:8px!important;
+        margin-right:0!important;
+        flex:0 0 auto!important;
+      }
       .intakeSubsection>h3 .tha-care-time-marker{
-        margin-left:0!important;
+        order:98!important;
+        margin-left:auto!important;
         margin-right:0!important;
         vertical-align:middle!important;
-        order:8!important;
       }
       .intakeSubsection>h3 .tha-clean-prep-toggle{
-        order:9!important;
+        order:99!important;
         margin-left:0!important;
+        margin-right:0!important;
         flex:0 0 auto!important;
         align-self:center!important;
       }
@@ -128,7 +136,8 @@
         .tha-care-time-marker::before{font-size:11px!important}
         .tha-quick-header{gap:6px!important;align-items:center!important}
         .tha-quick-header .tha-care-time-marker{margin-left:auto!important}
-        .intakeSubsection>h3{gap:6px!important}
+        .intakeSubsection>h3{gap:6px!important;flex-wrap:wrap!important}
+        .intakeSubsection>h3 .tha-care-time-marker{margin-left:auto!important}
       }
     `;
     document.head.append(style);
