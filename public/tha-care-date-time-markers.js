@@ -1,6 +1,7 @@
 (() => {
   const STYLE_ID = 'tha-care-date-time-markers-styles';
   const MARKER_CLASS = 'tha-care-time-marker';
+  const TOUCHED_STORAGE_KEY = 'tha:care-date-time-markers:touched:v1';
 
   const CARE_MATCHES = [
     'furnace filter replacement',
@@ -41,6 +42,25 @@
 
   function textOf(element) {
     return String(element?.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
+  function readTouchedMap() {
+    try { return JSON.parse(localStorage.getItem(TOUCHED_STORAGE_KEY) || '{}') || {}; }
+    catch { return {}; }
+  }
+
+  function writeTouchedMap(map) {
+    try { localStorage.setItem(TOUCHED_STORAGE_KEY, JSON.stringify(map)); }
+    catch { /* non-critical */ }
+  }
+
+  function markWidgetTouchedFromEvent(event) {
+    const widget = event?.target?.closest?.('.tha-care-date-widget');
+    const key = widget?.getAttribute?.('data-tha-care-date-widget');
+    if (!key) return;
+    const map = readTouchedMap();
+    map[key] = true;
+    writeTouchedMap(map);
   }
 
   function installStyles() {
@@ -102,7 +122,7 @@
         justify-content:center!important;
       }
 
-      /* Field Prep: keep Open fields far right, with Time/Timed immediately to its left. */
+      /* Field Prep: keep Open fields far right. If Time exists, it sits immediately to the left. */
       .intakeSubsection>h3{
         display:flex!important;
         align-items:center!important;
@@ -124,11 +144,12 @@
       }
       .intakeSubsection>h3 .tha-clean-prep-toggle{
         order:99!important;
-        margin-left:0!important;
+        margin-left:auto!important;
         margin-right:0!important;
         flex:0 0 auto!important;
         align-self:center!important;
       }
+      .intakeSubsection>h3.tha-has-care-marker .tha-clean-prep-toggle{margin-left:0!important}
       .categoryQuestion>.tha-care-time-marker,
       label.notes>.tha-care-time-marker{margin-top:8px!important;justify-self:start!important}
       @media(max-width:720px){
@@ -138,6 +159,7 @@
         .tha-quick-header .tha-care-time-marker{margin-left:auto!important}
         .intakeSubsection>h3{gap:6px!important;flex-wrap:wrap!important}
         .intakeSubsection>h3 .tha-care-time-marker{margin-left:auto!important}
+        .intakeSubsection>h3:not(.tha-has-care-marker) .tha-clean-prep-toggle{margin-left:auto!important}
       }
     `;
     document.head.append(style);
@@ -151,12 +173,19 @@
   }
 
   function timingFilled(scope) {
+    const touchedMap = readTouchedMap();
     const widgets = Array.from(scope.querySelectorAll?.('.tha-care-date-widget') || []);
-    return widgets.some(widget => Array.from(widget.querySelectorAll('input,select,textarea')).some(field => String(field.value || '').trim()));
+    return widgets.some(widget => {
+      const key = widget.getAttribute('data-tha-care-date-widget');
+      if (!key || !touchedMap[key]) return false;
+      return Array.from(widget.querySelectorAll('input,select,textarea')).some(field => String(field.value || '').trim());
+    });
   }
 
   function ensureMarker(container, target, label = 'Time') {
-    if (!container || !target || !careRelevant(container)) return;
+    const relevant = careRelevant(container);
+    target?.classList?.toggle('tha-has-care-marker', Boolean(relevant));
+    if (!container || !target || !relevant) return;
     let marker = target.querySelector?.(`:scope > .${MARKER_CLASS}`);
     if (!marker) {
       marker = document.createElement('span');
@@ -212,12 +241,17 @@
     });
   }
 
+  function handleTimingEvent(event) {
+    markWidgetTouchedFromEvent(event);
+    scheduleRun();
+  }
+
   function start() {
     run();
     const observer = new MutationObserver(scheduleRun);
     observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class', 'value'] });
-    document.addEventListener('input', scheduleRun);
-    document.addEventListener('change', scheduleRun);
+    document.addEventListener('input', handleTimingEvent);
+    document.addEventListener('change', handleTimingEvent);
     window.addEventListener('tha:set-view', () => window.setTimeout(run, 150));
   }
 
