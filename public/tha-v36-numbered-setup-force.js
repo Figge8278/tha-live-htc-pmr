@@ -12,7 +12,7 @@
       .walkthroughControlsPanel .walkthroughControlsBody{display:grid!important;visibility:visible!important;opacity:1!important;max-height:none!important;height:auto!important;overflow:visible!important}
       .walkthroughControlsPanel.expanded .walkthroughControlsBody{display:grid!important}
       .walkthroughControlsPanel.collapsed .walkthroughControlsBody{display:grid!important}
-      .walkthroughControlsPanel .workflowCueStrip{display:flex!important;visibility:visible!important;opacity:1!important}
+      .walkthroughControlsPanel .workflowCueStrip{display:none!important;visibility:hidden!important}
       .walkthroughControlsPanel .walkthroughControlsSummary{display:none!important}
       .walkthroughControlsPanel .homeownerOutputCard{display:none!important}
       .walkthroughControlsPanel .walkthroughControlsBody{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-areas:"setup intakeImport" "workSession businessRecords" "advanced advanced"!important;gap:16px!important;align-items:start!important}
@@ -63,6 +63,12 @@
     panel.style.display = 'block';
     panel.style.visibility = 'visible';
     panel.style.opacity = '1';
+
+    const cueStrip = panel.querySelector('.workflowCueStrip');
+    if (cueStrip) {
+      cueStrip.setAttribute('hidden', 'true');
+      cueStrip.style.display = 'none';
+    }
 
     const body = panel.querySelector('.walkthroughControlsBody');
     if (body) {
