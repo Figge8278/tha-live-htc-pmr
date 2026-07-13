@@ -7,12 +7,11 @@
   const SUBMITTED_BY_KEY = 'tha-drive-submitted-by';
   const ROLE_KEY = 'tha-drive-user-role';
   const DRIVE_META_KEY = 'tha-drive-meta';
-  const PHOTO_GUARD_STATUS_KEY = 'tha-photo-storage-guard-status-v1';
 
   const DESTINATIONS = [
-    ['incoming', 'Incoming Field Upload', 'Default: raw field upload before Figge review'],
-    ['review', 'Review / Ready to File', 'Figge has reviewed and it is ready to move'],
-    ['final', 'Final Client Package', 'Use only after review and client-folder decision']
+    ['incoming', 'Incoming Field Upload'],
+    ['review', 'Review / Ready to File'],
+    ['final', 'Final Client Package']
   ];
 
   const ROLES = [
@@ -50,10 +49,6 @@
     return /drive connected|ready to export|google drive is connected/.test(text) || Boolean(meta.hasConnected || meta.connected || meta.driveConnected);
   }
 
-  function photoGuardState() {
-    return readJson(PHOTO_GUARD_STATUS_KEY, { state: 'unknown' })?.state || 'unknown';
-  }
-
   function rootState() {
     const id = storageValue(ROOT_KEY).trim();
     return { ready: Boolean(id), id, label: storageValue(ROOT_LABEL_KEY, 'THA app - Clients') };
@@ -75,10 +70,6 @@
 
   function destinationLabel(id = destination()) {
     return DESTINATIONS.find(([key]) => key === id)?.[1] || 'Incoming Field Upload';
-  }
-
-  function roleLabel(id = role()) {
-    return ROLES.find(([key]) => key === id)?.[1] || 'Figge / Admin';
   }
 
   function recommendedDestinationForRole(nextRole) {
@@ -109,19 +100,22 @@
     const style = document.createElement('style');
     style.id = STYLE_ID;
     style.textContent = `
-      .businessRecordsCard .driveSetupGrid,.businessRecordsCard .driveMetaRow{display:none!important}
-      .businessRecordsCard .driveSetupActions{display:none!important}
-      .tha-business-drive-command{margin:12px 0 0!important;padding:14px!important;border:1px solid #d8e4ea!important;border-radius:18px!important;background:#fbfdfe!important;color:#173e57!important;display:grid!important;gap:12px!important;box-shadow:none!important}
-      .tha-business-drive-command h4{margin:0!important;font-size:16px!important;color:#173e57!important;line-height:1.2!important}.tha-business-drive-command p{margin:0!important;font-size:12px!important;line-height:1.4!important;color:#536b76!important;font-weight:800!important}
-      .tha-drive-substep-list{display:grid!important;gap:10px!important}.tha-drive-substep{border:1px solid #d8e4ea!important;border-radius:15px!important;background:#fff!important;padding:11px!important;display:grid!important;gap:8px!important}.tha-drive-substep.good{border-color:#b8d8b2!important;background:#f8fff6!important}.tha-drive-substep.warn{border-color:#efc17f!important;background:#fff9ef!important}.tha-drive-substep.bad{border-color:#edb4a9!important;background:#fff5f3!important}
-      .tha-drive-substep-head{display:flex!important;gap:8px!important;align-items:flex-start!important}.tha-drive-step-num{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-width:34px!important;height:28px!important;border-radius:999px!important;background:#0b3658!important;color:#fff!important;font-size:12px!important;font-weight:1000!important}.tha-drive-substep.good .tha-drive-step-num{background:#23884c!important}.tha-drive-substep.warn .tha-drive-step-num{background:#d97706!important}.tha-drive-substep.bad .tha-drive-step-num{background:#b42318!important}.tha-drive-substep h5{margin:0!important;font-size:14px!important;color:#173e57!important;line-height:1.25!important}.tha-drive-substep small{display:block!important;margin-top:3px!important;color:#657983!important;font-size:11px!important;font-weight:790!important;line-height:1.35!important}
-      .tha-drive-fields{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important}.tha-drive-fields label{display:grid!important;gap:4px!important;color:#315568!important;font-size:10px!important;font-weight:950!important;text-transform:uppercase!important;letter-spacing:.03em!important}.tha-drive-fields input,.tha-drive-fields select{width:100%!important;border:1px solid #d6e1e7!important;border-radius:10px!important;background:#fff!important;color:#243d49!important;padding:8px!important;font-size:12px!important;font-weight:850!important}
-      .tha-drive-actions{display:flex!important;flex-wrap:wrap!important;gap:7px!important}.tha-drive-actions button{border:1px solid #b7c7d0!important;border-radius:999px!important;background:#fff!important;color:#173e57!important;padding:8px 10px!important;font-size:12px!important;font-weight:950!important;cursor:pointer!important}.tha-drive-actions button.primary{background:#0b3658!important;border-color:#0b3658!important;color:#fff!important}.tha-drive-actions button.green{background:#23884c!important;border-color:#23884c!important;color:#fff!important}.tha-drive-actions button:disabled{opacity:.55!important;cursor:not-allowed!important}
-      .tha-drive-chipline{display:flex!important;flex-wrap:wrap!important;gap:6px!important}.tha-drive-chip{border:1px solid #d7e3ea!important;border-radius:999px!important;background:#fff!important;color:#315568!important;padding:5px 8px!important;font-size:11px!important;font-weight:950!important}.tha-drive-chip.good{border-color:#abd6a3!important;background:#f3fbf0!important;color:#285c30!important}.tha-drive-chip.warn{border-color:#f0bd82!important;background:#fff4e6!important;color:#8a4b08!important}.tha-drive-chip.bad{border-color:#efb4a9!important;background:#fff1f0!important;color:#b42318!important}
-      .tha-drive-admin-note{border:1px dashed #cddfea!important;border-radius:12px!important;background:#fff!important;padding:9px!important}.tha-drive-admin-note summary{cursor:pointer!important;font-size:12px!important;font-weight:950!important;color:#315568!important}.tha-drive-admin-fields{display:grid!important;grid-template-columns:minmax(210px,1fr) minmax(160px,.6fr) auto!important;gap:8px!important;align-items:end!important;margin-top:9px!important}.tha-drive-admin-fields label{display:grid!important;gap:4px!important;font-size:10px!important;font-weight:950!important;text-transform:uppercase!important;color:#315568!important}.tha-drive-admin-fields input{border:1px solid #d6e1e7!important;border-radius:10px!important;padding:8px!important;font-size:12px!important;font-weight:850!important}
-      .tha-drive-normal-flow{border:1px solid #d8e4ea!important;border-radius:12px!important;background:#fff!important;padding:9px!important;color:#536b76!important;font-size:12px!important;font-weight:800!important;line-height:1.4!important}.tha-drive-normal-flow strong{color:#173e57!important}
-      .tha-drive-advanced-wrap{margin:10px 0!important;border:1px solid #d8e4ea!important;border-radius:18px!important;background:#fbfdfe!important;padding:10px!important}.tha-drive-advanced-wrap>summary{cursor:pointer!important;font-size:13px!important;font-weight:950!important;color:#315568!important}.tha-drive-advanced-wrap .tha-drive-advanced-body{margin-top:10px!important;display:grid!important;gap:10px!important}.tha-drive-advanced-hidden{display:none!important}.tha-secondary-demo-tool{display:none!important}.tha-demo-cleanup-note{display:none!important}
-      @media(max-width:980px){.tha-drive-fields,.tha-drive-admin-fields{grid-template-columns:1fr!important}.tha-drive-actions button{width:100%!important;justify-content:center}}
+      .businessRecordsCard .driveSetupGrid,.businessRecordsCard .driveMetaRow,.businessRecordsCard .driveSetupActions{display:none!important}
+      .businessRecordsCard .driveSetupHeader{margin-bottom:8px!important;display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:10px!important}
+      .businessRecordsCard .driveSetupHeader p{display:none!important}.businessRecordsCard .driveSetupHeader .drivePill{display:none!important}
+      .businessRecordsCard .driveSetupHeader h3{margin:0!important;font-size:18px!important;line-height:1.2!important;color:#173e57!important}
+      .tha-business-drive-command{margin:0!important;padding:0!important;border:0!important;background:transparent!important;color:#173e57!important;display:grid!important;gap:10px!important;box-shadow:none!important}
+      .tha-drive-summary-line{display:flex!important;flex-wrap:wrap!important;gap:6px!important;margin:0 0 2px!important}
+      .tha-drive-chip{border:1px solid #d7e3ea!important;border-radius:999px!important;background:#fff!important;color:#315568!important;padding:5px 8px!important;font-size:11px!important;font-weight:950!important}.tha-drive-chip.good{border-color:#abd6a3!important;background:#f3fbf0!important;color:#285c30!important}.tha-drive-chip.warn{border-color:#f0bd82!important;background:#fff4e6!important;color:#8a4b08!important}.tha-drive-chip.bad{border-color:#efb4a9!important;background:#fff1f0!important;color:#b42318!important}
+      .tha-drive-substep-list{display:grid!important;gap:8px!important}.tha-drive-substep{border:1px solid #d8e4ea!important;border-radius:13px!important;background:#fff!important;padding:9px!important;display:grid!important;gap:7px!important}.tha-drive-substep.good{border-color:#b8d8b2!important;background:#f8fff6!important}.tha-drive-substep.warn{border-color:#efc17f!important;background:#fff9ef!important}.tha-drive-substep.bad{border-color:#edb4a9!important;background:#fff5f3!important}
+      .tha-drive-substep-head{display:flex!important;gap:8px!important;align-items:flex-start!important}.tha-drive-step-num{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-width:32px!important;height:26px!important;border-radius:999px!important;background:#0b3658!important;color:#fff!important;font-size:12px!important;font-weight:1000!important}.tha-drive-substep.good .tha-drive-step-num{background:#23884c!important}.tha-drive-substep.warn .tha-drive-step-num{background:#d97706!important}.tha-drive-substep.bad .tha-drive-step-num{background:#b42318!important}
+      .tha-drive-substep h5{margin:0!important;font-size:13px!important;color:#173e57!important;line-height:1.24!important}.tha-drive-substep small{display:block!important;margin-top:2px!important;color:#657983!important;font-size:11px!important;font-weight:780!important;line-height:1.28!important}
+      .tha-drive-fields{display:grid!important;grid-template-columns:1fr!important;gap:6px!important}.tha-drive-fields label{display:grid!important;gap:3px!important;color:#315568!important;font-size:10px!important;font-weight:950!important;text-transform:uppercase!important;letter-spacing:.03em!important}.tha-drive-fields input,.tha-drive-fields select{width:100%!important;border:1px solid #d6e1e7!important;border-radius:9px!important;background:#fff!important;color:#243d49!important;padding:7px!important;font-size:12px!important;font-weight:850!important}
+      .tha-drive-actions{display:flex!important;flex-wrap:wrap!important;gap:6px!important}.tha-drive-actions button{border:1px solid #b7c7d0!important;border-radius:999px!important;background:#fff!important;color:#173e57!important;padding:7px 9px!important;font-size:12px!important;font-weight:950!important;cursor:pointer!important}.tha-drive-actions button.primary{background:#0b3658!important;border-color:#0b3658!important;color:#fff!important}.tha-drive-actions button.green{background:#23884c!important;border-color:#23884c!important;color:#fff!important}
+      .tha-drive-admin-note{border:1px dashed #cddfea!important;border-radius:11px!important;background:#fff!important;padding:8px!important}.tha-drive-admin-note summary{cursor:pointer!important;font-size:12px!important;font-weight:950!important;color:#315568!important}.tha-drive-admin-fields{display:grid!important;grid-template-columns:1fr!important;gap:7px!important;margin-top:8px!important}.tha-drive-admin-fields label{display:grid!important;gap:3px!important;font-size:10px!important;font-weight:950!important;text-transform:uppercase!important;color:#315568!important}.tha-drive-admin-fields input{border:1px solid #d6e1e7!important;border-radius:9px!important;padding:7px!important;font-size:12px!important;font-weight:850!important}
+      .tha-drive-normal-flow{border:1px solid #d8e4ea!important;border-radius:11px!important;background:#fff!important;padding:8px!important;color:#536b76!important;font-size:11px!important;font-weight:800!important;line-height:1.35!important}.tha-drive-normal-flow strong{color:#173e57!important}
+      .tha-drive-advanced-wrap{margin:8px 0 0!important;border:1px solid #d8e4ea!important;border-radius:14px!important;background:#fbfdfe!important;padding:9px!important}.tha-drive-advanced-wrap>summary{cursor:pointer!important;font-size:12px!important;font-weight:950!important;color:#315568!important}.tha-drive-advanced-wrap .tha-drive-advanced-body{margin-top:8px!important;display:grid!important;gap:8px!important}.tha-drive-advanced-hidden,.tha-secondary-demo-tool,.tha-demo-cleanup-note{display:none!important}
+      @media(max-width:980px){.tha-drive-actions button{width:100%!important;justify-content:center}}
       @media print{.tha-business-drive-command,.tha-drive-advanced-wrap{display:none!important}}
     `;
     document.head.append(style);
@@ -133,45 +127,37 @@
     const currentRole = role();
     const dest = destination();
     const submitter = submittedBy();
-    const photoState = photoGuardState();
-    const folderStatus = root.ready ? `Folder set: ${root.label}` : 'Folder not set yet';
-    const connectStatus = connected ? 'Drive connected' : 'Drive not connected';
     return `
       <section class="tha-business-drive-command" ${PANEL_ATTR}="true">
-        <div>
-          <h4>Do #4 in this order</h4>
-          <p>This section is for the internal business package: intake copy, HTC copy, PMR package, photos, and backup data. Homeowner-facing PMR download/print stays on the PMR screen.</p>
-        </div>
-        <div class="tha-drive-chipline">
-          <span class="tha-drive-chip ${root.ready ? 'good' : 'bad'}">${escapeHtml(folderStatus)}</span>
-          <span class="tha-drive-chip ${connected ? 'good' : 'warn'}">${escapeHtml(connectStatus)}</span>
-          <span class="tha-drive-chip">Upload lane: ${escapeHtml(destinationLabel(dest))}</span>
-          <span class="tha-drive-chip">Photos: ${escapeHtml(photoState)}</span>
+        <div class="tha-drive-summary-line">
+          <span class="tha-drive-chip ${root.ready ? 'good' : 'bad'}">${root.ready ? 'Folder set' : 'Folder needed'}</span>
+          <span class="tha-drive-chip ${connected ? 'good' : 'warn'}">${connected ? 'Drive connected' : 'Connect Drive'}</span>
+          <span class="tha-drive-chip">${escapeHtml(destinationLabel(dest))}</span>
         </div>
         <div class="tha-drive-substep-list">
           <article class="tha-drive-substep ${submitter ? 'good' : 'warn'}">
-            <div class="tha-drive-substep-head"><span class="tha-drive-step-num">4A</span><div><h5>Confirm who is submitting</h5><small>This creates the uploader lane inside THA app - Clients.</small></div></div>
+            <div class="tha-drive-substep-head"><span class="tha-drive-step-num">4A</span><div><h5>Uploader + lane</h5><small>Who is submitting, and where this upload should land.</small></div></div>
             <div class="tha-drive-fields">
               <label>Role<select data-tha-command-role>${ROLES.map(([id, label]) => `<option value="${id}" ${id === currentRole ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
               <label>Submitted By<input type="text" data-tha-command-submitted-by value="${escapeHtml(submitter)}" placeholder="Figge, Rick, Luis"></label>
               <label>Upload Lane<select data-tha-command-destination>${DESTINATIONS.map(([id, label]) => `<option value="${id}" ${id === dest ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
             </div>
-            <div class="tha-drive-actions"><button type="button" data-tha-command-save-settings>Save uploader/lane</button></div>
+            <div class="tha-drive-actions"><button type="button" data-tha-command-save-settings>Save lane</button></div>
           </article>
           <article class="tha-drive-substep ${root.ready ? 'good' : 'bad'}">
-            <div class="tha-drive-substep-head"><span class="tha-drive-step-num">4B</span><div><h5>Confirm THA app - Clients folder</h5><small>Admin setup only. Field users should not need to change this once saved.</small></div></div>
-            <details class="tha-drive-admin-note"><summary>${root.ready ? 'Folder is set — show admin fields' : 'Set folder now'}</summary><div class="tha-drive-admin-fields"><label>THA Root Folder ID<input type="text" data-tha-command-root-id value="${escapeHtml(root.id)}" placeholder="Paste Drive folder ID"></label><label>Root Label<input type="text" data-tha-command-root-label value="${escapeHtml(root.label || 'THA app - Clients')}" placeholder="THA app - Clients"></label><button type="button" class="primary" data-tha-command-save-admin>Save folder</button></div></details>
+            <div class="tha-drive-substep-head"><span class="tha-drive-step-num">4B</span><div><h5>THA app - Clients folder</h5><small>${root.ready ? `Using ${escapeHtml(root.label)}.` : 'Admin needs to set the Drive folder once.'}</small></div></div>
+            <details class="tha-drive-admin-note"><summary>${root.ready ? 'Admin folder settings' : 'Set folder'}</summary><div class="tha-drive-admin-fields"><label>THA Root Folder ID<input type="text" data-tha-command-root-id value="${escapeHtml(root.id)}" placeholder="Paste Drive folder ID"></label><label>Root Label<input type="text" data-tha-command-root-label value="${escapeHtml(root.label || 'THA app - Clients')}" placeholder="THA app - Clients"></label><button type="button" class="primary" data-tha-command-save-admin>Save folder</button></div></details>
           </article>
           <article class="tha-drive-substep ${!root.ready ? 'bad' : connected ? 'good' : 'warn'}">
-            <div class="tha-drive-substep-head"><span class="tha-drive-step-num">4C</span><div><h5>Connect Google Drive</h5><small>Use the same Google account that has permission to the THA app - Clients folder.</small></div></div>
+            <div class="tha-drive-substep-head"><span class="tha-drive-step-num">4C</span><div><h5>Connect Drive</h5><small>Use a Google account with access to the THA app - Clients folder.</small></div></div>
             <div class="tha-drive-actions"><button type="button" class="primary" data-tha-command-action="connect">${connected ? 'Drive connected' : 'Connect Google Drive'}</button></div>
           </article>
           <article class="tha-drive-substep ${connected ? 'warn' : 'bad'}">
-            <div class="tha-drive-substep-head"><span class="tha-drive-step-num">4D</span><div><h5>Sync photos, then save package</h5><small>Save only after client setup is filled in and Drive is connected.</small></div></div>
-            <div class="tha-drive-actions"><button type="button" data-tha-command-action="sync">Sync pending photos</button><button type="button" class="green" data-tha-command-action="save">Save Drive package</button></div>
+            <div class="tha-drive-substep-head"><span class="tha-drive-step-num">4D</span><div><h5>Sync + save</h5><small>Sync photos first, then save the internal Drive package.</small></div></div>
+            <div class="tha-drive-actions"><button type="button" data-tha-command-action="sync">Sync photos</button><button type="button" class="green" data-tha-command-action="save">Save Drive package</button></div>
           </article>
         </div>
-        <p class="tha-drive-normal-flow"><strong>Normal folder flow:</strong> field upload → Incoming Field Upload → Figge review → move approved folder into the final admin client folder → Airtable links to the final reviewed folder.</p>
+        <p class="tha-drive-normal-flow"><strong>Folder flow:</strong> Incoming upload → Figge review → move approved folder to final admin client folder → Airtable links to the final folder.</p>
       </section>`;
   }
 
@@ -279,7 +265,7 @@
       button.dataset.wired = 'true';
       button.addEventListener('click', () => {
         saveLaneSettings();
-        window.alert('Uploader and upload lane saved.');
+        window.alert('Upload lane saved.');
       });
     });
     document.querySelectorAll('[data-tha-command-save-admin]').forEach(button => {
