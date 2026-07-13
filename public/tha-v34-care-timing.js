@@ -4,6 +4,7 @@
   const WIDGET_ATTR = 'data-tha-care-date-widget';
   const MARKER_CLASS = 'tha-care-time-marker';
   const INLINE_ATTR = 'data-tha-care-timing-inline';
+  const INTAKE_SOURCE = 'intake-widget-v34';
 
   const TIMEFRAME_OPTIONS = [
     { value: '', label: 'Unknown / not captured', monthsAgo: null },
@@ -18,7 +19,7 @@
   const CARE_RULES = [
     { key:'furnace-filter', match:['furnace filter replacement','last furnace filter','furnace filter'], careItem:'Furnace filter replacement', cadenceLabel:'Every 1–3 months', cadenceMonths:3, resource:'Handy Services', batch:'Bundle with thermostat check, return-air grille check, and general mechanical-room walkthrough.', group:'HVAC / Mechanical' },
     { key:'furnace-service', match:['furnace service history','last furnace servicing','furnace servicing','furnace service'], careItem:'Furnace service', cadenceLabel:'Annual', cadenceMonths:12, resource:'HVAC', batch:'Forecast before heating season; THA can coordinate with filter and vent-path reminders.', group:'HVAC / Mechanical' },
-    { key:'ac-service', match:['a/c service history','a/c or heat pump servicing','ac service history','heat pump service','cooling service','hvac'], careItem:'A/C or heat-pump service', cadenceLabel:'Annual', cadenceMonths:12, resource:'HVAC', batch:'Best forecast before cooling season; pairs with condenser clearance and thermostat review.', group:'HVAC / Mechanical' },
+    { key:'ac-service', match:['a/c service history','a/c or heat pump servicing','ac service history','heat pump service','cooling service','air conditioner service','a/c service'], careItem:'A/C or heat-pump service', cadenceLabel:'Annual', cadenceMonths:12, resource:'HVAC', batch:'Best forecast before cooling season; pairs with condenser clearance and thermostat review.', group:'HVAC / Mechanical' },
     { key:'water-heater', match:['water heater flush','water heater flush / age','water heater'], careItem:'Water heater flush / age review', cadenceLabel:'Annual review', cadenceMonths:12, resource:'Plumbing', batch:'Pairs well with main shut-off check, leak scan, and fixture/drain notes.', group:'Plumbing / Water' },
     { key:'sewer-scope', match:['sewer / irrigation history','sewer line scope','sewer scope','sewer clean','sewer'], careItem:'Sewer scope / clean-out history', cadenceLabel:'Every 3–5 years or condition-based', cadenceMonths:48, resource:'Plumbing', batch:'Useful for long-term planning; especially valuable before drainage, landscape, or remodel work.', group:'Plumbing / Water' },
     { key:'irrigation-service', match:['sewer / irrigation history','irrigation','sprinkler','sprinkler service','winterization','blowout'], careItem:'Irrigation turn-on / winterization', cadenceLabel:'Seasonal', cadenceMonths:6, resource:'Irrigation/Landscape', batch:'Forecast spring start-up and fall blowout; bundle with downspout, grading, and exterior-site notes.', group:'Exterior & Site' },
@@ -82,9 +83,13 @@
     return { rule, saved, lastDate, dateSource, nextDate, status: statusForNext(nextDate), hasTiming };
   }
 
+  function tokenMatchesText(token, lower) {
+    if (token === 'hvac') return /\bhvac\b/.test(lower) && /(service|servicing|maintenance|tune|inspection)/.test(lower);
+    return lower.includes(token);
+  }
   function matchingRulesForText(text) {
     const lower = String(text || '').toLowerCase();
-    return CARE_RULES.filter(rule => rule.match.some(token => lower.includes(token)));
+    return CARE_RULES.filter(rule => rule.match.some(token => tokenMatchesText(token, lower)));
   }
   function matchingRulesForLabel(label) { return matchingRulesForText(textOf(label)); }
   function careRelevant(element) { return Boolean(element && (element.querySelector?.('.tha-care-date-widget') || matchingRulesForText(textOf(element)).length)); }
@@ -137,8 +142,13 @@
     document.head.append(style);
   }
 
-  function buildWidget(rule) {
+  function intakeSavedValue(rule) {
     const saved = readStore()[rule.key] || {};
+    return saved.source === INTAKE_SOURCE ? saved : {};
+  }
+
+  function buildWidget(rule) {
+    const saved = intakeSavedValue(rule);
     const widget = document.createElement('div');
     widget.className = 'tha-care-date-widget';
     widget.setAttribute(WIDGET_ATTR, rule.key);
@@ -160,7 +170,7 @@
     const name = field?.dataset?.careField;
     if (!name) return;
     const store = readStore();
-    const current = store[key] || {};
+    const current = { ...(store[key] || {}), source: INTAKE_SOURCE };
     current[name] = field.value;
     if (!current.lastDate && !current.timeframe && !current.note) delete store[key];
     else store[key] = current;
@@ -177,12 +187,12 @@
     });
   }
 
+  function widgetVisibleFilled(widget) {
+    return Array.from(widget.querySelectorAll('input,select,textarea')).some(field => String(field.value || '').trim());
+  }
+
   function timingFilled(scope) {
-    return Array.from(scope.querySelectorAll?.('.tha-care-date-widget') || []).some(widget => {
-      const key = widget.getAttribute(WIDGET_ATTR);
-      const saved = key ? (readStore()[key] || {}) : {};
-      return Boolean(saved.lastDate || saved.timeframe || saved.note);
-    });
+    return Array.from(scope.querySelectorAll?.('.tha-care-date-widget') || []).some(widgetVisibleFilled);
   }
 
   function ensureMarker(container, target, label = 'Time') {
@@ -207,9 +217,7 @@
       const heading = section.querySelector(':scope > h3');
       ensureMarker(section, heading, 'Time');
       const toggle = heading?.querySelector?.('.tha-clean-prep-toggle');
-      if (toggle) {
-        toggle.style.marginLeft = section.querySelector(`.${MARKER_CLASS}`) ? '0' : 'auto';
-      }
+      if (toggle) toggle.style.marginLeft = section.querySelector(`.${MARKER_CLASS}`) ? '0' : 'auto';
     });
     root.querySelectorAll?.('.intakeLane label.categoryQuestion, .intakeLane label.notes, .intakeLane .intakeQuestion').forEach(label => {
       if (label.closest('.tha-quick-card,.intakeSubsection')) return;
@@ -240,18 +248,12 @@
   function attachInlineTiming(root = document) {
     const store = readStore();
     const records = CARE_RULES.map(rule => recordForRule(rule, store)).filter(record => record.hasTiming);
+    root.querySelectorAll?.(`[${INLINE_ATTR}]`).forEach(existing => existing.remove());
     if (!records.length) return;
     targetContainers(root).forEach(container => {
       const text = normalized(container);
-      const record = records.find(entry => entry.rule.match.some(token => text.includes(token)) || text.includes(entry.rule.careItem.toLowerCase()));
+      const record = records.find(entry => entry.rule.match.some(token => tokenMatchesText(token, text)) || text.includes(entry.rule.careItem.toLowerCase()));
       if (!record) return;
-      const existing = container.querySelector?.(`[${INLINE_ATTR}="${record.rule.key}"]`);
-      if (existing) {
-        const wrapper = document.createElement('div');
-        wrapper.innerHTML = inlineHtml(record);
-        existing.replaceWith(wrapper.firstElementChild);
-        return;
-      }
       const wrapper = document.createElement('div');
       wrapper.innerHTML = inlineHtml(record);
       container.append(wrapper.firstElementChild);
