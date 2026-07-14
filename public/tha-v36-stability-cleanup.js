@@ -36,15 +36,35 @@
       .tha-drive-simple-guide.not-configured{border-color:#efb4a9!important;background:#fff5f3!important;color:#9f2c21!important}
       .tha-drive-simple-guide.not-connected{border-color:#efc17f!important;background:#fffaf0!important;color:#74460a!important}
       .tha-drive-simple-guide.connected{border-color:#bfdbfe!important;background:#eff6ff!important;color:#1e3a8a!important}
-      .tha-drive-oauth-diagnostic{display:grid!important;gap:6px!important;margin-top:8px!important;padding:9px 10px!important;border-radius:12px!important;background:#fff!important;border:1px dashed #f0bd82!important;color:#74460a!important;font-size:11px!important;font-weight:850!important;line-height:1.35!important}
-      .tha-drive-oauth-diagnostic code{display:block!important;white-space:normal!important;word-break:break-all!important;color:#173e57!important;background:#f8fafc!important;border-radius:8px!important;padding:6px!important}
-      .tha-drive-oauth-diagnostic button{width:max-content!important;border:1px solid #d97706!important;background:#fff7ed!important;color:#8a4b08!important;border-radius:999px!important;padding:6px 9px!important;font-size:11px!important;font-weight:950!important}
+      .tha-drive-oauth-diagnostic,.tha-drive-failure-guidance{display:grid!important;gap:6px!important;margin-top:8px!important;padding:9px 10px!important;border-radius:12px!important;background:#fff!important;border:1px dashed #f0bd82!important;color:#74460a!important;font-size:11px!important;font-weight:850!important;line-height:1.35!important}
+      .tha-drive-failure-guidance{border-style:solid!important;border-color:#f5b5ad!important;background:#fff7f6!important;color:#9f2c21!important}
+      .tha-drive-oauth-diagnostic code,.tha-drive-failure-guidance code{display:block!important;white-space:normal!important;word-break:break-all!important;color:#173e57!important;background:#f8fafc!important;border-radius:8px!important;padding:6px!important}
+      .tha-drive-oauth-diagnostic button,.tha-drive-failure-guidance button{width:max-content!important;border:1px solid #d97706!important;background:#fff7ed!important;color:#8a4b08!important;border-radius:999px!important;padding:6px 9px!important;font-size:11px!important;font-weight:950!important}
       .homeownerLane .tha-care-time-marker,.homeownerLane .tha-care-date-widget,.intakeSubsection>h3>.tha-care-time-marker{display:none!important;visibility:hidden!important}
       .demoScenarioCard,.releaseNoteInline,[data-tha-production-readiness],[data-tha-client-delivery-demo],[data-tha-drive-test-workflow],[data-tha-shared-drive-admin]{display:none!important}
       @media(max-width:900px){.walkthroughControlsPanel.expanded .walkthroughControlsBody{grid-template-columns:1fr!important;grid-template-areas:"setup" "intakeImport" "workSession" "businessRecords" "advanced"!important}.walkthroughControlsPanel{padding:0 12px!important}}
       @media print{.walkthroughControlsPanel{display:none!important}}
     `;
     document.head.append(style);
+  }
+
+  function copyOriginButtonHtml() {
+    return '<button type="button" data-tha-copy-origin>Copy OAuth origin</button>';
+  }
+
+  function wireCopyOrigin(scope) {
+    const copyButton = scope?.querySelector?.('[data-tha-copy-origin]');
+    if (!copyButton || copyButton.dataset.wired) return;
+    copyButton.dataset.wired = 'true';
+    copyButton.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(window.location.origin);
+        copyButton.textContent = 'Copied';
+        window.setTimeout(() => { copyButton.textContent = 'Copy OAuth origin'; }, 1500);
+      } catch {
+        window.prompt('Copy this OAuth origin:', window.location.origin);
+      }
+    });
   }
 
   function renameSetupHeadings(panel) {
@@ -111,21 +131,65 @@
         diagnostic.className = 'tha-drive-oauth-diagnostic';
         guide.after(diagnostic);
       }
-      diagnostic.innerHTML = `<span>OAuth origin to authorize in Google Cloud:</span><code>${window.location.origin}</code><button type="button" data-tha-copy-origin>Copy origin</button>`;
-      const copyButton = diagnostic.querySelector('[data-tha-copy-origin]');
-      if (copyButton && !copyButton.dataset.wired) {
-        copyButton.dataset.wired = 'true';
-        copyButton.addEventListener('click', async () => {
-          try {
-            await navigator.clipboard.writeText(window.location.origin);
-            copyButton.textContent = 'Copied';
-            window.setTimeout(() => { copyButton.textContent = 'Copy origin'; }, 1500);
-          } catch {
-            window.prompt('Copy this origin:', window.location.origin);
-          }
-        });
-      }
+      diagnostic.innerHTML = `<span>OAuth origin to authorize in Google Cloud:</span><code>${window.location.origin}</code>${copyOriginButtonHtml()}`;
+      wireCopyOrigin(diagnostic);
     } else if (diagnostic) diagnostic.remove();
+  }
+
+  function driveFailureGuidanceText(errorText) {
+    const lower = errorText.toLowerCase();
+    if (/origin|mismatch|not allowed|unauthorized.*origin/.test(lower)) {
+      return {
+        title: 'Drive failed because Google does not authorize this app origin yet.',
+        body: 'Add this exact origin under Google Cloud → APIs & Services → Credentials → OAuth 2.0 Web client → Authorized JavaScript origins.',
+        showOrigin: true
+      };
+    }
+    if (/missing client id|client id|not configured/.test(lower)) {
+      return {
+        title: 'Drive failed because the OAuth Web Client ID is missing for this browser/build.',
+        body: 'Open Advanced → Drive Setup Help / Troubleshooting and paste the Google OAuth Web Client ID, or set VITE_GOOGLE_OAUTH_CLIENT_ID in Vercel and redeploy.',
+        showOrigin: true
+      };
+    }
+    if (/popup|canceled|cancelled|denied|access_denied/.test(lower)) {
+      return {
+        title: 'Drive failed because the Google popup was blocked, closed, or denied.',
+        body: 'Allow popups for this app, click Connect Google Drive again, and approve the Google Drive permission prompt.',
+        showOrigin: false
+      };
+    }
+    if (/drive api|googleapis|api request/.test(lower)) {
+      return {
+        title: 'Drive failed after sign-in because the Drive API request did not complete.',
+        body: 'Confirm the Google Drive API is enabled for the OAuth project and that the signed-in account granted Drive file access.',
+        showOrigin: false
+      };
+    }
+    return {
+      title: 'Drive connection failed.',
+      body: 'Use the technical details below to identify the blocker. The most common causes are OAuth origin mismatch, missing Client ID, popup blocked, or Drive API disabled.',
+      showOrigin: true
+    };
+  }
+
+  function enhanceDriveFailure(business) {
+    const errorBox = Array.from(business.querySelectorAll('.driveErrorBox')).find(box => /drive|oauth|origin|client|popup|google/i.test(textOf(box)));
+    const old = business.querySelector('.tha-drive-failure-guidance');
+    if (!errorBox) {
+      if (old) old.remove();
+      return;
+    }
+    const message = textOf(errorBox);
+    const guidance = driveFailureGuidanceText(message);
+    let panel = old;
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.className = 'tha-drive-failure-guidance';
+      errorBox.after(panel);
+    }
+    panel.innerHTML = `<strong>${guidance.title}</strong><span>${guidance.body}</span>${guidance.showOrigin ? `<code>${window.location.origin}</code>${copyOriginButtonHtml()}` : ''}`;
+    wireCopyOrigin(panel);
   }
 
   function stabilizeTimingLabels(root = document) {
@@ -150,7 +214,10 @@
       panel.querySelector('.homeownerOutputCard')?.setAttribute('hidden', 'true');
       renameSetupHeadings(panel);
       const business = panel.querySelector('.businessRecordsCard');
-      if (business) setupDriveGuide(business);
+      if (business) {
+        setupDriveGuide(business);
+        enhanceDriveFailure(business);
+      }
     }
     stabilizeTimingLabels(document);
   }
@@ -169,7 +236,7 @@
     applyCleanup();
     window.setTimeout(applyCleanup, 300);
     window.setTimeout(applyCleanup, 1000);
-    new MutationObserver(scheduleCleanup).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'aria-expanded'] });
+    new MutationObserver(scheduleCleanup).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'aria-expanded', 'disabled'] });
     document.addEventListener('input', scheduleCleanup);
     document.addEventListener('change', scheduleCleanup);
   }
