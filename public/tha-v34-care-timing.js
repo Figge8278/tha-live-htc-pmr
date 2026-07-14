@@ -2,7 +2,6 @@
   const STYLE_ID = 'tha-v34-care-timing-styles';
   const STORAGE_KEY = 'tha:care-date-forecasting:v1';
   const WIDGET_ATTR = 'data-tha-care-date-widget';
-  const MARKER_CLASS = 'tha-care-time-marker';
   const INLINE_ATTR = 'data-tha-care-timing-inline';
   const INTAKE_SOURCE = 'intake-widget-v34';
 
@@ -42,10 +41,12 @@
     copy.setMonth(copy.getMonth() + months);
     return copy;
   }
+
   function formatDate(date) {
     if (!(date instanceof Date) || Number.isNaN(date.getTime())) return 'Unknown';
     return date.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
   }
+
   function seasonWindow(date) {
     if (!(date instanceof Date) || Number.isNaN(date.getTime())) return 'Date unknown';
     const month = date.getMonth();
@@ -56,11 +57,13 @@
     if (month <= 10) return `fall ${year}`;
     return `winter ${year}`;
   }
+
   function dateFromTimeframe(optionValue) {
     const option = TIMEFRAME_OPTIONS.find(entry => entry.value === optionValue);
     if (!option || option.monthsAgo == null) return null;
     return addMonths(new Date(), -option.monthsAgo);
   }
+
   function statusForNext(nextDate) {
     if (!(nextDate instanceof Date) || Number.isNaN(nextDate.getTime())) return { label:'Needs baseline', tone:'orange' };
     const days = Math.round((nextDate.getTime() - Date.now()) / 86400000);
@@ -87,14 +90,17 @@
     if (token === 'hvac') return /\bhvac\b/.test(lower) && /(service|servicing|maintenance|tune|inspection)/.test(lower);
     return lower.includes(token);
   }
+
   function matchingRulesForText(text) {
     const lower = String(text || '').toLowerCase();
     return CARE_RULES.filter(rule => rule.match.some(token => tokenMatchesText(token, lower)));
   }
+
   function matchingRulesForLabel(label) { return matchingRulesForText(textOf(label)); }
-  function careRelevant(element) { return Boolean(element && (element.querySelector?.('.tha-care-date-widget') || matchingRulesForText(textOf(element)).length)); }
+
   function candidateLabels(root = document) {
-    return Array.from(root.querySelectorAll('.intakeLane label.categoryQuestion, .intakeLane .intakeQuestion, .intakeLane label.notes, .intakeLane .structuredPromptField'));
+    return Array.from(root.querySelectorAll('.intakeLane:not(.homeownerLane) label.categoryQuestion, .intakeLane:not(.homeownerLane) label.notes, .intakeLane:not(.homeownerLane) .structuredPromptField'))
+      .filter(label => !label.closest('.homeownerLane'));
   }
 
   function installStyles() {
@@ -109,21 +115,7 @@
       .tha-care-date-widget input,.tha-care-date-widget select{width:100%!important;min-width:0!important;border:1px solid #bdd6ea!important;border-radius:10px!important;padding:8px!important;background:#fff!important;color:#173e57!important;font-size:12px!important}
       .tha-care-date-widget textarea{width:100%!important;min-height:58px!important;border:1px solid #bdd6ea!important;border-radius:10px!important;padding:8px!important;background:#fff!important;color:#173e57!important;font-size:12px!important;resize:vertical!important}
       .tha-care-date-note{font-size:11px!important;color:#5c6d77!important;line-height:1.35!important}
-
-      .tha-care-time-marker{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:4px!important;border:1px solid #f2a45f!important;border-radius:999px!important;background:#fff4e8!important;color:#a85107!important;padding:5px 8px!important;min-height:28px!important;font-size:10px!important;font-weight:950!important;line-height:1!important;white-space:nowrap!important;box-shadow:0 0 0 2px rgba(242,164,95,.12)!important;flex:0 0 auto!important;align-self:center!important}
-      .tha-care-time-marker::before{content:'🕒';font-size:12px!important;line-height:1!important}
-      .tha-care-time-marker.is-filled{border-color:#8fd08b!important;background:#ecf9ec!important;color:#2f6a2b!important;box-shadow:0 0 0 2px rgba(82,170,75,.12)!important}
-      .tha-care-time-marker.is-filled::before{content:'✓';font-weight:950!important;color:#2f6a2b!important}
-      .tha-quick-header{display:flex!important;align-items:center!important;gap:8px!important}
-      .tha-quick-header .tha-quick-title{min-width:0!important;flex:1 1 auto!important}
-      .tha-quick-header .tha-care-time-marker{margin-left:auto!important;margin-right:0!important;order:2!important}
-      .tha-quick-header .tha-quick-action{order:3!important;flex:0 0 auto!important;align-self:center!important;min-height:28px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important}
-      .intakeSubsection>h3{display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:nowrap!important;width:100%!important}
-      .intakeSubsection>h3 .tha-prep-completion{order:7!important;margin-left:8px!important;margin-right:0!important;flex:0 0 auto!important}
-      .intakeSubsection>h3 .tha-care-time-marker{order:98!important;margin-left:auto!important;margin-right:0!important;vertical-align:middle!important}
-      .intakeSubsection>h3 .tha-clean-prep-toggle{order:99!important;margin-left:0!important;margin-right:0!important;flex:0 0 auto!important;align-self:center!important}
-      .categoryQuestion>.tha-care-time-marker,label.notes>.tha-care-time-marker{margin-top:8px!important;justify-self:start!important}
-
+      .homeownerLane .tha-care-date-widget,.homeownerLane .tha-care-time-marker,.intakeSubsection>h3>.tha-care-time-marker{display:none!important;visibility:hidden!important}
       .tha-care-inline{margin-top:10px!important;padding:10px!important;border:1px solid #b9dfb4!important;border-radius:14px!important;background:#f7fcf5!important;box-shadow:inset 4px 0 0 rgba(82,170,75,.28)!important;display:grid!important;gap:7px!important;color:#285c30!important}
       .tha-care-inline strong{font-size:12px!important;color:#285c30!important}
       .tha-care-inline p{margin:0!important;font-size:11px!important;line-height:1.35!important;color:#425743!important}
@@ -131,12 +123,11 @@
       .tha-care-inline-meta span{display:inline-flex!important;border:1px solid #cfe8ca!important;border-radius:999px!important;background:#fff!important;color:#285c30!important;padding:4px 7px!important;font-size:10px!important;font-weight:900!important;line-height:1.1!important}
       .tha-care-inline-status{justify-self:start!important;border-radius:999px!important;padding:5px 8px!important;font-size:11px!important;font-weight:950!important;border:1px solid #d8e4ea!important;background:#f8fafc!important;color:#53616c!important}
       .tha-care-inline-status.red{background:#fff1f0!important;color:#b42318!important;border-color:#f5b5ad!important}
-      .tha-care-inline-status.orange{background:#fff4e8!important;color:#a85107!important;border-color:#f2c094!important}
-      .tha-care-inline-status.gold{background:#fff9db!important;color:#8a6b00!important;border-color:#eadb85!important}
+      .tha-care-inline-status.orange{background:#fff4e8!important;color:#a85107!important;border-color:#f2a45f!important}
+      .tha-care-inline-status.gold{background:#fff9db!important;color:#8b6a00!important;border-color:#efd35b!important}
       .tha-care-inline-status.green{background:#ecf9ec!important;color:#2f6a2b!important;border-color:#b8dfb4!important}
       [data-tha-care-forecast-panel]{display:none!important}
-
-      @media(max-width:720px){.tha-care-date-grid{grid-template-columns:1fr!important}.tha-care-time-marker{padding:4px 6px!important;font-size:9px!important;min-height:26px!important}.tha-care-time-marker::before{font-size:11px!important}.tha-quick-header{gap:6px!important}.intakeSubsection>h3{gap:6px!important;flex-wrap:wrap!important}.intakeSubsection>h3 .tha-care-time-marker{margin-left:auto!important}}
+      @media(max-width:720px){.tha-care-date-grid{grid-template-columns:1fr!important}}
       @media print{.tha-care-date-widget{display:none!important}.tha-care-inline{break-inside:avoid!important;box-shadow:none!important}}
     `;
     document.head.append(style);
@@ -187,41 +178,11 @@
     });
   }
 
-  function widgetVisibleFilled(widget) {
-    return Array.from(widget.querySelectorAll('input,select,textarea')).some(field => String(field.value || '').trim());
-  }
-
-  function timingFilled(scope) {
-    return Array.from(scope.querySelectorAll?.('.tha-care-date-widget') || []).some(widgetVisibleFilled);
-  }
-
-  function ensureMarker(container, target, label = 'Time') {
-    if (!container || !target || !careRelevant(container)) return;
-    let marker = target.querySelector?.(`:scope > .${MARKER_CLASS}`);
-    if (!marker) {
-      marker = document.createElement('span');
-      marker.className = MARKER_CLASS;
-      marker.title = 'Care timing field available. Add last-done date or approximate timeframe for PMCP/PASS timing.';
-      const action = target.querySelector?.('.tha-quick-action, .tha-clean-prep-toggle, button');
-      if (action && action.parentElement === target) target.insertBefore(marker, action);
-      else target.append(marker);
-    }
-    const filled = timingFilled(container);
-    marker.classList.toggle('is-filled', filled);
-    marker.textContent = filled ? 'Timed' : label;
-  }
-
-  function markTimingHeaders(root = document) {
-    root.querySelectorAll?.('.homeownerLane .tha-quick-card').forEach(card => ensureMarker(card, card.querySelector('.tha-quick-header'), 'Time'));
-    root.querySelectorAll?.('.intakeLane .intakeSubsection').forEach(section => {
-      const heading = section.querySelector(':scope > h3');
-      ensureMarker(section, heading, 'Time');
-      const toggle = heading?.querySelector?.('.tha-clean-prep-toggle');
-      if (toggle) toggle.style.marginLeft = section.querySelector(`.${MARKER_CLASS}`) ? '0' : 'auto';
-    });
-    root.querySelectorAll?.('.intakeLane label.categoryQuestion, .intakeLane label.notes, .intakeLane .intakeQuestion').forEach(label => {
-      if (label.closest('.tha-quick-card,.intakeSubsection')) return;
-      ensureMarker(label, label, 'Time');
+  function removeHeaderTimingMarkers(root = document) {
+    root.querySelectorAll?.('.homeownerLane .tha-care-date-widget,.homeownerLane .tha-care-time-marker,.intakeSubsection>h3>.tha-care-time-marker').forEach(element => element.remove());
+    root.querySelectorAll?.('.tha-care-time-marker').forEach(marker => {
+      marker.textContent = 'Time';
+      marker.classList.remove('is-filled');
     });
   }
 
@@ -267,7 +228,7 @@
   function run() {
     installStyles();
     enhanceIntakeFields(document);
-    markTimingHeaders(document);
+    removeHeaderTimingMarkers(document);
     removeStandaloneForecastPanels(document);
     attachInlineTiming(document);
   }
