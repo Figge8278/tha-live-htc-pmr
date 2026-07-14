@@ -35,6 +35,9 @@
       .walkthroughControlsPanel .tha-drive-simple-guide.not-connected{border-color:#efc17f!important;background:#fffaf0!important;color:#74460a!important}
       .walkthroughControlsPanel .tha-drive-simple-guide.connected{border-color:#bfdbfe!important;background:#eff6ff!important;color:#1e3a8a!important}
       .walkthroughControlsPanel .tha-drive-simple-guide strong{color:#173e57!important}
+      .walkthroughControlsPanel .tha-drive-oauth-diagnostic{display:grid!important;gap:6px!important;margin-top:8px!important;padding:9px 10px!important;border-radius:12px!important;background:#fff!important;border:1px dashed #f0bd82!important;color:#74460a!important;font-size:11px!important;font-weight:850!important;line-height:1.35!important}
+      .walkthroughControlsPanel .tha-drive-oauth-diagnostic code{display:block!important;white-space:normal!important;word-break:break-all!important;color:#173e57!important;background:#f8fafc!important;border-radius:8px!important;padding:6px!important}
+      .walkthroughControlsPanel .tha-drive-oauth-diagnostic button{width:max-content!important;border:1px solid #d97706!important;background:#fff7ed!important;color:#8a4b08!important;border-radius:999px!important;padding:6px 9px!important;font-size:11px!important;font-weight:950!important}
       .walkthroughControlsPanel .driveSetupNote{display:block!important;margin-top:8px!important;padding:8px 10px!important;border-radius:11px!important;background:#fff7ed!important;border:1px solid #fed7aa!important;color:#9a3412!important;font-weight:850!important}
       .walkthroughControlsPanel .driveSetupNote.tha-drive-status-connected{background:#eff6ff!important;border-color:#bfdbfe!important;color:#1e3a8a!important}
       .walkthroughControlsPanel .advancedPanel>summary{font-size:13px!important;font-weight:950!important;color:#315568!important}
@@ -69,7 +72,6 @@
 
   function classifyDriveActions(business) {
     const actions = Array.from(business.querySelectorAll('.driveSetupActions button,.driveSetupActions a'));
-    const connectButton = actions.find(node => /connect google drive|drive connected|connecting/i.test(textOf(node)));
     const drivePill = business.querySelector('.drivePill');
     const connected = Boolean(drivePill?.classList.contains('connected'));
     const notConfigured = /drive is not configured|not configured/i.test(textOf(business));
@@ -82,8 +84,9 @@
 
       if (/connect google drive|drive connected|connecting/.test(label)) {
         node.classList.add(connected ? 'tha-drive-connected' : 'tha-drive-connect-needed');
+        if (!connected && node.disabled && !/connecting/i.test(label)) node.disabled = false;
         if (connected) node.title = 'Google Drive is connected for this browser session.';
-        else if (!configured) node.title = 'Drive setup is missing. Open Advanced > Drive Setup Help / Troubleshooting and add the OAuth Web Client ID first.';
+        else if (!configured) node.title = 'Drive setup is missing. Click anyway to show the exact error, or open Advanced > Drive Setup Help / Troubleshooting and add the OAuth Web Client ID first.';
         else node.title = 'Click to open the Google authorization popup.';
         return;
       }
@@ -127,6 +130,38 @@
     }
   }
 
+  function installOauthDiagnostic(business, configured, connected) {
+    let diagnostic = business.querySelector('.tha-drive-oauth-diagnostic');
+    if (connected) {
+      if (diagnostic) diagnostic.remove();
+      return;
+    }
+    if (!diagnostic) {
+      diagnostic = document.createElement('div');
+      diagnostic.className = 'tha-drive-oauth-diagnostic';
+      const guide = business.querySelector('.tha-drive-simple-guide');
+      if (guide) guide.after(diagnostic);
+      else business.prepend(diagnostic);
+    }
+    const origin = window.location.origin;
+    diagnostic.innerHTML = configured
+      ? `<span>OAuth check: if the Google popup does not finish, this exact origin must be authorized in Google Cloud:</span><code>${origin}</code><button type="button" data-tha-copy-origin>Copy origin</button>`
+      : `<span>OAuth setup needed: paste the Web application OAuth Client ID under Advanced → Drive Setup Help / Troubleshooting, and authorize this exact origin in Google Cloud:</span><code>${origin}</code><button type="button" data-tha-copy-origin>Copy origin</button>`;
+    const copyButton = diagnostic.querySelector('[data-tha-copy-origin]');
+    if (copyButton && !copyButton.dataset.wired) {
+      copyButton.dataset.wired = 'true';
+      copyButton.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(window.location.origin);
+          copyButton.textContent = 'Copied';
+          window.setTimeout(() => { copyButton.textContent = 'Copy origin'; }, 1600);
+        } catch {
+          window.prompt('Copy this origin into Google Cloud authorized JavaScript origins:', window.location.origin);
+        }
+      });
+    }
+  }
+
   function cleanBusinessRecordsCopy(panel) {
     const business = panel.querySelector('.businessRecordsCard');
     if (!business) return;
@@ -153,6 +188,7 @@
         ? '<strong>Next:</strong><span>Click Connect Google Drive. Approve the Google popup, then save the Drive package.</span>'
         : '<strong>Drive setup needed:</strong><span>Open Advanced → Drive Setup Help / Troubleshooting, paste the OAuth Web Client ID, then click Connect Google Drive.</span>';
 
+    installOauthDiagnostic(business, configured, connected);
     cleanDriveStatusText(business, connected);
   }
 
