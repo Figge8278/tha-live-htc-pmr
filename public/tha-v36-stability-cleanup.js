@@ -14,7 +14,13 @@
     style.textContent = `
       .walkthroughControlsPanel{display:block!important;visibility:visible!important;opacity:1!important;max-width:1180px!important;margin:16px auto!important;padding:0 20px!important;overflow:visible!important}
       .walkthroughControlsPanel .workflowCueStrip,.walkthroughControlsPanel .homeownerOutputCard{display:none!important;visibility:hidden!important}
-      .walkthroughControlsPanel .walkthroughControlsSummary{display:flex!important;visibility:visible!important;opacity:1!important}
+      .walkthroughControlsPanel.expanded .walkthroughControlsSummary{display:none!important;visibility:hidden!important}
+      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary{display:flex!important;visibility:visible!important;opacity:1!important}
+      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .summaryItem,
+      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .saveStatus,
+      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .driveSummaryPill,
+      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .controlAttentionPill{display:none!important;visibility:hidden!important}
+      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .openControlsButton{display:inline-flex!important;visibility:visible!important;opacity:1!important}
       .walkthroughControlsPanel.collapsed .walkthroughControlsBody{display:none!important}
       .walkthroughControlsPanel.expanded .walkthroughControlsBody{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-areas:"setup intakeImport" "workSession businessRecords" "advanced advanced"!important;gap:16px!important;align-items:start!important}
       .walkthroughControlsPanel .walkthroughSetupCard,.walkthroughControlsPanel .tha-walkthrough-setup-card{grid-area:setup!important}
@@ -63,6 +69,23 @@
     rename([/^Send \/ Import Homeowner Intake$/i, /^Homeowner Intake$/i, /^2\. Homeowner Intake$/i, /^3\. Homeowner Intake$/i], '3. Homeowner Intake');
     rename([/^Local Work \/ This Device$/i, /^Work Session$/i, /^2\. Work Session$/i, /^3\. Work Session$/i], '2. Work Session');
     rename([/^Drive \/ Business Records$/i, /^Business Records & Drive$/i, /^4\. Business Records & Drive$/i], '4. Business Records & Drive');
+  }
+
+  function cleanSetupSummary(panel) {
+    const summary = panel.querySelector('.walkthroughControlsSummary');
+    if (!summary) return;
+    const openButton = summary.querySelector('.openControlsButton');
+    const collapsed = panel.classList.contains('collapsed');
+    summary.hidden = false;
+    summary.setAttribute('aria-hidden', collapsed ? 'false' : 'true');
+    if (collapsed && openButton) {
+      Array.from(summary.children).forEach(child => {
+        if (child !== openButton) child.setAttribute('hidden', 'true');
+      });
+      openButton.removeAttribute('hidden');
+    } else {
+      Array.from(summary.children).forEach(child => child.removeAttribute('hidden'));
+    }
   }
 
   function cleanDriveTile(business) {
@@ -116,6 +139,7 @@
       if (topbar && panel.previousElementSibling !== topbar) topbar.insertAdjacentElement('afterend', panel);
       panel.querySelector('.workflowCueStrip')?.setAttribute('hidden', 'true');
       panel.querySelector('.homeownerOutputCard')?.setAttribute('hidden', 'true');
+      cleanSetupSummary(panel);
       renameSetupHeadings(panel);
       const business = panel.querySelector('.businessRecordsCard');
       if (business) cleanDriveTile(business);
