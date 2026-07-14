@@ -15,12 +15,19 @@
       .walkthroughControlsPanel{display:block!important;visibility:visible!important;opacity:1!important;max-width:1180px!important;margin:16px auto!important;padding:0 20px!important;overflow:visible!important}
       .walkthroughControlsPanel .workflowCueStrip,.walkthroughControlsPanel .homeownerOutputCard{display:none!important;visibility:hidden!important}
       .walkthroughControlsPanel.expanded .walkthroughControlsSummary{display:none!important;visibility:hidden!important}
-      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary{display:flex!important;visibility:visible!important;opacity:1!important}
-      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .summaryItem,
+      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary{display:flex!important;visibility:visible!important;opacity:1!important;align-items:center!important;gap:8px!important;flex-wrap:wrap!important;margin:8px 0 10px!important;padding:8px 10px!important;border:1px solid #d8e4ea!important;border-radius:14px!important;background:#fbfdfe!important;box-shadow:none!important}
+      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .summaryItem{display:none!important;visibility:hidden!important}
+      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .summaryItem:nth-of-type(1),
+      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .summaryItem:nth-of-type(4){display:grid!important;visibility:visible!important;min-width:160px!important;gap:1px!important;padding:3px 7px!important;border-radius:10px!important;background:#fff!important;border:1px solid #e5edf2!important}
+      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .summaryItem:nth-of-type(1) span,
+      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .summaryItem:nth-of-type(4) span{font-size:10px!important;font-weight:900!important;line-height:1.1!important;color:#60717c!important;text-transform:uppercase!important;letter-spacing:.02em!important}
+      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .summaryItem:nth-of-type(1) strong,
+      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .summaryItem:nth-of-type(4) strong{font-size:12px!important;line-height:1.15!important;color:#173e57!important;max-width:240px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .summaryItem small{display:none!important}
       .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .saveStatus,
-      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .driveSummaryPill,
+      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .driveSummaryPill{display:inline-flex!important;visibility:visible!important;align-items:center!important;min-height:28px!important;padding:4px 8px!important;border-radius:999px!important;font-size:11px!important;font-weight:900!important;white-space:nowrap!important}
       .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .controlAttentionPill{display:none!important;visibility:hidden!important}
-      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .openControlsButton{display:inline-flex!important;visibility:visible!important;opacity:1!important}
+      .walkthroughControlsPanel.collapsed .walkthroughControlsSummary .openControlsButton{display:inline-flex!important;visibility:visible!important;opacity:1!important;margin-left:auto!important;min-height:30px!important;border-radius:999px!important;font-weight:950!important}
       .walkthroughControlsPanel.collapsed .walkthroughControlsBody{display:none!important}
       .walkthroughControlsPanel.expanded .walkthroughControlsBody{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-areas:"setup intakeImport" "workSession businessRecords" "advanced advanced"!important;gap:16px!important;align-items:start!important}
       .walkthroughControlsPanel .walkthroughSetupCard,.walkthroughControlsPanel .tha-walkthrough-setup-card{grid-area:setup!important}
@@ -52,7 +59,7 @@
 
       .homeownerLane .tha-care-time-marker,.homeownerLane .tha-care-date-widget,.intakeSubsection>h3>.tha-care-time-marker{display:none!important;visibility:hidden!important}
       .demoScenarioCard,.releaseNoteInline,[data-tha-production-readiness],[data-tha-client-delivery-demo],[data-tha-drive-test-workflow],[data-tha-shared-drive-admin]{display:none!important}
-      @media(max-width:900px){.walkthroughControlsPanel.expanded .walkthroughControlsBody{grid-template-columns:1fr!important;grid-template-areas:"setup" "intakeImport" "workSession" "businessRecords" "advanced"!important}.walkthroughControlsPanel{padding:0 12px!important}}
+      @media(max-width:900px){.walkthroughControlsPanel.expanded .walkthroughControlsBody{grid-template-columns:1fr!important;grid-template-areas:"setup" "intakeImport" "workSession" "businessRecords" "advanced"!important}.walkthroughControlsPanel{padding:0 12px!important}.walkthroughControlsPanel.collapsed .walkthroughControlsSummary .summaryItem:nth-of-type(1),.walkthroughControlsPanel.collapsed .walkthroughControlsSummary .summaryItem:nth-of-type(4){min-width:130px!important;max-width:calc(50vw - 30px)!important}.walkthroughControlsPanel.collapsed .walkthroughControlsSummary .openControlsButton{margin-left:0!important}}
       @media print{.walkthroughControlsPanel{display:none!important}}
     `;
     document.head.append(style);
@@ -74,18 +81,13 @@
   function cleanSetupSummary(panel) {
     const summary = panel.querySelector('.walkthroughControlsSummary');
     if (!summary) return;
-    const openButton = summary.querySelector('.openControlsButton');
     const collapsed = panel.classList.contains('collapsed');
     summary.hidden = false;
     summary.setAttribute('aria-hidden', collapsed ? 'false' : 'true');
-    if (collapsed && openButton) {
-      Array.from(summary.children).forEach(child => {
-        if (child !== openButton) child.setAttribute('hidden', 'true');
-      });
-      openButton.removeAttribute('hidden');
-    } else {
-      Array.from(summary.children).forEach(child => child.removeAttribute('hidden'));
-    }
+    Array.from(summary.children).forEach(child => {
+      child.removeAttribute('hidden');
+      child.setAttribute('data-tha-summary-compact', collapsed ? 'true' : 'false');
+    });
   }
 
   function cleanDriveTile(business) {
