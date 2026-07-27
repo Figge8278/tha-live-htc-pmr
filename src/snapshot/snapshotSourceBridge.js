@@ -1,6 +1,7 @@
 import {
   THA_SNAPSHOT_FILE_NAME,
   createSnapshotDocument,
+  snapshotConnectionSummary,
   snapshotToWalkthroughData,
   validateSnapshotDocument
 } from './snapshotSchema.js';
@@ -9,6 +10,7 @@ import './snapshotSource.css';
 const SESSION_KEY = 'tha-walkthrough-sessions';
 const CURRENT_ID_KEY = 'tha-current-walkthrough-id';
 const PENDING_RESTORE_KEY = 'tha-v357-pending-snapshot-restore';
+const SIDECAR_KEY = 'tha-v357-snapshot-sidecars';
 const PANEL_CLASS = 'thaSnapshotSourcePanel';
 
 function textOf(element) {
@@ -45,6 +47,47 @@ function currentSession() {
   return (currentId && sessions[currentId]?.data ? sessions[currentId] : null) || latestSession(sessions);
 }
 
+function snapshotExtensions(snapshot = {}) {
+  const data = snapshot.data || {};
+  return {
+    property: data.property || {},
+    administration: data.administration || {},
+    nativeWorkflowActions: (data.workflow?.actions || []).filter(action => action && !action.generatedFromSource),
+    supplementalMedia: (data.media?.assets || []).filter(asset => asset && !['finding', 'room'].includes(asset.ownerType))
+  };
+}
+
+function sidecarFor(sessionId = '') {
+  return safeJson(SIDECAR_KEY, {})[sessionId] || null;
+}
+
+function saveSidecar(sessionId, snapshot) {
+  if (!sessionId || !snapshot) return;
+  const sidecars = safeJson(SIDECAR_KEY, {});
+  safeSet(SIDECAR_KEY, JSON.stringify({
+    ...sidecars,
+    [sessionId]: {
+      snapshotId: snapshot.snapshotId,
+      updatedAt: snapshot.updatedAt,
+      extensions: snapshotExtensions(snapshot)
+    }
+  }));
+}
+
+function snapshotForSession(session) {
+  const sidecar = sidecarFor(session?.id);
+  return createSnapshotDocument({
+    sessionId: session?.id,
+    sessionName: session?.name,
+    data: {
+      ...(session?.data || {}),
+      snapshotExtensions: sidecar?.extensions || session?.data?.snapshotExtensions || {}
+    },
+    createdAt: session?.createdAt,
+    updatedAt: session?.updatedAt
+  });
+}
+
 function setStatus(panel, message, tone = 'success') {
   const status = panel?.querySelector('.snapshotSourceStatus');
   if (!status) return;
@@ -70,23 +113,67 @@ function triggerNativeSave() {
   button?.click();
 }
 
+function metricText(summary = {}) {
+  return {
+    findings: String(summary.findings || 0),
+    pmr: String(summary.pmr || 0),
+    pmcp: `${summary.pmcp || 0} selected · ${summary.pmcpCandidates || 0} pending`,
+    workflow: String(summary.workflow || 0),
+    photos: String(summary.photos || 0)
+  };
+}
+
+function updateMetrics(panel, summary) {
+  const values = metricText(summary);
+  Object.entries(values).forEach(([key, value]) => {
+    const target = panel?.querySelector(`[data-snapshot-metric="${key}"] strong`);
+    if (target) target.textContent = value;
+  });
+  const review = panel?.querySelector('.snapshotSourceReviewCue');
+  if (review) {
+    review.textContent = summary.pmrReview
+      ? `${summary.pmrReview} finding${summary.pmrReview === 1 ? '' : 's'} still need a PMR inclusion decision.`
+      : 'Every recorded finding has a clear PMR inclusion decision.';
+    review.dataset.tone = summary.pmrReview ? 'review' : 'ready';
+  }
+}
+
+function refreshSummary(panel, force = false) {
+  const session = currentSession();
+  const summaryKey = session ? `${session.id || ''}:${session.updatedAt || ''}` : 'none';
+  if (!force && panel?.dataset.summaryKey === summaryKey) return;
+  panel.dataset.summaryKey = summaryKey;
+  if (!session?.data) {
+    updateMetrics(panel, {});
+    setStatus(panel, 'Open or save a work session to see its connected Snapshot record.', 'info');
+    return;
+  }
+  try {
+    const snapshot = snapshotForSession(session);
+    updateMetrics(panel, snapshotConnectionSummary(snapshot));
+  } catch (error) {
+    setStatus(panel, error?.message || 'The Snapshot connection summary could not be prepared.', 'error');
+  }
+}
+
 async function downloadCurrentSnapshot(panel) {
   triggerNativeSave();
-  await new Promise(resolve => window.setTimeout(resolve, 350));
+  await new Promise(resolve => window.setTimeout(resolve, 400));
   const session = currentSession();
   if (!session?.data) {
     setStatus(panel, 'Save or open a work session before downloading the Snapshot source file.', 'error');
     return;
   }
-  const snapshot = createSnapshotDocument({
-    sessionId: session.id,
-    sessionName: session.name,
-    data: session.data,
-    createdAt: session.createdAt,
-    updatedAt: session.updatedAt
-  });
+  const snapshot = snapshotForSession(session);
+  const summary = snapshotConnectionSummary(snapshot);
+  saveSidecar(session.id, snapshot);
   downloadJson(THA_SNAPSHOT_FILE_NAME, snapshot);
-  setStatus(panel, `${THA_SNAPSHOT_FILE_NAME} downloaded. This is the app reload file; the PMR is not.`, 'success');
+  updateMetrics(panel, summary);
+  setStatus(
+    panel,
+    `Downloaded: ${summary.findings} findings, ${summary.pmr} PMR, ${summary.pmcp} PMCP selected, ${summary.pmcpCandidates} PMCP pending, ${summary.workflow} workflow actions, and ${summary.photos} photos.`,
+    'success'
+  );
 }
 
 function restoredSessionName(snapshot) {
@@ -111,6 +198,7 @@ function saveRestoredSnapshot(snapshot) {
   if (!safeSet(SESSION_KEY, JSON.stringify(nextSessions)) || !safeSet(CURRENT_ID_KEY, id)) {
     throw new Error('This browser could not save the restored Snapshot. Download a backup before clearing storage.');
   }
+  saveSidecar(id, snapshot);
   safeSet(PENDING_RESTORE_KEY, JSON.stringify({ id, name }));
   return session;
 }
@@ -120,8 +208,10 @@ async function importSnapshotFile(panel, file) {
   try {
     const parsed = JSON.parse(await file.text());
     const snapshot = validateSnapshotDocument(parsed);
+    const summary = snapshotConnectionSummary(snapshot);
     const session = saveRestoredSnapshot(snapshot);
-    setStatus(panel, `Restored ${session.name}. Reloading that work session…`, 'success');
+    updateMetrics(panel, summary);
+    setStatus(panel, `Restored ${session.name}. Reloading the connected work session…`, 'success');
     window.setTimeout(() => window.location.reload(), 450);
   } catch (error) {
     setStatus(panel, error?.message || 'Snapshot restore failed.', 'error');
@@ -145,6 +235,7 @@ function openPendingRestore(panel, attempt = 0) {
   selector.dispatchEvent(new Event('change', { bubbles: true }));
   localStorage.removeItem(PENDING_RESTORE_KEY);
   setStatus(panel, `${pending.name} is loaded as the active THA Snapshot work session.`, 'success');
+  window.setTimeout(() => refreshSummary(panel, true), 250);
 }
 
 function buildPanel() {
@@ -153,17 +244,34 @@ function buildPanel() {
   panel.innerHTML = `
     <div class="snapshotSourceHeading">
       <div>
-        <p class="snapshotSourceEyebrow">V3.57 source of truth</p>
+        <p class="snapshotSourceEyebrow">V3.57 connected source of truth</p>
         <h4>THA Snapshot Source File</h4>
       </div>
       <span>JSON</span>
     </div>
-    <p class="snapshotSourceCopy"><strong>THA Snapshot data creates the PMR.</strong> Use this structured file to continue or restore the app. Do not use the PMR as the reload file.</p>
+    <p class="snapshotSourceCopy"><strong>Record once; use it throughout.</strong> The Snapshot source connects field findings to the client PMR, continued care to the PMCP, photos to their exact records, and selected items to THA workflow.</p>
+    <div class="snapshotSourceMetrics" aria-label="Connected Snapshot record summary">
+      <span data-snapshot-metric="findings"><strong>0</strong> Findings</span>
+      <span data-snapshot-metric="pmr"><strong>0</strong> PMR</span>
+      <span data-snapshot-metric="pmcp"><strong>0</strong> PMCP</span>
+      <span data-snapshot-metric="workflow"><strong>0</strong> Workflow</span>
+      <span data-snapshot-metric="photos"><strong>0</strong> Photos</span>
+    </div>
+    <p class="snapshotSourceReviewCue" data-tone="ready">Every recorded finding has a clear PMR inclusion decision.</p>
+    <details class="snapshotSourceConnections">
+      <summary>How this file stays connected</summary>
+      <div>
+        <p><strong>PMR:</strong> draws only from findings marked for client reporting.</p>
+        <p><strong>PMCP:</strong> draws from continued-care items and stays separate from defect counts.</p>
+        <p><strong>Workflow:</strong> points back to the exact finding, room, or care item that created the action.</p>
+        <p><strong>Photos:</strong> identify their exact owner as finding evidence, room overview, client-submitted, or internal reference.</p>
+      </div>
+    </details>
     <div class="snapshotSourceActions">
       <button type="button" class="snapshotSourceDownload">Download ${THA_SNAPSHOT_FILE_NAME}</button>
       <label class="snapshotSourceImport">Restore Snapshot JSON<input type="file" accept="application/json,.json" /></label>
     </div>
-    <p class="snapshotSourceLegacy">Legacy V3.56 walkthrough JSON is accepted and migrated into the V3.57 Snapshot format during restore.</p>
+    <p class="snapshotSourceLegacy">Current V3.57 files and legacy V3.56 walkthrough JSON are accepted. Older files are migrated into the connected structure during restore.</p>
     <div class="snapshotSourceStatus" role="status" aria-live="polite"></div>
   `;
   panel.querySelector('.snapshotSourceDownload')?.addEventListener('click', () => downloadCurrentSnapshot(panel));
@@ -189,6 +297,7 @@ function ensurePanel() {
     panel = buildPanel();
     target.append(panel);
   }
+  refreshSummary(panel);
   openPendingRestore(panel);
   return panel;
 }

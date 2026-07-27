@@ -40,6 +40,62 @@
   line-height:1.4;
 }
 .snapshotSourceLegacy{color:#60717c}
+.snapshotSourceMetrics{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:6px;
+  margin:10px 0 7px;
+}
+.snapshotSourceMetrics span{
+  min-width:0;
+  border:1px solid #d7e7dc;
+  border-radius:11px;
+  background:#fff;
+  padding:7px 5px;
+  color:#53636d;
+  font-size:9px;
+  font-weight:850;
+  line-height:1.15;
+  text-align:center;
+}
+.snapshotSourceMetrics strong{
+  display:block;
+  margin-bottom:2px;
+  color:#0b3658;
+  font-size:13px;
+  font-weight:950;
+  overflow-wrap:anywhere;
+}
+.snapshotSourceReviewCue{
+  margin:6px 0 8px;
+  border-radius:9px;
+  padding:6px 8px;
+  background:#edf7eb;
+  color:#2f6831;
+  font-size:11px;
+  font-weight:850;
+  line-height:1.35;
+}
+.snapshotSourceReviewCue[data-tone="review"]{background:#fff6df;color:#765713}
+.snapshotSourceConnections{
+  margin:7px 0 9px;
+  border-top:1px solid #dbe8de;
+  border-bottom:1px solid #dbe8de;
+  padding:7px 0;
+}
+.snapshotSourceConnections summary{
+  color:#285c30;
+  font-size:11px;
+  font-weight:950;
+  cursor:pointer;
+}
+.snapshotSourceConnections div{padding:4px 2px 1px}
+.snapshotSourceConnections p{
+  margin:5px 0;
+  color:#53636d;
+  font-size:11px;
+  line-height:1.35;
+}
 .snapshotSourceActions{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 6px}
 .snapshotSourceActions button,.snapshotSourceImport{
   display:inline-flex;
@@ -65,5 +121,13 @@
   line-height:1.35;
 }
 .snapshotSourceStatus[data-tone="error"]{color:#842218}
-@media(max-width:720px){.snapshotSourceActions{display:grid}.snapshotSourceActions button,.snapshotSourceImport{width:100%}}
+.snapshotSourceStatus[data-tone="info"]{color:#496271}
+@media(max-width:860px){
+  .snapshotSourceMetrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:720px){
+  .snapshotSourceActions{display:grid}
+  .snapshotSourceActions button,.snapshotSourceImport{width:100%}
+  .snapshotSourceMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 @media print{.thaSnapshotSourcePanel{display:none!important}}
