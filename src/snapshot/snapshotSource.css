@@ -4,130 +4,44 @@
   border-radius:17px;
   background:#f8fcf7;
   padding:13px 14px;
-  margin:12px 0 0;
+  margin:0;
   color:#203040;
   box-shadow:0 6px 16px rgba(13,44,73,.05);
 }
-.snapshotSourceHeading{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-}
+.snapshotSourceHeading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .snapshotSourceHeading h4{margin:0;color:#0b3658;font-size:16px}
-.snapshotSourceHeading>span{
-  border:1px solid #b9dfb4;
-  border-radius:999px;
-  background:#fff;
-  color:#285c30;
-  padding:4px 8px;
-  font-size:10px;
-  font-weight:950;
-  letter-spacing:.05em;
-}
-.snapshotSourceEyebrow{
-  margin:0 0 2px;
-  color:#43833d;
-  font-size:10px;
-  font-weight:950;
-  letter-spacing:.08em;
-  text-transform:uppercase;
-}
-.snapshotSourceCopy,.snapshotSourceLegacy{
-  margin:7px 0;
-  color:#40505f;
-  font-size:12px;
-  line-height:1.4;
-}
+.snapshotSourceHeading>span{border:1px solid #b9dfb4;border-radius:999px;background:#fff;color:#285c30;padding:4px 8px;font-size:10px;font-weight:950;letter-spacing:.05em}
+.snapshotSourceEyebrow{margin:0 0 2px;color:#43833d;font-size:10px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+.snapshotSourceCopy,.snapshotSourceLegacy{margin:7px 0;color:#40505f;font-size:12px;line-height:1.4}
 .snapshotSourceLegacy{color:#60717c}
-.snapshotSourceMetrics{
-  display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
-  gap:6px;
-  margin:10px 0 7px;
-}
-.snapshotSourceMetrics span{
-  min-width:0;
-  border:1px solid #d7e7dc;
-  border-radius:11px;
-  background:#fff;
-  padding:7px 5px;
-  color:#53636d;
-  font-size:9px;
-  font-weight:850;
-  line-height:1.15;
-  text-align:center;
-}
-.snapshotSourceMetrics strong{
-  display:block;
-  margin-bottom:2px;
-  color:#0b3658;
-  font-size:13px;
-  font-weight:950;
-  overflow-wrap:anywhere;
-}
-.snapshotSourceReviewCue{
-  margin:6px 0 8px;
-  border-radius:9px;
-  padding:6px 8px;
-  background:#edf7eb;
-  color:#2f6831;
-  font-size:11px;
-  font-weight:850;
-  line-height:1.35;
-}
+.snapshotSourceMetrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:10px 0 7px}
+.snapshotSourceMetrics span{min-width:0;border:1px solid #d7e7dc;border-radius:11px;background:#fff;padding:7px 5px;color:#53636d;font-size:9px;font-weight:850;line-height:1.15;text-align:center}
+.snapshotSourceMetrics strong{display:block;margin-bottom:2px;color:#0b3658;font-size:13px;font-weight:950;overflow-wrap:anywhere}
+.snapshotSourceReviewCue{margin:6px 0 8px;border-radius:9px;padding:6px 8px;background:#edf7eb;color:#2f6831;font-size:11px;font-weight:850;line-height:1.35}
 .snapshotSourceReviewCue[data-tone="review"]{background:#fff6df;color:#765713}
-.snapshotSourceConnections{
-  margin:7px 0 9px;
-  border-top:1px solid #dbe8de;
-  border-bottom:1px solid #dbe8de;
-  padding:7px 0;
-}
-.snapshotSourceConnections summary{
-  color:#285c30;
-  font-size:11px;
-  font-weight:950;
-  cursor:pointer;
-}
+.snapshotSourceConnections{margin:7px 0 9px;border-top:1px solid #dbe8de;border-bottom:1px solid #dbe8de;padding:7px 0}
+.snapshotSourceConnections summary{color:#285c30;font-size:11px;font-weight:950;cursor:pointer}
 .snapshotSourceConnections div{padding:4px 2px 1px}
-.snapshotSourceConnections p{
-  margin:5px 0;
-  color:#53636d;
-  font-size:11px;
-  line-height:1.35;
-}
-.snapshotSourceActions{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 6px}
-.snapshotSourceActions button,.snapshotSourceImport{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  border:1px solid #b9dfb4;
-  border-radius:999px;
-  background:#fff;
-  color:#285c30;
-  padding:8px 11px;
-  font-size:12px;
-  font-weight:950;
-  cursor:pointer;
-}
-.snapshotSourceDownload{background:#f0faed!important}
+.snapshotSourceConnections p{margin:5px 0;color:#53636d;font-size:11px;line-height:1.35}
+.snapshotSourceRestoreSection{display:grid;gap:8px;margin-top:9px}
+.snapshotSourceImport,.snapshotSourceDownload,.snapshotRestoreChoice button{display:inline-flex;align-items:center;justify-content:center;border:1px solid #b9dfb4;border-radius:11px;background:#fff;color:#285c30;padding:9px 11px;font-size:12px;font-weight:950;cursor:pointer}
+.snapshotSourceImport{width:max-content}
 .snapshotSourceImport input{display:none}
-.snapshotSourceStatus{
-  min-height:17px;
-  margin-top:5px;
-  color:#285c30;
-  font-size:12px;
-  font-weight:900;
-  line-height:1.35;
-}
+.snapshotRestoreChoice{display:grid;gap:7px;border:1px solid #d8e4ea;border-radius:14px;background:#fff;padding:11px}
+.snapshotRestoreChoice[hidden]{display:none!important}
+.snapshotRestoreChoice>strong{color:#0b3658;overflow-wrap:anywhere}
+.snapshotRestoreChoice p{margin:0;color:#53636d;font-size:11px}
+.snapshotRestoreChoice button{width:100%}
+.snapshotRestoreChoice .snapshotRestorePrimary{border-color:#6eaa68;background:#eff8ec;color:#285c30}
+.snapshotRestoreChoice .snapshotRestoreCancel{border-color:#d5dfe4;color:#61727d;background:#f7f9fa}
+.snapshotSourceBackupSection{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;border-top:1px solid #dbe8de;padding-top:10px}
+.snapshotSourceBackupSection>div{display:grid;gap:2px}
+.snapshotSourceBackupSection>div strong{color:#0b3658;font-size:12px}
+.snapshotSourceBackupSection>div span{color:#60717c;font-size:10px}
+.snapshotSourceDownload{background:#f0faed!important;white-space:nowrap}
+.snapshotSourceStatus{min-height:17px;margin-top:5px;color:#285c30;font-size:12px;font-weight:900;line-height:1.35}
 .snapshotSourceStatus[data-tone="error"]{color:#842218}
 .snapshotSourceStatus[data-tone="info"]{color:#496271}
-@media(max-width:860px){
-  .snapshotSourceMetrics{grid-template-columns:repeat(3,minmax(0,1fr))}
-}
-@media(max-width:720px){
-  .snapshotSourceActions{display:grid}
-  .snapshotSourceActions button,.snapshotSourceImport{width:100%}
-  .snapshotSourceMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}
-}
+@media(max-width:860px){.snapshotSourceMetrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:720px){.snapshotSourceImport{width:100%}.snapshotSourceBackupSection{align-items:stretch;flex-direction:column}.snapshotSourceDownload{width:100%}.snapshotSourceMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media print{.thaSnapshotSourcePanel{display:none!important}}
