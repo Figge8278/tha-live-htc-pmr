@@ -1,6 +1,6 @@
 export const THA_SNAPSHOT_FILE_TYPE = 'tha-snapshot';
 export const THA_SNAPSHOT_SCHEMA_VERSION = 3;
-export const THA_SNAPSHOT_APP_VERSION = '3.57.2';
+export const THA_SNAPSHOT_APP_VERSION = '3.57.4';
 export const THA_SNAPSHOT_FILE_NAME = 'Restore This THA Snapshot.json';
 
 const PMR_INCLUDED = new Set(['Immediate Concern', 'Needs Attention', 'Monitor']);
@@ -18,91 +18,64 @@ export function text(value = '') { return String(value ?? '').trim(); }
 export function list(value) { return Array.isArray(value) ? clone(value, []) : []; }
 export function object(value) { return isObject(value) ? clone(value, {}) : {}; }
 export function safeIdPart(value = '') {
-  return String(value).replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'record';
+  return text(value).toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'item';
+}
+export function newSnapshotId(sessionId = '') {
+  const base = safeIdPart(sessionId);
+  return base && base !== 'item' ? `snapshot-${base}` : `snapshot-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 export function withoutKeys(source = {}, keys = []) {
-  const blocked = new Set(keys);
-  return Object.fromEntries(Object.entries(object(source)).filter(([key]) => !blocked.has(key)));
+  const output = { ...object(source) };
+  keys.forEach(key => delete output[key]);
+  return output;
 }
-export function newSnapshotId(value = '') {
-  if (text(value)) return text(value);
-  if (globalThis.crypto?.randomUUID) return `snapshot-${globalThis.crypto.randomUUID()}`;
-  return `snapshot-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+export function photoId(photo = {}, ownerId = 'record', index = 0) {
+  return `media-${safeIdPart(photo.id || photo.driveFileId || `${ownerId}-${index + 1}`)}`;
 }
-
+export function mediaAsset(photo = {}, { scope = 'finding-evidence', ownerType = 'finding', ownerId = '', roomId = '', clientVisible = true } = {}, index = 0) {
+  return { mediaId: photoId(photo, ownerId, index), scope, ownerType, ownerId, roomId, clientVisible, fields: object(photo) };
+}
+export function answerMapAndRows(source = {}) {
+  const answers = object(source.answers ?? source.htc?.answers);
+  const rows = list(source.rows);
+  rows.forEach(row => {
+    const id = text(row?.id);
+    if (id && !answers[id] && row.answer) answers[id] = object(row.answer);
+  });
+  return { answers, rows, rowById: new Map(rows.map(row => [text(row?.id), object(row)])) };
+}
 export function rowContext(row = {}, itemId = '') {
-  const answer = object(row.answer);
   return {
-    source: text(row.source) || 'HTC',
-    templateItemId: String(itemId),
-    roomId: text(row.sectionKey || row.roomId || answer.sectionKey || answer.roomId),
-    roomName: text(row.roomName || row.room),
-    roomType: text(row.roomType),
-    zone: text(row.zone || row.section),
-    category: text(row.category),
-    item: text(row.item),
-    tradeDefault: text(row.trade),
-    effortDefault: text(row.effort),
-    prompt: text(row.prompt),
-    why: text(row.why),
-    recommendedAction: text(row.action),
-    timing: object(row.timing),
-    pmrGroup: text(row.pmrGroup),
-    intakeField: text(row.intakeField),
-    intakeFieldLabel: text(row.intakeFieldLabel),
-    intakeOnly: Boolean(row.intakeOnly || row.source === 'Intake Follow-Up'),
-    catchAll: Boolean(row.catchAll)
+    source: text(row.source || 'HTC'), templateItemId: text(itemId), roomId: text(row.sectionKey || row.roomId || row.roomName || row.room),
+    roomName: text(row.roomName || row.room || row.sectionKey), zone: text(row.zone || row.category), category: text(row.category || row.zone),
+    item: text(row.item || row.prompt || `Checklist item ${itemId}`), tradeDefault: text(row.trade), effortDefault: text(row.effort),
+    why: text(row.why), recommendedAction: text(row.action || row.recommendedAction), timing: object(row.timing),
+    intakeOnly: Boolean(row.intakeOnly), catchAll: Boolean(row.catchAll)
   };
 }
-
-export function pmrDecision(itemId, fields = {}, context = {}) {
-  if (context.intakeOnly || String(itemId).startsWith('intake-follow-up-')) return 'excluded';
-  if (typeof fields.includeInPmr === 'boolean') return fields.includeInPmr ? 'included' : 'excluded';
-  const status = text(fields.status);
+export function pmrDecision(itemId = '', answer = {}, row = {}) {
+  if (row.intakeOnly || text(itemId).startsWith('intake-follow-up-')) return answer.reviewStatus === 'Reviewed — Added PMR Finding' ? 'included' : 'excluded';
+  const status = text(answer.status || 'Unknown');
   if (PMR_INCLUDED.has(status)) return 'included';
   if (PMR_EXCLUDED.has(status)) return 'excluded';
   return 'review';
 }
-export function pmcpDecision(fields = {}, review = {}) {
-  const explicit = text(review.pmcpDecision || fields.pmcpDecision).toLowerCase();
-  if (PMCP_DECISIONS.has(explicit)) return explicit;
-  return review.selected === true || fields.selected === true ? 'selected' : 'pending';
+export function pmcpDecision(item = {}, review = {}) {
+  const value = text(review.pmcpDecision || item.pmcpDecision);
+  if (PMCP_DECISIONS.has(value)) return value;
+  if (review.included === true || item.included === true || item.selected === true) return 'selected';
+  if (review.included === false || item.included === false || item.hidden === true) return 'declined';
+  return 'pending';
 }
-
-export function workflowProjection(sourceType, sourceId, fields = {}) {
+export function workflowProjection(entityType, entityId, fields = {}) {
   const selected = Boolean(fields.thaActionItem || fields.workOrderNow);
-  const actionType = text(fields.thaActionType) || 'Unknown';
-  const followUpStatus = text(fields.followUpStatus || fields.passFollowUpStatus) || 'Not Scheduled';
-  const internalNote = text(fields.internalNote);
-  if (!selected && actionType === 'Unknown' && followUpStatus === 'Not Scheduled' && !internalNote) return null;
+  const actionType = text(fields.thaActionType || 'Unknown');
+  const internalNote = text(fields.internalNote || fields.passNote);
+  const followUpStatus = text(fields.followUpStatus || fields.passFollowUpStatus || 'Not Scheduled');
+  if (!selected && actionType === 'Unknown' && !internalNote) return null;
   return {
-    actionId: `workflow-${safeIdPart(sourceType)}-${safeIdPart(sourceId)}`,
-    source: { entityType: sourceType, entityId: sourceId },
-    sourceOfTruth: {
-      selectedPath: 'fields.thaActionItem', actionTypePath: 'fields.thaActionType',
-      followUpStatusPath: 'fields.followUpStatus', internalNotePath: 'fields.internalNote'
-    },
-    selected, actionType, followUpStatus, internalNote,
-    clientVisible: false, generatedFromSource: true
-  };
-}
-
-export function mediaAsset(photo = {}, owner = {}) {
-  const mediaId = text(photo.id) || `photo-${safeIdPart(owner.ownerType)}-${safeIdPart(owner.ownerId)}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  return {
-    mediaId, scope: owner.scope, ownerType: owner.ownerType, ownerId: owner.ownerId,
-    roomId: owner.roomId || '', clientVisible: owner.clientVisible !== false,
-    fields: clone({ ...photo, id: mediaId }, {})
-  };
-}
-
-export function answerMapAndRows(source = {}) {
-  const rows = list(source.rows);
-  const rowById = new Map(rows.filter(row => row?.id !== undefined && row?.id !== null).map(row => [String(row.id), row]));
-  if (isObject(source.answers)) return { answers: source.answers, rowById };
-  if (isObject(source.htc?.answers)) return { answers: source.htc.answers, rowById };
-  return {
-    answers: Object.fromEntries(rows.filter(row => row?.id !== undefined && isObject(row.answer)).map(row => [String(row.id), clone(row.answer, {})])),
-    rowById
+    actionId: `workflow-${entityType}-${safeIdPart(entityId)}`, source: { entityType, entityId },
+    sourceOfTruth: { selectedPath: 'fields.thaActionItem', actionTypePath: 'fields.thaActionType', followUpStatusPath: 'fields.followUpStatus', internalNotePath: 'fields.internalNote' },
+    selected, actionType, followUpStatus, internalNote, clientVisible: false, generatedFromSource: true
   };
 }
