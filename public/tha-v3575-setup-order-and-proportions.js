@@ -109,7 +109,13 @@
       setHeading(records, '4. Business Records & Drive');
 
       const ordered = [setup, work, intake, records].filter(Boolean);
-      ordered.forEach(card => body.insertBefore(card, advanced || null));
+      const current = Array.from(body.children).filter(child => ordered.includes(child));
+      const alreadyOrdered = current.length === ordered.length && current.every((card, index) => card === ordered[index]);
+      if (!alreadyOrdered) {
+        const fragment = document.createDocumentFragment();
+        ordered.forEach(card => fragment.append(card));
+        body.insertBefore(fragment, advanced || null);
+      }
       body.dataset.thaSetupOrder = ordered.length === 4 ? '1-2-3-4' : 'incomplete';
     });
   }
