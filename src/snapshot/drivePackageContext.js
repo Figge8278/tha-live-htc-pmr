@@ -19,12 +19,16 @@ const RENAMES = new Map([
   ['99 - Backup & Emergency Restore', DRIVE_FOLDERS.backup]
 ]);
 export function text(value = '') { return String(value ?? '').trim(); }
-export function cleanName(value = 'Untitled') { return text(value).replace(/[\\/:*?"<>|]/g, '-').slice(0, 90) || 'Untitled'; }
+export function cleanName(value = 'Untitled') { return text(value).replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').slice(0, 90) || 'Untitled'; }
 export function stripExtension(value = '') { return String(value).replace(/\.[^.\/]+$/, ''); }
 export function flatPhotoName({ room = 'Room', item = 'Overview', label = 'Photo', originalName = 'photo' } = {}) {
   return `${[room, item, label, stripExtension(originalName)].map(cleanName).join(' - ')}.jpg`;
 }
 function queryEscape(value) { return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+function localTimestamp(date = new Date()) {
+  const pad = value => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
+}
 export function rewriteFolderName(name = '') { return RENAMES.get(name) || name; }
 export function rewriteQueryUrl(rawUrl) {
   if (typeof rawUrl !== 'string' || !rawUrl.includes('googleapis.com/drive/v3/files')) return rawUrl;
@@ -40,6 +44,7 @@ export function createDrivePackageContext(originalFetch) {
   const parentById = new Map();
   const nameById = new Map();
   const foldersByPackage = new Map();
+  const organizedPackages = new Map();
   const photoByName = new Map();
   let lastPackageId = '';
 
@@ -52,10 +57,10 @@ export function createDrivePackageContext(originalFetch) {
   async function findOrCreateFolder(auth, name, parentId) {
     if (!auth || !parentId) return '';
     const q = `mimeType='application/vnd.google-apps.folder' and name='${queryEscape(name)}' and '${parentId}' in parents and trashed=false`;
-    const result = await driveJson(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)`, { headers: authHeaders(auth) });
+    const result = await driveJson(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,parents)`, { headers: authHeaders(auth) });
     const existing = result.files?.[0];
     if (existing?.id) { parentById.set(existing.id, parentId); nameById.set(existing.id, name); return existing.id; }
-    const created = await driveJson('https://www.googleapis.com/drive/v3/files?fields=id,name', {
+    const created = await driveJson('https://www.googleapis.com/drive/v3/files?fields=id,name,parents', {
       method: 'POST', headers: { ...authHeaders(auth), 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] })
     });
@@ -66,6 +71,36 @@ export function createDrivePackageContext(originalFetch) {
     const name = nameById.get(parentId);
     if ([DRIVE_FOLDERS.client, DRIVE_FOLDERS.working, DRIVE_FOLDERS.photos, DRIVE_FOLDERS.backup].includes(name)) return parentById.get(parentId) || '';
     return parentId || lastPackageId;
+  }
+  async function organizePackage(auth, packageId, identity = {}) {
+    if (!auth || !packageId) return null;
+    if (organizedPackages.has(packageId)) return organizedPackages.get(packageId);
+    const packageInfo = await driveJson(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(packageId)}?fields=id,name,parents,description`, { headers: authHeaders(auth) });
+    const originalParent = packageInfo.parents?.[0] || '';
+    const clientName = cleanName(identity.clientName || 'Unassigned Client');
+    const address = cleanName(identity.address || 'Address Pending');
+    const sessionName = cleanName(identity.sessionName || identity.visitLabel || 'Walkthrough');
+    const demo = Boolean(identity.demo || /\b(demo|test|sample)\b/i.test(`${clientName} ${sessionName} ${identity.visitLabel || ''}`));
+    const packageLooksRelevant = /incoming field upload|snapshot|walkthrough|pmr/i.test(packageInfo.name || '') || (String(packageInfo.name || '').includes(clientName) && String(packageInfo.name || '').includes(address));
+    if (!originalParent || !packageLooksRelevant) return null;
+
+    let clientParent = originalParent;
+    if (demo) clientParent = await findOrCreateFolder(auth, '00 - DEMOS & TESTS', originalParent) || originalParent;
+    const clientFolderName = demo ? cleanName(`DEMO - ${clientName}`) : clientName;
+    const clientFolderId = await findOrCreateFolder(auth, clientFolderName, clientParent) || clientParent;
+    const timelineName = cleanName(`${localTimestamp()} - ${sessionName} - ${address}`);
+    const params = new URLSearchParams({ addParents: clientFolderId, removeParents: originalParent, fields: 'id,name,parents,webViewLink' });
+    const updated = await driveJson(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(packageId)}?${params.toString()}`, {
+      method: 'PATCH',
+      headers: { ...authHeaders(auth), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: timelineName,
+        description: `THA Snapshot timeline entry. Client: ${clientName}. Working session: ${sessionName}. Exported: ${new Date().toLocaleString()}.`
+      })
+    });
+    const result = { ...updated, clientFolderId, clientFolderName, timelineName, demo };
+    organizedPackages.set(packageId, result);
+    return result;
   }
   async function ensureFolders(auth, packageId) {
     if (!auth || !packageId) return {};
@@ -124,5 +159,5 @@ export function createDrivePackageContext(originalFetch) {
     if (/manifest/i.test(name)) return '00 - Package Manifest.html';
     return cleanName(name || 'Working File');
   }
-  return { packageIdForParent, ensureFolders, uploadRaw, trackSearch, trackCreate, recordPhoto, photo, timestamp, workingName, snapshotFileName: THA_SNAPSHOT_FILE_NAME };
+  return { packageIdForParent, organizePackage, ensureFolders, uploadRaw, trackSearch, trackCreate, recordPhoto, photo, timestamp, workingName, snapshotFileName: THA_SNAPSHOT_FILE_NAME };
 }
