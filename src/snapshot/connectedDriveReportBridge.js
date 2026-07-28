@@ -3,6 +3,7 @@ import {
 } from './snapshotSchema.js';
 import { buildSnapshotReportModel } from '../report/snapshotReportModel.js';
 import { renderClientPmrHtml } from '../report/renderClientPmrHtml.js';
+import { internalReportForName, renderPackageManifestHtml } from '../report/renderInternalReports.js';
 import { createDrivePackageContext, DRIVE_FOLDERS, flatPhotoName, rewriteFolderName, rewriteQueryUrl } from './drivePackageContext.js';
 import { decodeJson, headerValue, multipartBody, parseMultipart, withHeader } from './driveMultipart.js';
 import { htmlToPdfBlob } from './drivePdf.js';
@@ -16,6 +17,8 @@ import { htmlToPdfBlob } from './drivePdf.js';
   window[SCRIPT_ID] = true;
   const originalFetch = window.fetch.bind(window);
   const drive = createDrivePackageContext(originalFetch);
+  const generatedInternalPdfs = new Set();
+  const generatedManifests = new Set();
   let latestPayload = null;
   let latestSnapshot = null;
 
@@ -155,6 +158,35 @@ import { htmlToPdfBlob } from './drivePdf.js';
     return model ? renderClientPmrHtml(model) : '';
   }
   function photoFolder(folders, name = '') { return /overview/i.test(name) ? folders.roomOverview : folders.findingEvidence; }
+  function filingIdentity(snapshot = {}) {
+    const data = object(snapshot.data);
+    const client = object(data.client);
+    return {
+      clientName: client.name || 'Unassigned Client',
+      address: client.address || data.property?.address || 'Address Pending',
+      visitLabel: client.date || 'Walkthrough Date Pending',
+      sessionName: data.walkthroughName || 'General Advocate Walkthrough',
+      demo: /\b(demo|test|sample)\b/i.test(`${client.name || ''} ${client.address || ''} ${client.date || ''} ${data.walkthroughName || ''}`)
+    };
+  }
+  async function ensureManifest(auth, packageId, folders, filing) {
+    if (!latestSnapshot || !folders.working || generatedManifests.has(packageId)) return;
+    generatedManifests.add(packageId);
+    const html = renderPackageManifestHtml(latestSnapshot, filing || {});
+    await drive.uploadRaw(auth, folders.working, '00 - Package Manifest.html', new Blob([html], { type: 'text/html' }), 'text/html');
+    await drive.uploadRaw(auth, folders.working, '00 - Package Manifest.pdf', await htmlToPdfBlob(html), 'application/pdf');
+  }
+  async function internalReplacement(auth, packageId, folders, originalName) {
+    if (!latestSnapshot) return null;
+    const report = internalReportForName(latestSnapshot, originalName);
+    if (!report) return null;
+    const pdfKey = `${packageId}:${report.base}`;
+    if (!generatedInternalPdfs.has(pdfKey)) {
+      generatedInternalPdfs.add(pdfKey);
+      await drive.uploadRaw(auth, folders.working, `${report.base}.pdf`, await htmlToPdfBlob(report.html), 'application/pdf');
+    }
+    return report;
+  }
 
   refreshSnapshotFromStorage();
 
@@ -190,6 +222,8 @@ import { htmlToPdfBlob } from './drivePdf.js';
         const auth = headerValue(init.headers || input?.headers, 'Authorization');
         const packageId = drive.packageIdForParent(metadata.parents?.[0] || '');
         const folders = await drive.ensureFolders(auth, packageId);
+        const filing = latestSnapshot ? await drive.organizePackage(auth, packageId, filingIdentity(latestSnapshot)).catch(error => { console.warn('THA Drive filing hierarchy could not be completed.', error); return null; }) : null;
+        await ensureManifest(auth, packageId, folders, filing).catch(error => console.warn('THA package manifest upload failed.', error));
         const json = (/json/i.test(contentType) || /\.json$/i.test(originalName)) ? decodeJson(parsed.contentBytes) : null;
         if (json && isSnapshotLike(json)) {
           latestPayload = json;
@@ -198,21 +232,28 @@ import { htmlToPdfBlob } from './drivePdf.js';
 
         if (/^image\//i.test(contentType)) {
           const target = photoFolder(folders, originalName); if (target) metadata.parents = [target];
-        } else if (/intake summary|htc checklist|photo index|tha office|airtable|internal action/i.test(originalName)) {
-          if (folders.working) metadata.parents = [folders.working]; metadata.name = drive.workingName(originalName);
-        } else if (/Emergency Backup|Full Walkthrough Export|Restore This THA Snapshot/i.test(originalName) && latestSnapshot) {
-          const snapshotBlob = new Blob([JSON.stringify(latestSnapshot, null, 2)], { type: 'application/json' });
-          if (folders.working) await drive.uploadRaw(auth, folders.working, drive.snapshotFileName, snapshotBlob, 'application/json');
-          if (folders.backup) metadata.parents = [folders.backup];
-          metadata.name = `Emergency Restore — ${drive.timestamp()}.json`; contentBlob = snapshotBlob; contentType = 'application/json';
-        } else if (originalName === 'PMR Report Packet.html' || /^01 - (Homeowner|Client) PMR/i.test(originalName)) {
-          const html = currentReportHtml(); if (folders.client) metadata.parents = [folders.client];
-          metadata.name = '01 - Client PMR — Interactive Report.html'; delete metadata.mimeType;
-          if (html) { contentBlob = new Blob([html], { type: 'text/html' }); contentType = 'text/html'; }
-        } else if (originalName === 'PMR Report Packet.pdf' || /^02 - (Homeowner|Client) PMR/i.test(originalName)) {
-          const html = currentReportHtml(); if (folders.client) metadata.parents = [folders.client];
-          metadata.name = '02 - Client PMR — Printable Binder Copy.pdf'; delete metadata.mimeType;
-          if (html) { contentBlob = await htmlToPdfBlob(html); contentType = 'application/pdf'; }
+        } else {
+          const internal = await internalReplacement(auth, packageId, folders, originalName).catch(error => { console.warn('THA internal report replacement failed.', error); return null; });
+          if (internal) {
+            if (folders.working) metadata.parents = [folders.working];
+            metadata.name = `${internal.base}.html`;
+            delete metadata.mimeType;
+            contentBlob = new Blob([internal.html], { type: 'text/html' });
+            contentType = 'text/html';
+          } else if (/Emergency Backup|Full Walkthrough Export|Restore This THA Snapshot/i.test(originalName) && latestSnapshot) {
+            const snapshotBlob = new Blob([JSON.stringify(latestSnapshot, null, 2)], { type: 'application/json' });
+            if (folders.working) await drive.uploadRaw(auth, folders.working, drive.snapshotFileName, snapshotBlob, 'application/json');
+            if (folders.backup) metadata.parents = [folders.backup];
+            metadata.name = `Emergency Restore - ${drive.timestamp()}.json`; contentBlob = snapshotBlob; contentType = 'application/json';
+          } else if (originalName === 'PMR Report Packet.html' || /^01 - (Homeowner|Client) PMR/i.test(originalName)) {
+            const html = currentReportHtml(); if (folders.client) metadata.parents = [folders.client];
+            metadata.name = '01 - Client PMR - Interactive Report.html'; delete metadata.mimeType;
+            if (html) { contentBlob = new Blob([html], { type: 'text/html' }); contentType = 'text/html'; }
+          } else if (originalName === 'PMR Report Packet.pdf' || /^02 - (Homeowner|Client) PMR/i.test(originalName)) {
+            const html = currentReportHtml(); if (folders.client) metadata.parents = [folders.client];
+            metadata.name = '02 - Client PMR - Printable Binder Copy.pdf'; delete metadata.mimeType;
+            if (html) { contentBlob = await htmlToPdfBlob(html); contentType = 'application/pdf'; }
+          }
         }
         const body = multipartBody(parsed.boundary, metadata, contentBlob, contentType);
         const response = await originalFetch(input, {
@@ -229,9 +270,10 @@ import { htmlToPdfBlob } from './drivePdf.js';
   };
 
   const diagnostics = {
-    version: '3.57.3', folderNames: DRIVE_FOLDERS,
+    version: '3.57.4', folderNames: DRIVE_FOLDERS,
     getLatestSnapshot: () => refreshSnapshotFromStorage(),
-    buildLatestReportModel: () => currentReportModel()
+    buildLatestReportModel: () => currentReportModel(),
+    filingPreview: () => filingIdentity(refreshSnapshotFromStorage() || {})
   };
   window.thaSnapshotDrivePackage = diagnostics;
   window.__thaConnectedDriveReport = diagnostics;
