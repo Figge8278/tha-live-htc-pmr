@@ -4,20 +4,13 @@ This revision moves the Drive package and generated client PMR/PMCP onto the con
 
 ## Source contract
 
-The Snapshot schema is now version 3 (`appVersion: 3.57.2`).
+The Snapshot schema is version 3 (`appVersion: 3.57.2`).
 
-Each finding preserves both:
-
-- editable field values (`fields`)
-- stable report context (`context`) such as room, checklist title, trade default, rationale, recommended action, timing, and intake-follow-up status
-
-Continued-care records preserve PMCP decisions, timing, resource, reason, source evidence, and workflow relationships. Photos remain linked by stable media IDs and owner IDs.
+Each finding preserves both editable field values and stable report context. Continued-care records preserve PMCP decisions, timing, resource, reason, source evidence, and workflow relationships. Photos remain linked by stable media and owner IDs.
 
 Schema 1, Schema 2, and V3.56 legacy walkthrough exports remain migratable.
 
 ## Drive package
-
-The active Drive export bridge replaces the V3.56 package/report helper and routes the existing native upload transaction into:
 
 ```text
 01 - Client PMR Report/
@@ -39,22 +32,35 @@ The active Drive export bridge replaces the V3.56 package/report helper and rout
   Emergency Restore — <timestamp>.json
 ```
 
-The existing V3.56 emergency PMR HTML compatibility copy may remain in the backup folder during this transition. The canonical restore file is the timestamped Schema 3 JSON.
-
 ## Export sequence
 
 1. Existing photo uploads are routed into explicit room-overview or finding-evidence folders.
-2. Successful Drive photo IDs and links are added to the legacy payload before canonicalization.
-3. The full legacy payload is converted into one Schema 3 THA Snapshot.
-4. The same Snapshot JSON is uploaded as the working restore file and timestamped emergency restore file.
-5. One pure report model is built from that Snapshot.
-6. Interactive HTML and printable PDF are rendered from the same report model.
-7. PMCP selected care remains separate from PMR finding counts.
+2. Successful Drive photo IDs and links are added before canonicalization.
+3. The full walkthrough becomes one Schema 3 THA Snapshot.
+4. The same Snapshot is uploaded as the working restore file and timestamped emergency restore file.
+5. One report model builds both the interactive HTML and printable PDF.
+6. PMCP selected care remains separate from PMR finding counts.
 
 ## Client privacy
 
-The report model reads only client-visible findings, client-visible photos, and selected PMCP care. Workflow actions and administrative/internal notes stay in the Snapshot source file and are not rendered in the client PMR.
+The report model reads only client-visible findings, client-visible photos, and selected PMCP care. Workflow actions and administrative/internal notes stay in the Snapshot source and are not rendered in the client PMR.
+
+## Tablet round-trip validation
+
+The automatic demo launcher was removed after it proved unreliable on tablet refresh. The preview now provides an explicit **Download Demo Snapshot JSON** control beside **Restore Snapshot JSON**.
+
+The file served at `/demo/THA-Snapshot-Demo-PMR-PMCP.json` is a prepared Schema 3 source record with:
+
+- four PMR findings
+- two selected PMCP items
+- one pending continued-care candidate
+- room capture and intake context
+- internal workflow actions and notes
+
+The validation sequence is download → restore → edit → add a photo → download PMR/Snapshot → start blank → restore the new Snapshot again.
+
+The prepared file intentionally contains no embedded photos. A field photo is added after restore so the second export proves newly captured media stays attached through the round trip.
 
 ## Current transition boundary
 
-This revision replaces the Drive report-generation helper with a source-driven module. The in-app React PMR view still uses the existing UI implementation until the next native React integration pass. Drive-delivered HTML/PDF and restore JSON now share the connected Snapshot source.
+Drive-delivered HTML/PDF and restore JSON now share the connected Snapshot source. The in-app React PMR view still uses the existing interface implementation until the next native React integration pass.
