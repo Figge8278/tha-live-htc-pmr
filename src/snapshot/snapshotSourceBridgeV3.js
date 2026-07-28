@@ -1,5 +1,5 @@
 import {
-  THA_SNAPSHOT_FILE_NAME, createSnapshotDocument, snapshotConnectionSummary,
+  THA_SNAPSHOT_APP_VERSION, THA_SNAPSHOT_FILE_NAME, createSnapshotDocument, snapshotConnectionSummary,
   snapshotToWalkthroughData, validateSnapshotDocument
 } from './snapshotSchema.js';
 import './snapshotSource.css';
@@ -15,6 +15,7 @@ function safeJson(key, fallback) { try { return JSON.parse(localStorage.getItem(
 function safeSet(key, value) { try { localStorage.setItem(key, value); return true; } catch { return false; } }
 function object(value) { return value && typeof value === 'object' && !Array.isArray(value) ? value : {}; }
 function list(value) { return Array.isArray(value) ? value : []; }
+function clone(value, fallback = {}) { try { return JSON.parse(JSON.stringify(value)); } catch { return fallback; } }
 function latestSession(sessions = {}) { return Object.values(sessions).filter(session => session?.data).sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))[0] || null; }
 function currentSession() {
   const sessions = safeJson(SESSION_KEY, {});
@@ -22,10 +23,20 @@ function currentSession() {
   return (id && sessions[id]?.data ? sessions[id] : null) || latestSession(sessions);
 }
 function sidecar(sessionId = '') { return safeJson(SIDECAR_KEY, {})[sessionId] || null; }
-function saveSidecar(sessionId, snapshot) {
+function saveSidecar(sessionId, snapshot, metadata = {}) {
   if (!sessionId || !snapshot) return;
   const all = safeJson(SIDECAR_KEY, {});
-  safeSet(SIDECAR_KEY, JSON.stringify({ ...all, [sessionId]: { snapshotId: snapshot.snapshotId, updatedAt: snapshot.updatedAt, originalSnapshot: snapshot } }));
+  const prior = object(all[sessionId]);
+  safeSet(SIDECAR_KEY, JSON.stringify({
+    ...all,
+    [sessionId]: {
+      ...prior,
+      ...metadata,
+      snapshotId: snapshot.snapshotId,
+      updatedAt: snapshot.updatedAt,
+      originalSnapshot: snapshot
+    }
+  }));
 }
 function hasMeaningfulAnswer(answer = {}) {
   const status = String(answer.status || '').trim();
@@ -86,6 +97,8 @@ function sourceData(session = {}) {
 
   const passReview = { ...object(restored.passReview), ...object(current.passReview) };
   const care = originalCare(preserved).map(item => ({ ...item, ...object(passReview[item.id]) }));
+  const currentAdministration = object(current.administration);
+  const preservedAdministration = object(preserved.data?.administration);
   return {
     ...restored, ...current, answers, roomCapture, passReview, rows,
     dynamicRooms: list(current.dynamicRooms).length ? current.dynamicRooms : restored.dynamicRooms,
@@ -93,9 +106,11 @@ function sourceData(session = {}) {
     itemOrder: Object.keys(object(current.itemOrder)).length ? current.itemOrder : restored.itemOrder,
     pinnedItems: Object.keys(object(current.pinnedItems)).length ? current.pinnedItems : restored.pinnedItems,
     passCareCandidates: care, passCareOutlook: care.filter(item => item.pmcpDecision !== 'declined'),
-    property: preserved.data?.property || {}, administration: preserved.data?.administration || {},
+    property: preserved.data?.property || {},
+    administration: { ...preservedAdministration, ...currentAdministration },
     snapshotExtensions: {
-      property: preserved.data?.property || {}, administration: preserved.data?.administration || {},
+      property: preserved.data?.property || {},
+      administration: { ...preservedAdministration, ...currentAdministration },
       nativeWorkflowActions: list(preserved.data?.workflow?.actions).filter(action => action && !action.generatedFromSource),
       supplementalMedia: list(preserved.data?.media?.assets).filter(asset => asset && !['finding', 'room'].includes(asset.ownerType))
     }
@@ -126,37 +141,116 @@ function refresh(panel, force = false) {
   const key = session ? `${session.id}:${session.updatedAt || ''}` : 'none';
   if (!force && panel.dataset.summaryKey === key) return;
   panel.dataset.summaryKey = key;
-  if (!session?.data) { updateMetrics(panel); setPanelStatus(panel, 'Open or save a work session to see its connected Snapshot record.', 'info'); return; }
+  if (!session?.data) { updateMetrics(panel); setPanelStatus(panel, 'Open a work session to see its connected Snapshot record.', 'info'); return; }
   try { updateMetrics(panel, snapshotConnectionSummary(snapshotForSession(session))); } catch (error) { setPanelStatus(panel, error.message || 'Connection summary failed.', 'error'); }
 }
 async function downloadCurrent(panel) {
   triggerSave(); await new Promise(resolve => setTimeout(resolve, 450));
   const session = currentSession();
-  if (!session?.data) { setPanelStatus(panel, 'Save or open a work session before downloading the Snapshot source file.', 'error'); return; }
-  const snapshot = snapshotForSession(session); saveSidecar(session.id, snapshot); downloadJson(THA_SNAPSHOT_FILE_NAME, snapshot);
+  if (!session?.data) { setPanelStatus(panel, 'Open a work session before downloading the backup Snapshot.', 'error'); return; }
+  const snapshot = snapshotForSession(session);
+  const existing = sidecar(session.id);
+  saveSidecar(session.id, snapshot, { sourceSnapshotId: existing?.sourceSnapshotId || '', restoreMode: existing?.restoreMode || '' });
+  downloadJson(THA_SNAPSHOT_FILE_NAME, snapshot);
   const summary = snapshotConnectionSummary(snapshot); updateMetrics(panel, summary);
-  setPanelStatus(panel, `Downloaded ${summary.findings} findings, ${summary.pmr} PMR items, ${summary.pmcp} selected PMCP items, ${summary.workflow} workflow actions, and ${summary.photos} photos.`, 'success');
+  setPanelStatus(panel, `Backup downloaded: ${summary.findings} findings, ${summary.pmr} PMR items, ${summary.pmcp} selected PMCP items, ${summary.workflow} workflow actions, and ${summary.photos} photos.`, 'success');
 }
-function restoredName(snapshot) {
+function localDateLabel(date = new Date()) {
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+function updateSnapshotFromSource(snapshot, mode = 'new-update') {
+  const source = validateSnapshotDocument(snapshot);
+  const working = clone(source, {});
+  const now = new Date();
+  const stamp = now.toISOString();
+  const sourceClient = object(source.data?.client);
+  const sourceAdministration = object(source.data?.administration);
+  const sourceDate = String(sourceClient.date || '').trim();
+  const sourceName = String(source.data?.walkthroughName || '').trim();
+  const today = localDateLabel(now);
+  const priorHistory = list(sourceAdministration.visitHistory);
+
+  working.appVersion = THA_SNAPSHOT_APP_VERSION;
+  working.updatedAt = stamp;
+  working.data = object(working.data);
+  working.data.client = { ...sourceClient };
+  working.data.administration = { ...sourceAdministration };
+
+  if (mode === 'new-update') {
+    working.snapshotId = `snapshot-update-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    working.createdAt = stamp;
+    working.data.client.date = today;
+    working.data.administration.lineage = {
+      mode: 'new-update',
+      sourceSnapshotId: source.snapshotId,
+      sourceWalkthroughDate: sourceDate,
+      sourceWalkthroughName: sourceName,
+      currentVisitDate: today,
+      startedAt: stamp
+    };
+    working.data.administration.visitHistory = [
+      ...priorHistory,
+      { snapshotId: source.snapshotId, walkthroughDate: sourceDate, walkthroughName: sourceName, relationship: 'source' },
+      { snapshotId: working.snapshotId, walkthroughDate: today, walkthroughName: sourceName, relationship: 'current-update', startedAt: stamp }
+    ];
+  } else {
+    working.data.administration.lineage = {
+      ...object(sourceAdministration.lineage),
+      mode: 'continue-original',
+      sourceSnapshotId: source.snapshotId,
+      sourceWalkthroughDate: sourceDate,
+      sourceWalkthroughName: sourceName,
+      currentVisitDate: sourceDate,
+      continuedAt: stamp
+    };
+    working.data.administration.visitHistory = priorHistory;
+  }
+  return working;
+}
+function restoredName(snapshot, mode) {
   const client = snapshot.data?.client || {};
-  return snapshot.data?.walkthroughName || [client.name, client.address, client.date].filter(Boolean).join(' — ') || 'Restored THA Snapshot';
+  const type = snapshot.data?.walkthroughName || 'THA Snapshot';
+  if (mode === 'new-update') return `${type} — ${client.date || localDateLabel()}`;
+  return type || [client.name, client.address, client.date].filter(Boolean).join(' — ') || 'Restored THA Snapshot';
 }
-function saveRestored(snapshot) {
+function saveRestored(snapshot, mode = 'new-update') {
   const sessions = safeJson(SESSION_KEY, {});
-  const id = `restored-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const summary = snapshotConnectionSummary(snapshot);
-  const session = { id, name: restoredName(snapshot), createdAt: snapshot.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString(), data: snapshotToWalkthroughData(snapshot) };
+  const working = updateSnapshotFromSource(snapshot, mode);
+  const id = `${mode === 'new-update' ? 'update' : 'continued'}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const summary = snapshotConnectionSummary(working);
+  const session = {
+    id,
+    name: restoredName(working, mode),
+    createdAt: mode === 'new-update' ? working.createdAt : (snapshot.createdAt || new Date().toISOString()),
+    updatedAt: new Date().toISOString(),
+    data: snapshotToWalkthroughData(working)
+  };
   if (!safeSet(SESSION_KEY, JSON.stringify({ ...sessions, [id]: session })) || !safeSet(CURRENT_ID_KEY, id)) throw new Error('This browser could not save the restored Snapshot.');
-  saveSidecar(id, snapshot);
-  safeSet(PENDING_KEY, JSON.stringify({ id, name: session.name, clientName: snapshot.data?.client?.name || '', expectedFindings: summary.findings, expectedPmr: summary.pmr }));
-  return session;
+  saveSidecar(id, working, { sourceSnapshotId: snapshot.snapshotId, restoreMode: mode });
+  safeSet(PENDING_KEY, JSON.stringify({
+    id,
+    name: session.name,
+    mode,
+    clientName: working.data?.client?.name || '',
+    sourceDate: snapshot.data?.client?.date || '',
+    currentDate: working.data?.client?.date || '',
+    expectedFindings: summary.findings,
+    expectedPmr: summary.pmr
+  }));
+  return { session, working };
 }
-async function importFile(panel, file) {
+async function importFile(panel, file, options = {}) {
   if (!file) return;
   try {
     const snapshot = validateSnapshotDocument(JSON.parse(await file.text()));
-    const session = saveRestored(snapshot); updateMetrics(panel, snapshotConnectionSummary(snapshot));
-    setPanelStatus(panel, `Restored ${session.name}. Reloading the connected work session…`, 'success'); setTimeout(() => location.reload(), 500);
+    const mode = options.mode === 'continue' ? 'continue-original' : 'new-update';
+    const result = saveRestored(snapshot, mode);
+    updateMetrics(panel, snapshotConnectionSummary(result.working));
+    const message = mode === 'new-update'
+      ? `New update created for ${result.working.data?.client?.date || 'today'} from the ${snapshot.data?.client?.date || 'prior'} Snapshot. The original remains unchanged.`
+      : `Original walkthrough continued with its existing date of ${snapshot.data?.client?.date || 'the recorded visit'}. A separate local working copy was created.`;
+    setPanelStatus(panel, `${message} Reloading…`, 'success');
+    setTimeout(() => location.reload(), 650);
   } catch (error) { setPanelStatus(panel, error.message || 'Snapshot restore failed.', 'error'); }
 }
 function nativeSelectValue(select, value) {
@@ -188,20 +282,29 @@ function openPending(panel, attempt = 0) {
       safeSet(CURRENT_ID_KEY, pending.id);
       localStorage.removeItem(PENDING_KEY);
       pendingOpenBusy = false;
-      setPanelStatus(panel, `${pending.name} is loaded as the active THA Snapshot work session (${pending.expectedFindings || 0} findings; ${pending.expectedPmr || 0} PMR).`, 'success');
+      const lineage = pending.mode === 'new-update'
+        ? `New update dated ${pending.currentDate}; based on ${pending.sourceDate || 'the prior Snapshot'}.`
+        : `Continuing the original walkthrough dated ${pending.currentDate || pending.sourceDate}.`;
+      setPanelStatus(panel, `${lineage} ${pending.name} is active (${pending.expectedFindings || 0} findings; ${pending.expectedPmr || 0} PMR).`, 'success');
       setTimeout(() => refresh(panel, true), 300);
       return;
     }
     pendingOpenBusy = false;
     if (attempt < 40) setTimeout(() => openPending(panel, attempt + 1), 200);
-    else setPanelStatus(panel, 'The Snapshot was saved, but the visible work session did not open. Choose the restored session under Saved local sessions before exporting.', 'error');
+    else setPanelStatus(panel, 'The Snapshot was saved, but the visible work session did not open. Choose it under Saved local sessions before exporting.', 'error');
   }, 300);
 }
-function target() { return document.querySelector('.walkthroughControlsPanel .localWorkCard') || document.querySelector('.walkthroughControlsPanel .businessRecordsCard') || document.querySelector('.walkthroughControlsPanel'); }
+function target() {
+  return document.querySelector('.thaSnapshotInformationSourceHost')
+    || document.querySelector('.walkthroughControlsPanel .localWorkCard')
+    || document.querySelector('.walkthroughControlsPanel .businessRecordsCard')
+    || document.querySelector('.walkthroughControlsPanel');
+}
 function ensure() {
   const host = target(); if (!host) return;
-  let panel = host.querySelector(`:scope > .${PANEL_CLASS}`);
-  if (!panel) { panel = buildSourcePanel({ onDownload: downloadCurrent, onImport: importFile }); host.append(panel); }
+  let panel = host.querySelector(`:scope > .${PANEL_CLASS}`) || document.querySelector(`.${PANEL_CLASS}`);
+  if (!panel) panel = buildSourcePanel({ onDownload: downloadCurrent, onImport: importFile });
+  if (panel.parentElement !== host) host.append(panel);
   refresh(panel); openPending(panel);
 }
 let scheduled = false;
