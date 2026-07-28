@@ -108,6 +108,8 @@ export function buildCanonicalSource(source = {}) {
   const pmrReviewIds = findings.filter(f => f.reporting.pmrDecision === 'review').map(f => f.findingId);
   const pmcpSelectedIds = continuedCareItems.filter(item => item.reporting.pmcpDecision === 'selected' && item.reporting.clientVisible).map(item => item.careItemId);
   const pmcpCandidateIds = continuedCareItems.filter(item => item.reporting.pmcpDecision === 'pending').map(item => item.careItemId);
+  const sourceAdministration = object(source.administration);
+  const extensionAdministration = object(extensions.administration);
 
   return {
     walkthroughName: text(source.walkthroughName), client: object(source.client),
@@ -118,15 +120,17 @@ export function buildCanonicalSource(source = {}) {
     continuedCare: { items: continuedCareItems },
     workflow: { actions: workflowActions, sourceRule: 'Actions point back to the finding, room, or continued-care record that created them.' },
     administration: {
-      lifecycleStatus: text(source.administration?.lifecycleStatus || extensions.administration?.lifecycleStatus) || 'working',
+      lifecycleStatus: text(sourceAdministration.lifecycleStatus || extensionAdministration.lifecycleStatus) || 'working',
       reportStatus: {
-        pmr: text(source.administration?.reportStatus?.pmr || extensions.administration?.reportStatus?.pmr) || 'source-ready',
-        pmcp: text(source.administration?.reportStatus?.pmcp || extensions.administration?.reportStatus?.pmcp) || 'source-ready',
-        delivery: text(source.administration?.reportStatus?.delivery || extensions.administration?.reportStatus?.delivery) || 'not-delivered'
+        pmr: text(sourceAdministration.reportStatus?.pmr || extensionAdministration.reportStatus?.pmr) || 'source-ready',
+        pmcp: text(sourceAdministration.reportStatus?.pmcp || extensionAdministration.reportStatus?.pmcp) || 'source-ready',
+        delivery: text(sourceAdministration.reportStatus?.delivery || extensionAdministration.reportStatus?.delivery) || 'not-delivered'
       },
-      externalReferences: object(source.administration?.externalReferences ?? extensions.administration?.externalReferences),
-      requiredHomeReferences: object(source.administration?.requiredHomeReferences ?? extensions.administration?.requiredHomeReferences),
-      internalNotes: text(source.administration?.internalNotes || extensions.administration?.internalNotes)
+      externalReferences: object(sourceAdministration.externalReferences ?? extensionAdministration.externalReferences),
+      requiredHomeReferences: object(sourceAdministration.requiredHomeReferences ?? extensionAdministration.requiredHomeReferences),
+      lineage: object(sourceAdministration.lineage ?? extensionAdministration.lineage),
+      visitHistory: list(sourceAdministration.visitHistory ?? extensionAdministration.visitHistory),
+      internalNotes: text(sourceAdministration.internalNotes || extensionAdministration.internalNotes)
     },
     media: { assets: media },
     reporting: {
