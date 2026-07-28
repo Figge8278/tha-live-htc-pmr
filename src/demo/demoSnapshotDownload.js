@@ -19,7 +19,7 @@ function demoCard() {
   const card = document.createElement('div');
   card.className = 'thaDemoSnapshotCard';
   card.dataset.thaDemoSnapshotCard = 'true';
-  card.innerHTML = `<strong>Round-trip restore demo</strong><span>Download this prepared Snapshot, then use “Restore Snapshot JSON” directly below. This tests the real restore path instead of an automatic screen loader.</span><a class="thaDemoSnapshotLink" href="${DEMO_FILE_URL}" download="${DEMO_FILE_NAME}">Download Demo Snapshot JSON</a>`;
+  card.innerHTML = `<strong>Round-trip restore demo</strong><span>1. Download this prepared Snapshot. 2. Tap “Restore Snapshot JSON” directly below and choose the downloaded file. The app will reload the restored work session.</span><a class="thaDemoSnapshotLink" href="${DEMO_FILE_URL}" download="${DEMO_FILE_NAME}">Download Demo Snapshot JSON</a>`;
   return card;
 }
 
