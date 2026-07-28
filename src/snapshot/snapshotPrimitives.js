@@ -1,6 +1,6 @@
 export const THA_SNAPSHOT_FILE_TYPE = 'tha-snapshot';
 export const THA_SNAPSHOT_SCHEMA_VERSION = 3;
-export const THA_SNAPSHOT_APP_VERSION = '3.57.4';
+export const THA_SNAPSHOT_APP_VERSION = '3.57.6';
 export const THA_SNAPSHOT_FILE_NAME = 'Restore This THA Snapshot.json';
 
 const PMR_INCLUDED = new Set(['Immediate Concern', 'Needs Attention', 'Monitor']);
@@ -22,6 +22,7 @@ export function safeIdPart(value = '') {
 }
 export function newSnapshotId(sessionId = '') {
   const base = safeIdPart(sessionId);
+  if (base.startsWith('snapshot-')) return base;
   return base && base !== 'item' ? `snapshot-${base}` : `snapshot-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 export function withoutKeys(source = {}, keys = []) {
