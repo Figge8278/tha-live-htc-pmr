@@ -1,4 +1,6 @@
-import { createSnapshotDocument, validateSnapshotDocument } from './snapshotSchema.js';
+import {
+  createSnapshotDocument, snapshotConnectionSummary, snapshotToWalkthroughData, validateSnapshotDocument
+} from './snapshotSchema.js';
 import { buildSnapshotReportModel } from '../report/snapshotReportModel.js';
 import { renderClientPmrHtml } from '../report/renderClientPmrHtml.js';
 import { createDrivePackageContext, DRIVE_FOLDERS, flatPhotoName, rewriteFolderName, rewriteQueryUrl } from './drivePackageContext.js';
@@ -7,6 +9,9 @@ import { htmlToPdfBlob } from './drivePdf.js';
 
 (() => {
   const SCRIPT_ID = 'tha-v357-connected-drive-report';
+  const SESSION_KEY = 'tha-walkthrough-sessions';
+  const CURRENT_ID_KEY = 'tha-current-walkthrough-id';
+  const SIDECAR_KEY = 'tha-v357-snapshot-sidecars';
   if (window[SCRIPT_ID]) return;
   window[SCRIPT_ID] = true;
   const originalFetch = window.fetch.bind(window);
@@ -14,6 +19,87 @@ import { htmlToPdfBlob } from './drivePdf.js';
   let latestPayload = null;
   let latestSnapshot = null;
 
+  function object(value) { return value && typeof value === 'object' && !Array.isArray(value) ? value : {}; }
+  function list(value) { return Array.isArray(value) ? value : []; }
+  function safeJson(key, fallback) { try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; } catch { return fallback; } }
+  function hasMeaningfulAnswer(answer = {}) {
+    const status = String(answer.status || '').trim();
+    return Boolean(
+      (status && status !== 'Unknown') || String(answer.notes || '').trim() || list(answer.photos).length ||
+      answer.thaActionItem || answer.workOrderNow || answer.addToPmcpBuilder || answer.passCandidate ||
+      (answer.thaActionType && answer.thaActionType !== 'Unknown') || String(answer.passNote || '').trim()
+    );
+  }
+  function activeSession() {
+    const sessions = safeJson(SESSION_KEY, {});
+    const currentId = localStorage.getItem(CURRENT_ID_KEY) || '';
+    if (currentId && sessions[currentId]?.data) return sessions[currentId];
+    return Object.values(sessions).filter(session => session?.data).sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))[0] || null;
+  }
+  function activeSidecar(sessionId = '') { return safeJson(SIDECAR_KEY, {})[sessionId]?.originalSnapshot || null; }
+  function sourceFromPreserved(session, preserved) {
+    const restored = snapshotToWalkthroughData(preserved);
+    const current = object(session?.data);
+    const currentAnswers = object(current.answers);
+    const answers = { ...object(restored.answers) };
+    const rows = list(preserved.data?.htc?.findings).map(finding => {
+      const id = String(finding.templateItemId);
+      const base = object(restored.answers?.[id]);
+      const candidate = object(currentAnswers[id]);
+      const answer = hasMeaningfulAnswer(candidate)
+        ? { ...base, ...candidate, photos: list(candidate.photos).length ? candidate.photos : list(base.photos) }
+        : base;
+      answers[id] = answer;
+      return { id, ...object(finding.context), answer };
+    });
+    Object.entries(currentAnswers).forEach(([id, answer]) => { if (!answers[id]) answers[id] = answer; });
+
+    const roomCapture = { ...object(restored.roomCapture), ...object(current.roomCapture) };
+    const passReview = { ...object(restored.passReview), ...object(current.passReview) };
+    const care = list(preserved.data?.continuedCare?.items).map(item => ({
+      ...object(item.fields), ...object(passReview[item.careItemId]), id: item.careItemId,
+      pmcpDecision: object(passReview[item.careItemId]).pmcpDecision || item.reporting?.pmcpDecision || 'pending'
+    }));
+    return {
+      ...restored, ...current, answers, rows, roomCapture, passReview,
+      dynamicRooms: list(current.dynamicRooms).length ? current.dynamicRooms : restored.dynamicRooms,
+      sectionOrder: list(current.sectionOrder).length ? current.sectionOrder : restored.sectionOrder,
+      itemOrder: Object.keys(object(current.itemOrder)).length ? current.itemOrder : restored.itemOrder,
+      pinnedItems: Object.keys(object(current.pinnedItems)).length ? current.pinnedItems : restored.pinnedItems,
+      passCareCandidates: care, passCareOutlook: care.filter(item => item.pmcpDecision !== 'declined'),
+      property: preserved.data?.property || {}, administration: preserved.data?.administration || {},
+      snapshotExtensions: {
+        property: preserved.data?.property || {}, administration: preserved.data?.administration || {},
+        nativeWorkflowActions: list(preserved.data?.workflow?.actions).filter(action => action && !action.generatedFromSource),
+        supplementalMedia: list(preserved.data?.media?.assets).filter(asset => asset && !['finding', 'room'].includes(asset.ownerType))
+      }
+    };
+  }
+  function snapshotFromStorage() {
+    const session = activeSession();
+    if (!session?.data) return null;
+    const preserved = activeSidecar(session.id);
+    if (preserved) {
+      return createSnapshotDocument({
+        sessionId: preserved.snapshotId || session.id, sessionName: session.name,
+        data: sourceFromPreserved(session, preserved), createdAt: preserved.createdAt || session.createdAt,
+        updatedAt: session.updatedAt || preserved.updatedAt
+      });
+    }
+    return createSnapshotDocument({
+      sessionId: session.id, sessionName: session.name, data: session.data,
+      createdAt: session.createdAt, updatedAt: session.updatedAt
+    });
+  }
+  function refreshSnapshotFromStorage() {
+    try {
+      const stored = snapshotFromStorage();
+      if (stored) latestSnapshot = stored;
+    } catch (error) {
+      console.warn('THA Snapshot storage refresh failed.', error);
+    }
+    return latestSnapshot;
+  }
   function isSnapshotLike(value = {}) {
     return Boolean(value?.fileType === 'tha-snapshot' || value?.client || value?.rows || value?.answers || value?.htc);
   }
@@ -49,11 +135,28 @@ import { htmlToPdfBlob } from './drivePdf.js';
       createdAt: enriched.createdAt || enriched.exportedAt || '', updatedAt: enriched.updatedAt || enriched.exportedAt || new Date().toISOString()
     });
   }
+  function sourceHasFindings(snapshot) { return snapshotConnectionSummary(snapshot).findings > 0; }
+  function acceptCandidate(candidate) {
+    if (!candidate) return;
+    const current = refreshSnapshotFromStorage();
+    if (current && sourceHasFindings(current) && !sourceHasFindings(candidate)) return;
+    latestSnapshot = candidate;
+  }
+  function currentReportModel() {
+    refreshSnapshotFromStorage();
+    if (!latestSnapshot) return null;
+    const model = buildSnapshotReportModel(latestSnapshot);
+    const summary = snapshotConnectionSummary(latestSnapshot);
+    if (summary.pmr > 0 && model.counts.findings === 0) throw new Error('Connected Snapshot contains PMR findings, but the report model is empty. Export stopped to prevent a false zero-finding report.');
+    return model;
+  }
   function currentReportHtml() {
-    if (!latestSnapshot) return '';
-    return renderClientPmrHtml(buildSnapshotReportModel(latestSnapshot));
+    const model = currentReportModel();
+    return model ? renderClientPmrHtml(model) : '';
   }
   function photoFolder(folders, name = '') { return /overview/i.test(name) ? folders.roomOverview : folders.findingEvidence; }
+
+  refreshSnapshotFromStorage();
 
   window.fetch = async function connectedDriveFetch(input, init = {}) {
     let url = typeof input === 'string' ? input : input?.url;
@@ -79,6 +182,7 @@ import { htmlToPdfBlob } from './drivePdf.js';
     if (method === 'POST' && typeof url === 'string' && url.includes('googleapis.com/upload/drive/v3/files')) {
       const parsed = await parseMultipart(input, init).catch(() => null);
       if (parsed?.metadata) {
+        refreshSnapshotFromStorage();
         const metadata = { ...parsed.metadata };
         const originalName = metadata.name || '';
         let contentType = parsed.uploadContentType;
@@ -87,7 +191,10 @@ import { htmlToPdfBlob } from './drivePdf.js';
         const packageId = drive.packageIdForParent(metadata.parents?.[0] || '');
         const folders = await drive.ensureFolders(auth, packageId);
         const json = (/json/i.test(contentType) || /\.json$/i.test(originalName)) ? decodeJson(parsed.contentBytes) : null;
-        if (json && isSnapshotLike(json)) { latestPayload = json; latestSnapshot = snapshotFrom(json); }
+        if (json && isSnapshotLike(json)) {
+          latestPayload = json;
+          try { acceptCandidate(snapshotFrom(json)); } catch (error) { console.warn('THA Snapshot candidate rejected.', error); }
+        }
 
         if (/^image\//i.test(contentType)) {
           const target = photoFolder(folders, originalName); if (target) metadata.parents = [target];
@@ -113,7 +220,7 @@ import { htmlToPdfBlob } from './drivePdf.js';
         });
         if (/^image\//i.test(contentType)) {
           drive.recordPhoto(originalName, await response.clone().json().catch(() => null));
-          if (latestPayload) latestSnapshot = snapshotFrom(latestPayload);
+          latestSnapshot = snapshotFromStorage() || latestSnapshot;
         }
         return response;
       }
@@ -122,9 +229,9 @@ import { htmlToPdfBlob } from './drivePdf.js';
   };
 
   const diagnostics = {
-    version: '3.57.2', folderNames: DRIVE_FOLDERS,
-    getLatestSnapshot: () => latestSnapshot,
-    buildLatestReportModel: () => latestSnapshot ? buildSnapshotReportModel(latestSnapshot) : null
+    version: '3.57.3', folderNames: DRIVE_FOLDERS,
+    getLatestSnapshot: () => refreshSnapshotFromStorage(),
+    buildLatestReportModel: () => currentReportModel()
   };
   window.thaSnapshotDrivePackage = diagnostics;
   window.__thaConnectedDriveReport = diagnostics;
