@@ -9,6 +9,16 @@ function careSource(item = {}) {
     .map(id => `finding-${safeIdPart(id)}`);
   return { type: text(item.source) || (findingIds.length ? 'htc-finding' : 'pass-catalog'), sourceId: text(item.careTopicId || item.id), findingIds };
 }
+function isoDate(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+function nextYearDate(value = '') {
+  const parsed = value ? new Date(`${value}T12:00:00`) : new Date();
+  const base = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  const next = new Date(base);
+  next.setFullYear(next.getFullYear() + 1);
+  return isoDate(next);
+}
 
 function careItems(source, findings, workflowActions) {
   const reviewMap = object(source.passReview ?? source.continuedCare?.review ?? source.pass?.review);
@@ -30,12 +40,22 @@ function careItems(source, findings, workflowActions) {
     });
   });
   return [...byId.entries()].map(([careItemId, value]) => {
-    const fields = { ...object(value), ...object(reviewMap[careItemId]), id: value.id || careItemId };
+    const decision = pmcpDecision(value, reviewMap[careItemId]);
+    const baseFields = { ...object(value), ...object(reviewMap[careItemId]), id: value.id || careItemId };
+    const fields = decision === 'declined'
+      ? {
+          ...baseFields,
+          followUpStatus: baseFields.followUpStatus === 'Completed' ? 'Completed' : 'Deferred',
+          deferredAt: text(baseFields.deferredAt) || isoDate(),
+          deferredReminderDate: text(baseFields.deferredReminderDate) || nextYearDate(text(baseFields.deferredAt)),
+          deferredReason: text(baseFields.deferredReason) || 'Not this year'
+        }
+      : baseFields;
     const workflow = workflowProjection('continued-care', careItemId, fields);
     if (workflow) workflowActions.push(workflow);
     return {
       careItemId, source: careSource(fields), fields,
-      reporting: { pmcpDecision: pmcpDecision(value, reviewMap[careItemId]), clientVisible: fields.clientVisible !== false, internalOnlyNoteFields: ['internalNote'] },
+      reporting: { pmcpDecision: decision, clientVisible: fields.clientVisible !== false, internalOnlyNoteFields: ['internalNote'] },
       workflowActionIds: workflow ? [workflow.actionId] : []
     };
   });
@@ -105,6 +125,7 @@ export function buildCanonicalSource(source = {}) {
         delivery: text(source.administration?.reportStatus?.delivery || extensions.administration?.reportStatus?.delivery) || 'not-delivered'
       },
       externalReferences: object(source.administration?.externalReferences ?? extensions.administration?.externalReferences),
+      requiredHomeReferences: object(source.administration?.requiredHomeReferences ?? extensions.administration?.requiredHomeReferences),
       internalNotes: text(source.administration?.internalNotes || extensions.administration?.internalNotes)
     },
     media: { assets: media },
