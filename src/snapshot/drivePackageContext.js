@@ -79,26 +79,28 @@ export function createDrivePackageContext(originalFetch) {
     const originalParent = packageInfo.parents?.[0] || '';
     const clientName = cleanName(identity.clientName || 'Unassigned Client');
     const address = cleanName(identity.address || 'Address Pending');
-    const sessionName = cleanName(identity.sessionName || identity.visitLabel || 'Walkthrough');
-    const demo = Boolean(identity.demo || /\b(demo|test|sample)\b/i.test(`${clientName} ${sessionName} ${identity.visitLabel || ''}`));
+    const visitLabel = cleanName(identity.visitLabel || 'Walkthrough Date Pending');
+    const sessionName = cleanName(identity.sessionName || 'General Advocate Walkthrough');
+    const demo = Boolean(identity.demo || /\b(demo|test|sample)\b/i.test(`${clientName} ${address} ${visitLabel} ${sessionName}`));
     const packageLooksRelevant = /incoming field upload|snapshot|walkthrough|pmr/i.test(packageInfo.name || '') || (String(packageInfo.name || '').includes(clientName) && String(packageInfo.name || '').includes(address));
     if (!originalParent || !packageLooksRelevant) return null;
 
-    let clientParent = originalParent;
-    if (demo) clientParent = await findOrCreateFolder(auth, '00 - DEMOS & TESTS', originalParent) || originalParent;
+    let filingRoot = originalParent;
+    if (demo) filingRoot = await findOrCreateFolder(auth, '00 - DEMOS & TESTS', originalParent) || originalParent;
     const clientFolderName = demo ? cleanName(`DEMO - ${clientName}`) : clientName;
-    const clientFolderId = await findOrCreateFolder(auth, clientFolderName, clientParent) || clientParent;
-    const timelineName = cleanName(`${localTimestamp()} - ${sessionName} - ${address}`);
-    const params = new URLSearchParams({ addParents: clientFolderId, removeParents: originalParent, fields: 'id,name,parents,webViewLink' });
+    const clientFolderId = await findOrCreateFolder(auth, clientFolderName, filingRoot) || filingRoot;
+    const addressFolderId = await findOrCreateFolder(auth, address, clientFolderId) || clientFolderId;
+    const timelineName = cleanName(`${visitLabel} - ${sessionName} - Export ${localTimestamp()}`);
+    const params = new URLSearchParams({ addParents: addressFolderId, removeParents: originalParent, fields: 'id,name,parents,webViewLink' });
     const updated = await driveJson(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(packageId)}?${params.toString()}`, {
       method: 'PATCH',
       headers: { ...authHeaders(auth), 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: timelineName,
-        description: `THA Snapshot timeline entry. Client: ${clientName}. Working session: ${sessionName}. Exported: ${new Date().toLocaleString()}.`
+        description: `THA Snapshot timeline entry. Client: ${clientName}. Project address: ${address}. Walkthrough date/visit: ${visitLabel}. Working-session type: ${sessionName}. Exported: ${new Date().toLocaleString()}.`
       })
     });
-    const result = { ...updated, clientFolderId, clientFolderName, timelineName, demo };
+    const result = { ...updated, clientFolderId, clientFolderName, addressFolderId, addressFolderName: address, timelineName, demo };
     organizedPackages.set(packageId, result);
     return result;
   }
