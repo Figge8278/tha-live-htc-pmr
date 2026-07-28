@@ -18,7 +18,7 @@ function buildImagePdf(pages, { title = 'Client PMR Report', pageWidth = 612, pa
   const writeObjectStart = id => { offsets[id] = byteLength; addText(`${id} 0 obj\n`); };
   addText('%PDF-1.4\n%THA\n');
   writeObjectStart(catalogId); addText(`<< /Type /Catalog /Pages ${pagesId} 0 R >>\nendobj\n`);
-  writeObjectStart(pagesId); addText(`<< /Type /Pages /Kids ${pages.map((_, index) => `${firstPageId + index} 0 R`).join(' ')} /Count ${pageCount} >>\nendobj\n`);
+  writeObjectStart(pagesId); addText(`<< /Type /Pages /Kids [${pages.map((_, index) => `${firstPageId + index} 0 R`).join(' ')}] /Count ${pageCount} >>\nendobj\n`);
   pages.forEach((_, index) => {
     writeObjectStart(firstPageId + index);
     addText(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /XObject << /Im${index + 1} ${imageObjectId(index)} 0 R >> >> /Contents ${contentObjectId(index)} 0 R >>\nendobj\n`);
@@ -61,10 +61,13 @@ export async function htmlToPdfBlob(html) {
     const bodyMarkup = Array.from(doc.body.childNodes).map(node => serializer.serializeToString(node)).join('');
     const htmlWidth = 960;
     const pageHeightPx = Math.round(htmlWidth * (792 / 612));
-    const totalHeight = Math.max(pageHeightPx, doc.documentElement.scrollHeight, doc.body.scrollHeight);
+    const measuredHeight = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+    const totalHeight = Math.max(pageHeightPx, measuredHeight);
+    const pageCount = Math.max(1, Math.ceil(Math.max(1, totalHeight - 24) / pageHeightPx));
     const scale = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
     const pages = [];
-    for (let y = 0; y < totalHeight; y += pageHeightPx) {
+    for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
+      const y = pageIndex * pageHeightPx;
       const xhtml = `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${htmlWidth}px;min-height:${totalHeight}px;background:#fff;"><style><![CDATA[${styleText}]]></style><div style="transform:translateY(-${y}px);transform-origin:top left;width:${htmlWidth}px;">${bodyMarkup}</div></div>`;
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${htmlWidth}" height="${pageHeightPx}" viewBox="0 0 ${htmlWidth} ${pageHeightPx}"><rect width="100%" height="100%" fill="#ffffff"/><foreignObject x="0" y="0" width="${htmlWidth}" height="${totalHeight}">${xhtml}</foreignObject></svg>`;
       const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
