@@ -35,6 +35,28 @@ async function downloadPreparedDemo(button) {
     snapshot.data.walkthroughName = 'General Advocate Walkthrough — PMR + PMCP Demo';
     snapshot.data.client = { ...(snapshot.data.client || {}), date: 'April 12, 2026 — V3.57.7 Validation Source' };
     snapshot.data.intake = { ...(snapshot.data.intake || {}), gasService: 'Not applicable — all-electric demo property.' };
+    snapshot.data.continuedCare = snapshot.data.continuedCare || { items: [] };
+    snapshot.data.continuedCare.items = Array.isArray(snapshot.data.continuedCare.items) ? snapshot.data.continuedCare.items : [];
+    if (!snapshot.data.continuedCare.items.some(item => item.careItemId === 'demo-long-range-exterior-review')) {
+      snapshot.data.continuedCare.items.push({
+        careItemId: 'demo-long-range-exterior-review',
+        source: { type: 'pass-catalog', sourceId: 'exterior-finish-review', findingIds: [] },
+        fields: {
+          id: 'demo-long-range-exterior-review',
+          careItem: 'Exterior paint and exposed-wood condition review',
+          resource: 'Painting / Handy Services',
+          cadence: 'Every 2–3 years / condition-based',
+          reason: 'The exterior is currently serviceable. Keep a future review on the care plan so protective coating needs are revisited before deterioration becomes urgent.',
+          deferredReminderDate: '2028-04-15',
+          nextSuggestedWindow: 'Spring 2028',
+          followUpStatus: 'Deferred',
+          pmcpDecision: 'declined',
+          clientVisible: true
+        },
+        reporting: { pmcpDecision: 'declined', clientVisible: true, internalOnlyNoteFields: ['internalNote'] },
+        workflowActionIds: []
+      });
+    }
     snapshot.data.administration = {
       ...(snapshot.data.administration || {}),
       requiredHomeReferences: {
@@ -57,7 +79,7 @@ function demoCard() {
   const card = document.createElement('div');
   card.className = 'thaDemoSnapshotCard';
   card.dataset.thaDemoSnapshotCard = 'true';
-  card.innerHTML = '<strong>Validation demo — V3.57.7</strong><span>Uses an April 12, 2026 source visit so you can test the protected update path, the 75% readiness threshold, Action Center filters, and green/light-green future reminders.</span><button type="button" class="thaDemoSnapshotLink">Download Prepared Demo Snapshot</button>';
+  card.innerHTML = '<strong>Validation demo — V3.57.7</strong><span>Uses an April 12, 2026 source visit so you can test the protected update path, the 75% readiness threshold, Action Center filters, one purple active-planning item, and a light-green Spring 2028 reminder.</span><button type="button" class="thaDemoSnapshotLink">Download Prepared Demo Snapshot</button>';
   card.querySelector('button').addEventListener('click', event => downloadPreparedDemo(event.currentTarget));
   return card;
 }
