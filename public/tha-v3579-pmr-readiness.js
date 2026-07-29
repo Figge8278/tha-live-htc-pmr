@@ -105,7 +105,7 @@
       .thaCompactSnapshotBar .thaCompactReadiness{display:none!important}
       .thaPmrReadiness{margin:12px 0 16px;border:1px solid #d8e2dc;border-radius:16px;background:#fff;padding:12px 14px;box-shadow:0 5px 15px rgba(31,50,39,.05)}
       .thaPmrReadinessTop{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px}.thaPmrReadinessTop strong{display:block;color:#183f2d;font-size:14px}.thaPmrReadinessTop span{color:#4f6157;font-size:11px;font-weight:900;text-align:right}
-      .thaPmrReadinessTrack{position:relative;height:12px;margin-top:8px;border:1px solid #cedbd2;border-radius:999px;background:#edf2ee;overflow:hidden}.thaPmrReadinessTrack i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#287bb7 0 75%,#79bd6e 75% 100%)}.thaPmrReadinessTrack::after{content:'';position:absolute;inset-block:0;left:75%;width:2px;background:#183f2d;opacity:.7}
+      .thaPmrReadinessTrack{position:relative;height:12px;margin-top:8px;border:1px solid #cedbd2;border-radius:999px;background:#edf2ee;overflow:hidden}.thaPmrReadinessTrack i{position:absolute;inset-block:0;display:block}.thaPmrReadinessCore{left:0;background:#287bb7}.thaPmrReadinessDepth{left:75%;background:#79bd6e}.thaPmrReadinessTrack::after{content:'';position:absolute;inset-block:0;left:75%;width:2px;background:#183f2d;opacity:.7}
       .thaPmrReadinessMeta{display:flex;justify-content:space-between;gap:10px;margin-top:5px;color:#6a776f;font-size:9px;font-weight:850}.thaPmrReadiness details{margin-top:8px}.thaPmrReadiness summary{cursor:pointer;color:#245f8a;font-size:10px;font-weight:950}.thaPmrReadinessChecks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px}.thaPmrReadinessCheck{border:1px solid #e0e7e2;border-radius:10px;background:#fbfcfb;padding:7px 9px;color:#68756d;font-size:9px}.thaPmrReadinessCheck strong{display:block;color:#183f2d;font-size:10px}.thaPmrReadinessCheck.ready{border-color:#b9d9ad;background:#f3f9f1}
       @media(max-width:720px){.thaPmrReadinessChecks{grid-template-columns:1fr}.thaPmrReadinessTop{grid-template-columns:1fr}.thaPmrReadinessTop span{text-align:left}}
       @media print{.thaPmrReadiness{display:none!important}}
@@ -139,7 +139,9 @@
     const signature = JSON.stringify(state);
     if (panel.dataset.signature === signature) return;
     panel.dataset.signature = signature;
-    panel.innerHTML = `<div class="thaPmrReadinessTop"><div><strong>PMR Readiness</strong><span>${esc(state.label)}</span></div><span>${state.score}%</span></div><div class="thaPmrReadinessTrack"><i style="width:${state.score}%"></i></div><div class="thaPmrReadinessMeta"><span>Report foundation</span><span>75% ready-for-review marker</span><span>Supporting depth</span></div><details><summary>See what is supporting this PMR</summary><div class="thaPmrReadinessChecks">${state.checks.map(item => `<div class="thaPmrReadinessCheck ${item.ready ? 'ready' : ''}"><strong>${item.ready ? '✓' : '○'} ${esc(item.label)}</strong>${esc(item.detail)}</div>`).join('')}</div></details>`;
+    const coreWidth = Math.min(75, state.score);
+    const depthWidth = Math.max(0, state.score - 75);
+    panel.innerHTML = `<div class="thaPmrReadinessTop"><div><strong>PMR Readiness</strong><span>${esc(state.label)}</span></div><span>${state.score}%</span></div><div class="thaPmrReadinessTrack"><i class="thaPmrReadinessCore" style="width:${coreWidth}%"></i><i class="thaPmrReadinessDepth" style="width:${depthWidth}%"></i></div><div class="thaPmrReadinessMeta"><span>Report foundation</span><span>75% ready-for-review marker</span><span>Supporting depth</span></div><details><summary>See what is supporting this PMR</summary><div class="thaPmrReadinessChecks">${state.checks.map(item => `<div class="thaPmrReadinessCheck ${item.ready ? 'ready' : ''}"><strong>${item.ready ? '✓' : '○'} ${esc(item.label)}</strong>${esc(item.detail)}</div>`).join('')}</div></details>`;
   }
 
   let pending = false;
