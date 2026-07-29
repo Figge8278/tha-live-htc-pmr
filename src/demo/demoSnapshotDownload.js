@@ -33,7 +33,7 @@ async function downloadPreparedDemo(button) {
     snapshot.updatedAt = stamp;
     snapshot.data = snapshot.data || {};
     snapshot.data.walkthroughName = 'General Advocate Walkthrough — PMR + PMCP Demo';
-    snapshot.data.client = { ...(snapshot.data.client || {}), date: 'July 28, 2026 — V3.57.6 Validation Source' };
+    snapshot.data.client = { ...(snapshot.data.client || {}), date: 'April 12, 2026 — V3.57.6 Validation Source' };
     snapshot.data.intake = { ...(snapshot.data.intake || {}), gasService: 'Not applicable — all-electric demo property.' };
     snapshot.data.administration = {
       ...(snapshot.data.administration || {}),
@@ -57,7 +57,7 @@ function demoCard() {
   const card = document.createElement('div');
   card.className = 'thaDemoSnapshotCard';
   card.dataset.thaDemoSnapshotCard = 'true';
-  card.innerHTML = '<strong>Validation demo — V3.57.6</strong><span>Use this prepared prior Snapshot to test both restore choices: continue its original visit or create a new update dated today.</span><button type="button" class="thaDemoSnapshotLink">Download Prepared Demo Snapshot</button>';
+  card.innerHTML = '<strong>Validation demo — V3.57.6</strong><span>Uses an April 12, 2026 source visit so you can prove that continuing retains the old date while starting a new update uses today’s date.</span><button type="button" class="thaDemoSnapshotLink">Download Prepared Demo Snapshot</button>';
   card.querySelector('button').addEventListener('click', event => downloadPreparedDemo(event.currentTarget));
   return card;
 }
