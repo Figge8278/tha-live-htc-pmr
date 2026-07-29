@@ -28,5 +28,6 @@ jobs:
         run: |
           node --check public/tha-v358-start-and-management.js
           node --check public/tha-v358-management-resilience.js
+          node --check public/tha-v3582-start-and-htc-polish.js
       - name: Build application
         run: npm run build
