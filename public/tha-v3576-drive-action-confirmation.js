@@ -10,6 +10,12 @@
   const previousFetch = window.fetch.bind(window);
   let completionTimer = null;
 
+  function syncReleaseVersion() {
+    [window.thaSnapshotDrivePackage, window.__thaConnectedDriveReport].forEach(diagnostics => {
+      if (diagnostics && typeof diagnostics === 'object') diagnostics.version = '3.57.6';
+    });
+  }
+
   function scheduleCompletion() {
     window.clearTimeout(completionTimer);
     completionTimer = window.setTimeout(() => {
@@ -54,4 +60,8 @@
       throw error;
     }
   };
+
+  syncReleaseVersion();
+  window.setTimeout(syncReleaseVersion, 500);
+  window.setTimeout(syncReleaseVersion, 1600);
 })();
