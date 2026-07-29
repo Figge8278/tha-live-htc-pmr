@@ -91,9 +91,22 @@ export function validateSnapshotDocument(input = {}) {
 export function snapshotToWalkthroughData(input = {}) {
   const current = snapshotToWalkthroughDataUnsafe(validateSnapshotDocument(input));
   return {
-    client: current.client, answers: current.answers, intake: current.intake, dynamicRooms: current.dynamicRooms,
-    sectionOrder: current.sectionOrder, itemOrder: current.itemOrder, pinnedItems: current.pinnedItems,
-    roomCapture: current.roomCapture, passReview: current.passReview, snapshotExtensions: object(current.snapshotExtensions),
+    walkthroughName: current.walkthroughName,
+    client: current.client,
+    answers: current.answers,
+    rows: current.rows,
+    intake: current.intake,
+    dynamicRooms: current.dynamicRooms,
+    sectionOrder: current.sectionOrder,
+    itemOrder: current.itemOrder,
+    pinnedItems: current.pinnedItems,
+    roomCapture: current.roomCapture,
+    passReview: current.passReview,
+    passCareCandidates: current.passCareCandidates,
+    passCareOutlook: current.passCareOutlook,
+    property: current.property,
+    administration: current.administration,
+    snapshotExtensions: object(current.snapshotExtensions),
     roomOverviewExpandedByRoom: {}, smartPromptExpandedByRoom: {}, expandedChecklistItems: {}
   };
 }
