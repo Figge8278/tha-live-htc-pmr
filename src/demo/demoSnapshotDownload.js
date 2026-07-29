@@ -1,5 +1,5 @@
 const DEMO_FILE_URL = '/demo/THA-Snapshot-Demo-PMR-PMCP.json';
-const DEMO_FILE_NAME = 'THA-Snapshot-Demo-PMR-PMCP-V3.57.7.json';
+const DEMO_FILE_NAME = 'THA-Snapshot-Demo-PMR-PMCP-V3.57.8.json';
 
 function addStyles() {
   if (document.getElementById('tha-demo-snapshot-download-styles')) return;
@@ -24,16 +24,16 @@ async function downloadPreparedDemo(button) {
   button.disabled = true;
   button.textContent = 'Preparing demo…';
   try {
-    const response = await fetch(`${DEMO_FILE_URL}?v=3577`, { cache: 'no-store' });
+    const response = await fetch(`${DEMO_FILE_URL}?v=3578`, { cache: 'no-store' });
     if (!response.ok) throw new Error('Demo file could not be loaded.');
     const snapshot = await response.json();
     const stamp = new Date().toISOString();
-    snapshot.appVersion = '3.57.7';
-    snapshot.snapshotId = `snapshot-demo-pmr-pmcp-v3577-${Date.now()}`;
+    snapshot.appVersion = '3.57.8';
+    snapshot.snapshotId = `snapshot-demo-pmr-pmcp-v3578-${Date.now()}`;
     snapshot.updatedAt = stamp;
     snapshot.data = snapshot.data || {};
     snapshot.data.walkthroughName = 'General Advocate Walkthrough — PMR + PMCP Demo';
-    snapshot.data.client = { ...(snapshot.data.client || {}), date: 'April 12, 2026 — V3.57.7 Validation Source' };
+    snapshot.data.client = { ...(snapshot.data.client || {}), date: 'April 12, 2026 — V3.57.8 Validation Source' };
     snapshot.data.intake = { ...(snapshot.data.intake || {}), gasService: 'Not applicable — all-electric demo property.' };
     snapshot.data.continuedCare = snapshot.data.continuedCare || { items: [] };
     snapshot.data.continuedCare.items = Array.isArray(snapshot.data.continuedCare.items) ? snapshot.data.continuedCare.items : [];
@@ -64,7 +64,7 @@ async function downloadPreparedDemo(button) {
         waterShutoff: { value: snapshot.data.intake.waterShutoff || '', status: snapshot.data.intake.waterShutoff ? 'Recorded' : 'Not acknowledged' },
         gasService: { value: snapshot.data.intake.gasService, status: 'Not applicable acknowledged' }
       },
-      externalReferences: { ...(snapshot.data.administration?.externalReferences || {}), validationBuild: '3.57.7' }
+      externalReferences: { ...(snapshot.data.administration?.externalReferences || {}), validationBuild: '3.57.8' }
     };
     downloadJson(snapshot, DEMO_FILE_NAME);
     button.textContent = 'Demo downloaded';
@@ -79,7 +79,7 @@ function demoCard() {
   const card = document.createElement('div');
   card.className = 'thaDemoSnapshotCard';
   card.dataset.thaDemoSnapshotCard = 'true';
-  card.innerHTML = '<strong>Validation demo — V3.57.7</strong><span>Uses an April 12, 2026 source visit so you can test the protected update path, the 75% readiness threshold, Action Center filters, one purple active-planning item, and a light-green Spring 2028 reminder.</span><button type="button" class="thaDemoSnapshotLink">Download Prepared Demo Snapshot</button>';
+  card.innerHTML = '<strong>Validation demo — V3.57.8</strong><span>Uses an April 12, 2026 source visit so you can test the dedicated Start page, compact page header, protected update path, readiness threshold, Action Center filters, one purple active-planning item, and a light-green Spring 2028 reminder.</span><button type="button" class="thaDemoSnapshotLink">Download Prepared Demo Snapshot</button>';
   card.querySelector('button').addEventListener('click', event => downloadPreparedDemo(event.currentTarget));
   return card;
 }
