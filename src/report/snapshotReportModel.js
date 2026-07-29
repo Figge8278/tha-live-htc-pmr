@@ -71,17 +71,39 @@ function findingModel(finding = {}, mediaById = new Map()) {
     photos: list(finding.photoIds).map(id => mediaById.get(id)).filter(asset => asset?.clientVisible !== false).map(photoModel)
   };
 }
+function parsedFutureDate(value = '') {
+  const raw = text(value).replace(/^Suggested window:\s*/i, '');
+  const parsed = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T12:00:00`) : new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+function careTiming(fields = {}, decision = 'pending') {
+  const followUpStatus = text(fields.followUpStatus || fields.passFollowUpStatus, decision === 'declined' ? 'Long-range / reminder set' : 'Verify / Establish Baseline');
+  const targetWindow = text(fields.reminderDate || fields.deferredReminderDate || fields.nextSuggestedWindow || fields.targetWindow || fields.suggestedWindow, 'Next normal maintenance window').replace(/^Suggested window:\s*/i, '');
+  const actionType = text(fields.thaActionType, 'Unknown');
+  const activePlanning = Boolean(fields.thaActionItem || fields.workOrderNow || actionType !== 'Unknown') && !/completed/i.test(followUpStatus);
+  const scheduled = followUpStatus === 'Scheduled';
+  const reminderSet = Boolean(scheduled || ['Planned', 'Deferred', 'Long-range / reminder set'].includes(followUpStatus) || fields.reminderSet || fields.reminderDate || fields.deferredReminderDate || (decision === 'declined' && targetWindow));
+  const parsed = parsedFutureDate(targetWindow);
+  const longRange = Boolean(decision === 'declined' || /deferred|long-range/i.test(followUpStatus) || (parsed && parsed.getTime() - Date.now() > 365 * 86400000) || /next year|two years/i.test(targetWindow));
+  const parked = decision === 'declined' && !reminderSet && !activePlanning;
+  const tone = activePlanning ? 'active-planning' : parked ? 'parked' : longRange ? 'long-range' : 'routine';
+  return { followUpStatus, targetWindow, actionType, activePlanning, scheduled, reminderSet, longRange, parked, tone };
+}
 function careModel(item = {}) {
   const fields = object(item.fields);
+  const decision = text(item.reporting?.pmcpDecision, 'pending');
+  const timing = careTiming(fields, decision);
   return {
     id: item.careItemId, careItem: text(fields.careItem || fields.careTopic, 'Continued-care item'),
     resource: tradeLabel(fields.resource || fields.trade), cadence: text(fields.cadence, 'As Needed'),
     reason: text(fields.reason || fields.passNote, 'Routine continued-care planning item.'),
-    targetWindow: text(fields.deferredReminderDate || fields.nextSuggestedWindow || fields.targetWindow || fields.suggestedWindow, 'Next normal maintenance window'),
+    targetWindow: timing.targetWindow,
     lastCompleted: text(fields.lastCompletedDisplay || fields.lastCompletedDate, 'Unknown — establish baseline'),
-    followUpStatus: text(fields.followUpStatus || fields.passFollowUpStatus, item.reporting?.pmcpDecision === 'declined' ? 'Deferred / Not this year' : 'Verify / Establish Baseline'),
-    decision: text(item.reporting?.pmcpDecision, 'pending'), deferredReason: text(fields.deferredReason), deferredAt: text(fields.deferredAt),
-    sourceLabel: text(fields.sourceEvidence?.label || item.source?.type, 'PASS / PMCP'), findingIds: list(item.source?.findingIds)
+    followUpStatus: timing.followUpStatus,
+    decision, deferredReason: text(fields.deferredReason), deferredAt: text(fields.deferredAt),
+    sourceLabel: text(fields.sourceEvidence?.label || item.source?.type, 'PASS / PMCP'), findingIds: list(item.source?.findingIds),
+    actionType: timing.actionType, activePlanning: timing.activePlanning, scheduled: timing.scheduled,
+    reminderSet: timing.reminderSet, longRange: timing.longRange, parked: timing.parked, tone: timing.tone
   };
 }
 export function buildSnapshotReportModel(input = {}) {
@@ -94,6 +116,11 @@ export function buildSnapshotReportModel(input = {}) {
   const selectedCare = list(data.reporting?.pmcp?.selectedCareItemIds).map(id => careById.get(id)).filter(item => item?.reporting?.clientVisible !== false).map(careModel);
   const pendingCare = list(data.reporting?.pmcp?.candidateCareItemIds).map(id => careById.get(id)).filter(item => item?.reporting?.clientVisible !== false).map(careModel);
   const deferredCare = list(data.continuedCare?.items).filter(item => item?.reporting?.pmcpDecision === 'declined' && item?.reporting?.clientVisible !== false).map(careModel);
+  const allPlannedCare = [...selectedCare, ...deferredCare];
+  const routineCare = allPlannedCare.filter(item => item.decision === 'selected' && !item.activePlanning && !item.reminderSet);
+  const reminderCare = allPlannedCare.filter(item => item.reminderSet && !item.activePlanning);
+  const activePlanningCare = allPlannedCare.filter(item => item.activePlanning);
+  const parkedCare = allPlannedCare.filter(item => item.parked);
   const references = referencesFromIntake(object(data.intake), object(data.administration));
   const missingRequiredReferences = references.filter(item => item.required && !item.acknowledged);
   const counts = {
@@ -101,6 +128,7 @@ export function buildSnapshotReportModel(input = {}) {
     nearTerm: findings.filter(item => item.status === 'Needs Attention').length,
     monitor: findings.filter(item => item.status === 'Monitor').length,
     findings: findings.length, pmcp: selectedCare.length, pmcpDeferred: deferredCare.length,
+    pmcpReminders: reminderCare.length, pmcpActivePlanning: activePlanningCare.length, pmcpParked: parkedCare.length,
     photos: findings.reduce((sum, item) => sum + item.photos.length, 0)
   };
   return {
@@ -108,7 +136,11 @@ export function buildSnapshotReportModel(input = {}) {
     client: object(data.client), property: object(data.property), walkthroughName: text(data.walkthroughName),
     references, missingRequiredReferences, deliveryReady: missingRequiredReferences.length === 0,
     findings, roomGroups: groupBy(findings, finding => finding.room), tradeGroups: groupBy(findings, finding => finding.trade),
-    pmcp: { selected: selectedCare, pending: pendingCare, deferred: deferredCare, note: 'PMCP continued care is separate from PMR defect counts.' },
+    pmcp: {
+      selected: selectedCare, pending: pendingCare, deferred: deferredCare,
+      routine: routineCare, reminders: reminderCare, activePlanning: activePlanningCare, parked: parkedCare,
+      note: 'PMCP continued care is separate from PMR defect counts. Green and light green identify care; purple identifies an agreed active-planning action.'
+    },
     counts,
     summary: findings.length ? `This PMR includes ${findings.length} finding${findings.length === 1 ? '' : 's'} drawn from the connected THA Snapshot record. The room and trade views below use the same findings rather than separate copies.` : 'No immediate PMR findings were identified in the connected THA Snapshot record. Selected PMCP continued-care items may still appear below.'
   };
