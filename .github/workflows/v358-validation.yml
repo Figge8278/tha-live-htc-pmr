@@ -26,8 +26,9 @@ jobs:
         run: npm ci
       - name: Check V3.58 browser scripts
         run: |
+          node --check public/tha-v3579-pmr-readiness.js
           node --check public/tha-v358-start-and-management.js
-          node --check public/tha-v358-management-resilience.js
           node --check public/tha-v3582-start-and-htc-polish.js
+          node --check public/tha-v3583-start-pass-consolidation.js
       - name: Build application
         run: npm run build
