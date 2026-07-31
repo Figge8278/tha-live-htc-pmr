@@ -108,11 +108,11 @@
       .formPanel>.roomCaptureShell{order:10}
       .formPanel>.checklistToolbar{order:20}
       .formPanel>.checklistItemCard{order:var(--tha-v3587-order,9999);margin-top:6px!important}
-      .formPanel>.checklistItemCard[data-v3587-first-group]::before{content:attr(data-v3587-first-group);display:flex;align-items:center;min-height:34px;margin:-1px -1px 7px;padding:7px 10px;border-bottom:1px solid #dce5e9;border-radius:12px 12px 0 0;background:#f3f7f9;color:#0b3658;font-size:13px;font-weight:950;letter-spacing:.01em}
-      .formPanel>.checklistItemCard[data-v3587-first-group]{margin-top:13px!important}
-      .formPanel>.checklistItemCard .checklistSummaryRow{padding:9px 11px!important;gap:8px!important}
+      .formPanel>.checklistItemCard::before{content:''!important;position:absolute!important;top:0!important;bottom:0!important;left:0!important;width:6px!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;display:block!important;pointer-events:none!important}
+      .formPanel>.checklistItemCard[data-v3587-first-group]{margin-top:6px!important}
+      .formPanel>.checklistItemCard .checklistSummaryRow{padding:9px 11px 9px 17px!important;gap:8px!important;align-items:center!important}
       .formPanel>.checklistItemCard .checklistSummaryMain .itemTitleLine strong{font-size:15px!important;line-height:1.2!important}
-      .formPanel>.checklistItemCard .tradeIcon{width:32px!important;height:32px!important;font-size:18px!important;background:#fff7e9!important;border:1px solid #e4c38d!important}
+      .formPanel>.checklistItemCard .tradeIcon{display:grid!important;place-items:center!important;align-self:center!important;flex:0 0 32px!important;width:32px!important;height:32px!important;min-width:32px!important;margin:0!important;font-size:18px!important;line-height:1!important;background:#fff7e9!important;border:1px solid #e4c38d!important}
 
       .passCategoryGroups{display:flex!important;flex-direction:column!important}
       .passCategoryGroup{order:var(--tha-v3587-pass-order,999)!important;position:relative}
