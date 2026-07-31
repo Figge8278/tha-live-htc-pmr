@@ -17,8 +17,8 @@
       panel.querySelectorAll('.localWorkCard h3').forEach(heading => {
         heading.textContent = '2. Work Session';
       });
-      panel.querySelectorAll('.intakeImportPanel.tha-import-in-controls .intakeImportHeader h2').forEach(heading => {
-        heading.textContent = '3. Import a Completed Intake';
+      panel.querySelectorAll('.intakeImportCard.tha-import-in-controls .intakeImportHeader h2').forEach(heading => {
+        heading.textContent = 'Send / Import Homeowner Intake';
       });
     });
   }
