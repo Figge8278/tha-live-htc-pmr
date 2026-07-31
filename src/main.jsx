@@ -171,23 +171,6 @@ function categoryRank(category = '', item = {}) {
 function categoryForLikelyResource(item = {}) {
   const text = categoryText(item);
   const trade = item.answer?.trade || item.trade || '';
-
-  if (item.catchAll || text.includes('misc') || text.includes('sorting')) return 'Specialty / Other';
-  if (/(dryer vent|dryer duct|vent cleaning|vent hose)/.test(text)) return 'Handy Services';
-  if (/(structural|foundation|movement|load-bearing|engineering)/.test(text)) return 'General Contractor / Structural';
-  if (trade === 'General Contractor' || /(remodel|renovation|permit|whole-home)/.test(text)) return 'General Contractor / Remodel';
-  if (/(electrical|gfci|outlet|switch|panel|breaker|solar|lighting)/.test(text)) return 'Electrical';
-  if (/(plumbing|sink|faucet|drain|toilet|water heater|shutoff|washer hose|supply line)/.test(text)) return 'Plumbing';
-  if (/(hvac|furnace|heat pump|air conditioner|a\/c|thermostat|ventilation|exhaust fan)/.test(text)) return 'HVAC / Mechanical';
-  if (/(appliance|range hood|dryer|washer|refrigerator|dishwasher|garbage disposal|oven|range)/.test(text)) return 'Appliances';
-  if (/(roof|gutter|downspout|flashing|shingle|chimney|fireplace|hearth|damper)/.test(text)) return 'Roofing / Gutters';
-  if (/(irrigation|sprinkler|grading|pooling|landscape|hardscape|site drainage|drainage discharge)/.test(text)) return 'Landscaping / Site & Grounds';
-  if (/(window|exterior sealant|glazing|fogging|failed seal|window screen)/.test(text)) return 'Windows / Exterior Sealant';
-  if (/(paint|stain|coating|finish wear|drywall finish|caulk wear)/.test(text)) return 'Painting / Staining / Protective Coatings';
-  if (/(carpentry|cabinet|drawer|shelving|built-in|deck|fence|gate|trim|fascia|soffit)/.test(text)) return 'Carpentry / Decks / Fences';
-  if (/(safety|smoke|co detector|carbon monoxide|fire extinguisher|life safety)/.test(text)) return 'Safety / Life Safety';
-  if (/(pest|bug|rodent|termite|ant|insect|entry point)/.test(text)) return 'Pest';
-
   const resourceCategory = {
     Handyman: 'Handy Services',
     Electrical: 'Electrical',
@@ -206,6 +189,30 @@ function categoryForLikelyResource(item = {}) {
     Landscape: 'Landscaping / Site & Grounds',
     'General Contractor': 'General Contractor / Remodel'
   }[trade];
+
+  if (item.catchAll || text.includes('misc') || text.includes('sorting')) return 'Specialty / Other';
+
+  /* A deliberately selected non-Handy resource controls the group. Content
+     inference is reserved for rows still carrying the generic Handy default. */
+  if (trade && trade !== 'Handyman') {
+    if (trade === 'General Contractor' && /(structural|foundation|movement|load-bearing|engineering)/.test(text)) return 'General Contractor / Structural';
+    if (resourceCategory) return resourceCategory;
+  }
+
+  if (/(dryer vent|dryer duct|vent cleaning|vent hose)/.test(text)) return 'Handy Services';
+  if (/(structural|foundation|movement|load-bearing|engineering)/.test(text)) return 'General Contractor / Structural';
+  if (/(remodel|renovation|permit|whole-home)/.test(text)) return 'General Contractor / Remodel';
+  if (/(electrical|gfci|outlet|switch|panel|breaker|solar|lighting)/.test(text)) return 'Electrical';
+  if (/(plumbing|sink|faucet|drain|toilet|water heater|shutoff|washer hose|supply line)/.test(text)) return 'Plumbing';
+  if (/(hvac|furnace|heat pump|air conditioner|a\/c|thermostat|ventilation|exhaust fan)/.test(text)) return 'HVAC / Mechanical';
+  if (/(appliance|range hood|dryer|washer|refrigerator|dishwasher|garbage disposal|oven|range)/.test(text)) return 'Appliances';
+  if (/(roof|gutter|downspout|flashing|shingle|chimney|fireplace|hearth|damper)/.test(text)) return 'Roofing / Gutters';
+  if (/(irrigation|sprinkler|grading|pooling|landscape|hardscape|site drainage|drainage discharge)/.test(text)) return 'Landscaping / Site & Grounds';
+  if (/(window|exterior sealant|glazing|fogging|failed seal|window screen)/.test(text)) return 'Windows / Exterior Sealant';
+  if (/(paint|stain|coating|finish wear|drywall finish|caulk wear)/.test(text)) return 'Painting / Staining / Protective Coatings';
+  if (/(carpentry|cabinet|drawer|shelving|built-in|deck|fence|gate|trim|fascia|soffit)/.test(text)) return 'Carpentry / Decks / Fences';
+  if (/(safety|smoke|co detector|carbon monoxide|fire extinguisher|life safety)/.test(text)) return 'Safety / Life Safety';
+  if (/(pest|bug|rodent|termite|ant|insect|entry point)/.test(text)) return 'Pest';
   if (resourceCategory) return resourceCategory;
   if (item.category) return canonicalCategory(item.category, item);
   if (/(door|threshold|weatherstripping|hardware|hinge|latch|minor repair|adjustment)/.test(text)) return 'Handy Services';
