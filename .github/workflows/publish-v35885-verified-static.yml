@@ -1,0 +1,104 @@
+name: Publish V3.58.8.5 Verified Static Preview
+
+on:
+  push:
+    branches:
+      - preview-v35885
+    paths:
+      - .github/workflows/publish-v35885-verified-static.yml
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: preview-v35885
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build immutable relative-path preview
+        run: |
+          npm ci
+          npm run build -- --base=./
+
+      - name: Verify built files before publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f dist/index.html
+          test -f dist/tha-logo-full-black.png
+          MAIN_JS=$(sed -n 's/.*src="\.\/\([^"]*assets\/index-[^"]*\.js\)".*/\1/p' dist/index.html | head -n1)
+          test -n "$MAIN_JS"
+          test -f "dist/$MAIN_JS"
+          grep -q 'Room-by-Room Walkthrough' "dist/$MAIN_JS"
+          grep -q 'HTC — Handy-Triage Checklist' "dist/$MAIN_JS"
+          grep -q 'Likely resource:' "dist/$MAIN_JS"
+          grep -q 'A deliberately selected non-Handy resource controls the group' src/main.jsx
+          ! grep -q 'decorateChecklist();' dist/tha-v3587-react-safe-checklist-and-pass.js
+
+      - name: Publish static commit
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/tha-v35885-dist
+          cp -R dist/. /tmp/tha-v35885-dist/
+          git checkout --orphan preview-v35885-static
+          git rm -rf . >/dev/null 2>&1 || true
+          cp -R /tmp/tha-v35885-dist/. .
+          touch .nojekyll
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Publish verified V3.58.8.5 static preview from 523f0a79ed3ce9c081d3e902375147d1273f8518"
+          git push --force origin HEAD:preview-v35885-static
+          STATIC_SHA=$(git rev-parse HEAD)
+          URL="https://rawcdn.githack.com/Figge8278/tha-live-htc-pmr/${STATIC_SHA}/index.html"
+          echo "static_sha=$STATIC_SHA" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Verify public page, bundle, logo, and overlay
+        shell: bash
+        env:
+          URL: ${{ steps.publish.outputs.url }}
+          STATIC_SHA: ${{ steps.publish.outputs.static_sha }}
+        run: |
+          set -euo pipefail
+          BASE="https://rawcdn.githack.com/Figge8278/tha-live-htc-pmr/${STATIC_SHA}"
+          for attempt in $(seq 1 18); do
+            if curl -fsSL --retry 2 --retry-delay 2 "$URL" -o /tmp/public-index.html; then
+              break
+            fi
+            sleep 5
+          done
+          test -s /tmp/public-index.html
+          MAIN_JS=$(sed -n 's/.*src="\.\/\([^"]*assets\/index-[^"]*\.js\)".*/\1/p' /tmp/public-index.html | head -n1)
+          test -n "$MAIN_JS"
+          curl -fsSL --retry 5 --retry-delay 3 "$BASE/$MAIN_JS" -o /tmp/public-main.js
+          curl -fsSL --retry 5 --retry-delay 3 "$BASE/tha-logo-full-black.png" -o /tmp/public-logo.png
+          curl -fsSL --retry 5 --retry-delay 3 "$BASE/tha-v3587-react-safe-checklist-and-pass.js" -o /tmp/public-v3587.js
+          test -s /tmp/public-logo.png
+          grep -q 'Room-by-Room Walkthrough' /tmp/public-main.js
+          grep -q 'HTC — Handy-Triage Checklist' /tmp/public-main.js
+          grep -q 'Likely resource:' /tmp/public-main.js
+          grep -q 'Roofing / Gutters' /tmp/public-main.js
+          ! grep -q 'decorateChecklist();' /tmp/public-v3587.js
+
+      - name: Report verified preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          URL: ${{ steps.publish.outputs.url }}
+          STATIC_SHA: ${{ steps.publish.outputs.static_sha }}
+        run: |
+          gh api repos/Figge8278/tha-live-htc-pmr/issues/75/comments \
+            -f body="V3.58.8.5 verified preview — publish: success; public page: success; header logo file: success; HTC title and likely-resource grouping checks: success; URL: ${URL}; static SHA: ${STATIC_SHA}; source app commit: 523f0a79ed3ce9c081d3e902375147d1273f8518; run: https://github.com/Figge8278/tha-live-htc-pmr/actions/runs/${GITHUB_RUN_ID}"
