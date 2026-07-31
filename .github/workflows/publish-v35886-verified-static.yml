@@ -1,0 +1,108 @@
+name: Publish V3.58.8.6 Verified Static Preview
+
+on:
+  push:
+    branches:
+      - preview-v35886
+    paths:
+      - .github/workflows/publish-v35886-verified-static.yml
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: preview-v35886
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build immutable relative-path preview
+        run: |
+          npm ci
+          npm run build -- --base=./
+
+      - name: Verify built files before publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f dist/index.html
+          test -f dist/tha-logo-full-black.png
+          MAIN_CSS=$(sed -n 's/.*href="\.\/\([^"]*assets\/index-[^"]*\.css\)".*/\1/p' dist/index.html | head -n1)
+          test -n "$MAIN_CSS"
+          test -f "dist/$MAIN_CSS"
+          test -f dist/tha-quick-intake-accordion.js
+          test -f dist/tha-v53-pmr-reference-and-expandable-items.js
+          grep -Fq '.htcCategoryHeader{display:flex;align-items:center;justify-content:center' "dist/$MAIN_CSS"
+          grep -Fq 'font-size:12px' "dist/$MAIN_CSS"
+          grep -Fq 'needsRequired' dist/tha-quick-intake-accordion.js
+          grep -Fq 'Must answer · ${missing.length} needed' dist/tha-quick-intake-accordion.js
+          grep -Fq 'Fast-access locations for urgent homeowner or service needs.' dist/tha-v53-pmr-reference-and-expandable-items.js
+          grep -Fq 'drawer ? Boolean(drawer.open) : true' dist/tha-v53-pmr-reference-and-expandable-items.js
+
+      - name: Publish static commit
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/tha-v35886-dist
+          cp -R dist/. /tmp/tha-v35886-dist/
+          git checkout --orphan preview-v35886-static
+          git rm -rf . >/dev/null 2>&1 || true
+          cp -R /tmp/tha-v35886-dist/. .
+          touch .nojekyll
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Publish verified V3.58.8.6 static preview from caa9f2ebd0fc110919a5132bab6b2ca618f7b876"
+          git push --force origin HEAD:preview-v35886-static
+          STATIC_SHA=$(git rev-parse HEAD)
+          URL="https://rawcdn.githack.com/Figge8278/tha-live-htc-pmr/${STATIC_SHA}/index.html"
+          echo "static_sha=$STATIC_SHA" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Verify public page and corrected assets
+        shell: bash
+        env:
+          URL: ${{ steps.publish.outputs.url }}
+          STATIC_SHA: ${{ steps.publish.outputs.static_sha }}
+        run: |
+          set -euo pipefail
+          BASE="https://rawcdn.githack.com/Figge8278/tha-live-htc-pmr/${STATIC_SHA}"
+          for attempt in $(seq 1 18); do
+            if curl -fsSL --retry 2 --retry-delay 2 "$URL" -o /tmp/public-index.html; then
+              break
+            fi
+            sleep 5
+          done
+          test -s /tmp/public-index.html
+          MAIN_CSS=$(sed -n 's/.*href="\.\/\([^"]*assets\/index-[^"]*\.css\)".*/\1/p' /tmp/public-index.html | head -n1)
+          test -n "$MAIN_CSS"
+          curl -fsSL --retry 5 --retry-delay 3 "$BASE/$MAIN_CSS" -o /tmp/public-main.css
+          curl -fsSL --retry 5 --retry-delay 3 "$BASE/tha-logo-full-black.png" -o /tmp/public-logo.png
+          curl -fsSL --retry 5 --retry-delay 3 "$BASE/tha-quick-intake-accordion.js" -o /tmp/public-intake.js
+          curl -fsSL --retry 5 --retry-delay 3 "$BASE/tha-v53-pmr-reference-and-expandable-items.js" -o /tmp/public-pmr.js
+          test -s /tmp/public-logo.png
+          grep -Fq '.htcCategoryHeader{display:flex;align-items:center;justify-content:center' /tmp/public-main.css
+          grep -Fq 'needsRequired' /tmp/public-intake.js
+          grep -Fq 'Must answer · ${missing.length} needed' /tmp/public-intake.js
+          grep -Fq 'Fast-access locations for urgent homeowner or service needs.' /tmp/public-pmr.js
+          grep -Fq 'drawer ? Boolean(drawer.open) : true' /tmp/public-pmr.js
+
+      - name: Report verified preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          URL: ${{ steps.publish.outputs.url }}
+          STATIC_SHA: ${{ steps.publish.outputs.static_sha }}
+        run: |
+          gh api repos/Figge8278/tha-live-htc-pmr/issues/75/comments \
+            -f body="V3.58.8.6 verified preview — publish: success; public page: success; compact HTC category headers: success; Intake required-reference alerts: success; PMR fast-reference block: success; URL: ${URL}; static SHA: ${STATIC_SHA}; source app commit: caa9f2ebd0fc110919a5132bab6b2ca618f7b876; run: https://github.com/Figge8278/tha-live-htc-pmr/actions/runs/${GITHUB_RUN_ID}"
