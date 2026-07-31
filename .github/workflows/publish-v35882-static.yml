@@ -1,0 +1,116 @@
+name: Publish V3.58.8.2 Static Preview
+
+on:
+  push:
+    branches:
+      - preview-v35882
+    paths:
+      - .github/workflows/publish-v35882-static.yml
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: preview-v35882
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build exact corrected source
+        run: |
+          npm ci
+          npm run build -- --base=./
+
+      - name: Verify corrected build contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "./tha-v3587-react-safe-checklist-and-pass.js" dist/index.html
+          grep -q "./tha-v3588-start-source-separation.js" dist/index.html
+          grep -q "checklistItemCard::before{content:''!important" dist/tha-v3587-react-safe-checklist-and-pass.js
+          if grep -q "data-v3587-first-group]::before" dist/tha-v3587-react-safe-checklist-and-pass.js; then
+            echo "Old category-heading pseudo-element is still present" >&2
+            exit 1
+          fi
+          grep -R -q "THA Action To-Do List — Internal" dist/assets
+          grep -R -q "PASS / PMCP services" dist/assets
+
+      - name: Publish immutable static build
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/tha-v35882-site
+          mkdir -p /tmp/tha-v35882-site
+          cp -a dist/. /tmp/tha-v35882-site/
+          touch /tmp/tha-v35882-site/.nojekyll
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan preview-v35882-static
+          git rm -rf --cached . >/dev/null 2>&1 || true
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a /tmp/tha-v35882-site/. .
+          git add -A
+          git commit -m "Publish verified V3.58.8.2 static preview from ${GITHUB_SHA}"
+          STATIC_SHA="$(git rev-parse HEAD)"
+          git push --force origin HEAD:preview-v35882-static
+          echo "static_sha=${STATIC_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify public immutable URL
+        id: public_check
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATIC_SHA="${{ steps.publish.outputs.static_sha }}"
+          BASE="https://rawcdn.githack.com/${GITHUB_REPOSITORY}/${STATIC_SHA}"
+          URL="${BASE}/index.html"
+          ok=0
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsSL --max-time 20 "$URL" -o /tmp/public-index.html; then
+              ok=1
+              break
+            fi
+            sleep 6
+          done
+          test "$ok" = "1"
+          grep -q "./assets/index-" /tmp/public-index.html
+          ASSET="$(grep -oE './assets/index-[A-Za-z0-9_-]+\.js' /tmp/public-index.html | head -n1 | sed 's#^\./##')"
+          test -n "$ASSET"
+          curl -fsSL --max-time 30 "${BASE}/${ASSET}" -o /tmp/public-app.js
+          grep -q "THA Action To-Do List" /tmp/public-app.js
+          curl -fsSL --max-time 30 "${BASE}/tha-v3587-react-safe-checklist-and-pass.js" -o /tmp/public-rails.js
+          grep -q "checklistItemCard::before{content:''!important" /tmp/public-rails.js
+          if grep -q "data-v3587-first-group]::before" /tmp/public-rails.js; then
+            exit 1
+          fi
+          echo "url=${URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Report verified preview URL
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          PUBLISH_RESULT: ${{ steps.publish.outcome }}
+          PUBLIC_RESULT: ${{ steps.public_check.outcome }}
+          STATIC_SHA: ${{ steps.publish.outputs.static_sha }}
+          VERIFIED_URL: ${{ steps.public_check.outputs.url }}
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const url = process.env.VERIFIED_URL || '(no verified public URL produced)';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 75,
+              body: `V3.58.8.2 verified preview — publish: ${process.env.PUBLISH_RESULT}; public check: ${process.env.PUBLIC_RESULT}; URL: ${url}; static SHA: ${process.env.STATIC_SHA || 'none'}; source app commit: a26e8038e8b1d9429529dbf5d5b82070eb792397; run: ${runUrl}`
+            });
