@@ -112,11 +112,13 @@
     const actionList = revealActionList(pmr);
     const support = supportingReference(pmr);
 
-    let cursor = trade;
-    [detail, carePlan, homeownerContext, actionList, support].forEach(block => {
-      if (!cursor || !block) return;
-      cursor = moveAfter(cursor, block);
-    });
+    // Enforce the requested adjacency directly instead of depending on every
+    // earlier PMR section being present or matching its historical selector.
+    if (trade && detail) moveAfter(trade, detail);
+    if (detail && carePlan) moveAfter(detail, carePlan);
+    if (carePlan && homeownerContext) moveAfter(carePlan, homeownerContext);
+    if (homeownerContext && actionList) moveAfter(homeownerContext, actionList);
+    if (actionList && support) moveAfter(actionList, support);
   }
 
   function updateDemoCopy() {
