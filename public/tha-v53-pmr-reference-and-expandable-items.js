@@ -33,35 +33,36 @@
     style.textContent = `
       /* V3.53: PMR key home reference drawer + expandable room/trade line items. */
       main.pmr:not(.passWorkspace) .tha-v53-need-to-know{
-        border:1px solid #d8e4ea!important;
-        border-left:1px solid #d8e4ea!important;
+        border:1px solid #e4b35c!important;
+        border-left:7px solid #d49a1f!important;
         border-radius:18px!important;
-        background:#fbfdfe!important;
+        background:#fff8df!important;
         margin:14px 0 18px!important;
         overflow:hidden!important;
-        box-shadow:0 6px 16px rgba(13,44,73,.045)!important;
+        box-shadow:0 8px 20px rgba(212,154,31,.12)!important;
       }
       .tha-v53-need-to-know summary{
         cursor:pointer!important;
         list-style:none!important;
-        padding:12px 14px!important;
+        padding:13px 14px!important;
+        background:#fff3c7!important;
         display:flex!important;
         align-items:center!important;
         justify-content:space-between!important;
         gap:12px!important;
       }
       .tha-v53-need-to-know summary::-webkit-details-marker{display:none!important}
-      .tha-v53-need-title strong{display:block!important;color:#0b3658!important;font-size:16px!important;line-height:1.25!important}
+      .tha-v53-need-title strong{display:block!important;color:#62440f!important;font-size:17px!important;line-height:1.25!important}
       .tha-v53-need-title small{display:block!important;color:#60717c!important;font-size:12px!important;line-height:1.35!important;margin-top:2px!important}
       .tha-v53-need-chips{display:flex!important;flex-wrap:wrap!important;gap:6px!important;justify-content:flex-end!important;align-items:center!important}
-      .tha-v53-need-chip{display:inline-flex!important;align-items:center!important;border:1px solid #d8e4ea!important;background:#fff!important;color:#40505f!important;border-radius:999px!important;padding:4px 8px!important;font-size:10px!important;font-weight:950!important;white-space:nowrap!important}
-      .tha-v53-need-chip.recorded{border-color:#b9dfb4!important;background:#f6fcf4!important;color:#285c30!important}
-      .tha-v53-need-body{border-top:1px solid #e2e8ed!important;background:#fff!important;padding:12px 14px!important}
+      .tha-v53-need-chip{display:inline-flex!important;align-items:center!important;border:1px solid #d06b19!important;background:#fff1dc!important;color:#8a4812!important;border-radius:999px!important;padding:4px 8px!important;font-size:10px!important;font-weight:950!important;white-space:nowrap!important}
+      .tha-v53-need-chip.recorded{border-color:#5087b3!important;background:#edf6fc!important;color:#245f8a!important}
+      .tha-v53-need-body{border-top:1px solid #e4b35c!important;background:#fffdf5!important;padding:12px 14px!important}
       .tha-v53-reference-grid{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))!important;gap:8px!important}
-      .tha-v53-reference-field{border:1px solid #e2e8ed!important;border-radius:13px!important;background:#fbfdfe!important;padding:9px 10px!important}
+      .tha-v53-reference-field{border:1px solid #d06b19!important;border-left:5px solid #d06b19!important;border-radius:13px!important;background:#fff1dc!important;padding:9px 10px!important}
       .tha-v53-reference-field span{display:block!important;color:#60717c!important;font-size:10px!important;text-transform:uppercase!important;letter-spacing:.06em!important;font-weight:950!important;margin-bottom:2px!important}
       .tha-v53-reference-field strong{display:block!important;color:#203040!important;font-size:13px!important;line-height:1.35!important;font-weight:750!important}
-      .tha-v53-reference-field.empty strong{color:#8a6b2b!important;font-style:italic!important}
+      .tha-v53-reference-field.recorded{border-color:#5087b3!important;border-left-color:#287bb7!important;background:#edf6fc!important}.tha-v53-reference-field.empty strong{color:#8a4812!important;font-style:italic!important}
 
       main.pmr:not(.passWorkspace) .tha-v53-action-expandable{
         display:block!important;
@@ -136,15 +137,16 @@
     const recordedCount = items.filter(item => item.value).length;
     const panelValue = items[0]?.value || 'Not recorded';
     const waterValue = items[1]?.value || 'Not recorded';
+    const gasValue = items[2]?.value || 'Not recorded';
     let drawer = pmr.querySelector('.tha-v53-need-to-know');
-    const wasOpen = Boolean(drawer?.open);
+    const wasOpen = drawer ? Boolean(drawer.open) : true;
     if (!drawer) drawer = document.createElement('details');
     drawer.className = 'pmrBlock tha-v53-need-to-know';
     drawer.open = wasOpen;
     drawer.innerHTML = `
       <summary>
-        <div class="tha-v53-need-title"><strong>Important Need-to-Know Home References</strong><small>Quick homeowner reference items before the room-by-room findings.</small></div>
-        <div class="tha-v53-need-chips"><span class="tha-v53-need-chip ${items[0]?.value ? 'recorded' : ''}">Fuse box: ${escapeHtml(panelValue)}</span><span class="tha-v53-need-chip ${items[1]?.value ? 'recorded' : ''}">Water shutoff: ${escapeHtml(waterValue)}</span><span class="tha-v53-need-chip ${recordedCount ? 'recorded' : ''}">${recordedCount}/${items.length} recorded</span></div>
+        <div class="tha-v53-need-title"><strong>Important Need-to-Know Home References</strong><small>Fast-access locations for urgent homeowner or service needs.</small></div>
+        <div class="tha-v53-need-chips"><span class="tha-v53-need-chip ${items[0]?.value ? 'recorded' : ''}">Fuse box: ${escapeHtml(panelValue)}</span><span class="tha-v53-need-chip ${items[1]?.value ? 'recorded' : ''}">Water shutoff: ${escapeHtml(waterValue)}</span><span class="tha-v53-need-chip ${items[2]?.value ? 'recorded' : ''}">Gas: ${escapeHtml(gasValue)}</span><span class="tha-v53-need-chip ${recordedCount === items.length ? 'recorded' : ''}">${recordedCount}/${items.length} recorded</span></div>
       </summary>
       <div class="tha-v53-need-body"><div class="tha-v53-reference-grid">${items.map(fieldHtml).join('')}</div></div>
     `;
