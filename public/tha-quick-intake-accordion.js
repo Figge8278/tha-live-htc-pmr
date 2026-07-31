@@ -29,9 +29,10 @@
       .tha-intake-bulk-controls button,.intakeImportHeader .tha-import-toggle{border:1px solid #c8d8e1;border-radius:10px;background:#fff;color:#163f58;padding:7px 10px;font-size:12px;font-weight:900}
       .tha-intake-bulk-controls button:hover,.intakeImportHeader .tha-import-toggle:hover{border-color:#8cabbc;background:#f5fafc}
       .cleanFieldPrep .intakeSubsection h3{position:relative}
-      .tha-prep-completion{margin-left:auto;border-radius:999px;padding:5px 8px;font-size:11px;font-weight:900;white-space:nowrap}
-      .tha-prep-completion.needsContext{background:#fff1e5;color:#a75113;border:1px solid #f0c79e}
-      .tha-prep-completion.contextComplete{background:#eaf7e9;color:#2f6a2b;border:1px solid #b8dfb4}
+      .tha-prep-completion{display:none;margin-left:auto;border-radius:999px;padding:5px 8px;font-size:10px;font-weight:950;white-space:nowrap}
+      .cleanFieldPrep .intakeSubsection.cleanCollapsed .tha-prep-completion.needsRequired{display:inline-flex;align-items:center;background:#fff1dc;color:#8a4812;border:1px solid #d06b19;box-shadow:0 0 0 2px rgba(208,107,25,.1)}
+      .tha-field-prep-required-alert{display:none;margin-left:auto;border-radius:999px;padding:5px 8px;background:#fff1dc;color:#8a4812;border:1px solid #d06b19;font-size:10px;font-weight:950;white-space:nowrap;box-shadow:0 0 0 2px rgba(208,107,25,.1)}
+      .cleanFieldPrep:not([open])>summary .tha-field-prep-required-alert{display:inline-flex;align-items:center}
       .intakeImportPanel.tha-import-collapsed>:not(.intakeImportHeader){display:none!important}
       .intakeImportPanel .intakeImportHeader{align-items:flex-start}
       .intakeImportPanel .intakeImportHeader .tha-import-toggle{margin-left:auto;flex:0 0 auto}
@@ -149,27 +150,59 @@
     grid.before(controls);
   }
 
-  function countContextFields(section) {
-    const fields = Array.from(section.querySelectorAll('.intakeGrid input,.intakeGrid textarea,.intakeGrid select'));
-    const filled = fields.filter(field => String(field.value || '').trim()).length;
-    return { filled, total: fields.length };
+  function requiredReferenceFields(root) {
+    const labels = Array.from(root.querySelectorAll('label.thaRequiredField,label.thaV3587MustAnswer,label.thaV3584MustAnswer'));
+    const seen = new Set();
+    return labels.map(label => label.querySelector('input,textarea,select')).filter(field => {
+      if (!field || seen.has(field)) return false;
+      seen.add(field);
+      return true;
+    });
+  }
+
+  function unansweredRequiredFields(root) {
+    return requiredReferenceFields(root).filter(field => !String(field.value || '').trim());
+  }
+
+  function refreshFieldPrepLaneAlert(lane) {
+    const summary = lane?.querySelector(':scope > summary');
+    if (!summary) return;
+    const missing = unansweredRequiredFields(lane);
+    let badge = summary.querySelector(':scope > .tha-field-prep-required-alert');
+    if (!missing.length) {
+      badge?.remove();
+      return;
+    }
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'tha-field-prep-required-alert';
+      summary.append(badge);
+    }
+    badge.textContent = `Must answer · ${missing.length} remaining`;
+    badge.title = 'Required home-reference answers remain unresolved inside THA Internal Intake / Field Prep.';
   }
 
   function refreshFieldPrepCompletion(section) {
     const heading = section.querySelector(':scope > h3');
     const toggle = heading?.querySelector('.tha-clean-prep-toggle');
     if (!heading || !toggle) return;
-    const { filled, total } = countContextFields(section);
+    const required = requiredReferenceFields(section);
+    const missing = required.filter(field => !String(field.value || '').trim());
     let badge = heading.querySelector('.tha-prep-completion');
+    if (!required.length || !missing.length) {
+      badge?.remove();
+      refreshFieldPrepLaneAlert(section.closest('details.intakeLane'));
+      return;
+    }
     if (!badge) {
       badge = document.createElement('span');
       badge.className = 'tha-prep-completion';
       toggle.before(badge);
     }
-    const complete = total > 0 && filled === total;
-    badge.className = `tha-prep-completion ${complete ? 'contextComplete' : 'needsContext'}`;
-    badge.textContent = complete ? `Context complete · ${filled}/${total}` : `Context to add · ${filled}/${total}`;
-    badge.title = 'This indicates intake context captured, not HTC verification or a PMR finding.';
+    badge.className = 'tha-prep-completion needsRequired';
+    badge.textContent = `Must answer · ${missing.length} needed`;
+    badge.title = 'Open this section to complete the required PMR home-reference field.';
+    refreshFieldPrepLaneAlert(section.closest('details.intakeLane'));
   }
 
   function addFieldPrepControls(lane) {
@@ -184,6 +217,7 @@
       anchor?.after(controls);
     }
     lane.querySelectorAll('.intakeSubsection').forEach(refreshFieldPrepCompletion);
+    refreshFieldPrepLaneAlert(lane);
   }
 
   function prepareImportPanel(panel) {
@@ -233,11 +267,17 @@
     window.__thaFieldPrepCompletionCounts = true;
     document.addEventListener('input', event => {
       const section = event.target.closest('.cleanFieldPrep .intakeSubsection');
-      if (section) refreshFieldPrepCompletion(section);
+      if (section) {
+        refreshFieldPrepCompletion(section);
+        refreshFieldPrepLaneAlert(section.closest('details.intakeLane'));
+      }
     });
     document.addEventListener('change', event => {
       const section = event.target.closest('.cleanFieldPrep .intakeSubsection');
-      if (section) refreshFieldPrepCompletion(section);
+      if (section) {
+        refreshFieldPrepCompletion(section);
+        refreshFieldPrepLaneAlert(section.closest('details.intakeLane'));
+      }
     });
   }
 

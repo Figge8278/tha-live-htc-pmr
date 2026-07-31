@@ -39,7 +39,9 @@ function HealthDot({level}) {
   return <span className={`healthDot ${cls}`} aria-label={level}></span>;
 }
 function THALogo({variant='full', className=''}) {
-  const src = variant === 'icon' ? '/tha-logo-icon-black.png' : '/tha-logo-full-black.png';
+  const base = import.meta.env.BASE_URL || '/';
+  const file = variant === 'icon' ? 'tha-logo-icon-black.png' : 'tha-logo-full-black.png';
+  const src = `${base}${file}`;
   return <img className={`thaLogo ${variant} ${className}`} src={src} alt="The Homeowner Advocate" />;
 }
 
@@ -49,30 +51,40 @@ function displayTradeLabel(trade) {
 
 
 const CATEGORY_ORDER = [
+  'Exterior & Site / Grounds',
+  'Landscaping / Site & Grounds',
   'Handy Services',
-  'Appliances',
+  'Roofing / Gutters',
+  'Painting / Staining / Protective Coatings',
+  'Painting / Staining',
+  'Carpentry / Decks / Fences',
+  'Windows / Exterior Sealant',
   'Electrical',
   'Plumbing',
   'HVAC / Mechanical',
+  'Appliances',
   'General Contractor / Remodel',
-  'Carpentry / Decks / Fences',
-  'Painting / Staining / Protective Coatings',
-  'Exterior & Site / Grounds',
+  'General Contractor / Structural',
   'Safety / Life Safety',
   'Pest',
   'Specialty / Other'
 ];
 
 const CATEGORY_META = {
+  'Exterior & Site / Grounds': { label: 'Exterior & Site / Grounds', slug: 'exterior-site-grounds', Icon: TreePine },
+  'Landscaping / Site & Grounds': { label: 'Landscaping / Site & Grounds', slug: 'landscaping-site-grounds', Icon: Leaf },
   'Handy Services': { label: 'Handy Services', slug: 'handy-services', Icon: Wrench },
-  Appliances: { label: 'Appliances', slug: 'appliances', Icon: Settings },
+  'Roofing / Gutters': { label: 'Roofing / Gutters', slug: 'roofing-gutters', Icon: Home },
+  'Painting / Staining / Protective Coatings': { label: 'Painting / Staining / Protective Coatings', slug: 'painting-staining-coatings', Icon: Paintbrush },
+  'Painting / Staining': { label: 'Painting / Staining', slug: 'painting-staining', Icon: Paintbrush },
+  'Carpentry / Decks / Fences': { label: 'Carpentry / Decks / Fences', slug: 'carpentry-decks-fences', Icon: Hammer },
+  'Windows / Exterior Sealant': { label: 'Windows / Exterior Sealant', slug: 'windows-exterior-sealant', Icon: DoorOpen },
   Electrical: { label: 'Electrical', slug: 'electrical', Icon: Plug },
   Plumbing: { label: 'Plumbing', slug: 'plumbing', Icon: Droplets },
   'HVAC / Mechanical': { label: 'HVAC / Mechanical', slug: 'hvac-mechanical', Icon: Fan },
+  Appliances: { label: 'Appliances', slug: 'appliances', Icon: Settings },
   'General Contractor / Remodel': { label: 'General Contractor / Remodel', slug: 'general-contractor-remodel', Icon: HardHat },
-  'Carpentry / Decks / Fences': { label: 'Carpentry / Decks / Fences', slug: 'carpentry-decks-fences', Icon: Hammer },
-  'Painting / Staining / Protective Coatings': { label: 'Painting / Staining / Protective Coatings', slug: 'painting-staining-coatings', Icon: Paintbrush },
-  'Exterior & Site / Grounds': { label: 'Exterior & Site / Grounds', slug: 'exterior-site-grounds', Icon: TreePine },
+  'General Contractor / Structural': { label: 'General Contractor / Structural', slug: 'general-contractor-structural', Icon: HardHat },
   'Safety / Life Safety': { label: 'Safety / Life Safety', slug: 'safety-life-safety', Icon: ShieldCheck },
   Pest: { label: 'Pest', slug: 'pest', Icon: Bug },
   'Specialty / Other': { label: 'Specialty / Other', slug: 'specialty-other', Icon: Search }
@@ -83,20 +95,25 @@ const LEGACY_CATEGORY_MAP = {
   Electrical: 'Electrical',
   Plumbing: 'Plumbing',
   HVAC: 'HVAC / Mechanical',
-  Roofing: 'Exterior & Site / Grounds',
-  Drainage: 'Exterior & Site / Grounds',
-  Openings: 'Exterior & Site / Grounds',
+  Roofing: 'Roofing / Gutters',
+  Roof: 'Roofing / Gutters',
+  Drainage: 'Landscaping / Site & Grounds',
+  Openings: 'Windows / Exterior Sealant',
+  Windows: 'Windows / Exterior Sealant',
   Exterior: 'Exterior & Site / Grounds',
+  Paint: 'Painting / Staining / Protective Coatings',
   Pest: 'Pest',
   Safety: 'Safety / Life Safety',
   Appliances: 'Appliances',
+  Appliance: 'Appliances',
   'Handy / Carpentry': 'Carpentry / Decks / Fences',
   'General / Misc': 'Specialty / Other',
   'General Contractor': 'General Contractor / Remodel',
   Carpentry: 'Carpentry / Decks / Fences',
   Design: 'Specialty / Other',
   Flooring: 'Specialty / Other',
-  Landscape: 'Exterior & Site / Grounds'
+  Landscape: 'Landscaping / Site & Grounds',
+  Chimney: 'Roofing / Gutters'
 };
 
 function categoryText(item = {}) {
@@ -114,7 +131,7 @@ function categoryText(item = {}) {
 function canonicalCategory(category = '', item = {}) {
   const raw = String(category || '').trim();
   const text = categoryText({ ...item, category: raw });
-  const trade = item.trade || item.answer?.trade || '';
+  const trade = item.answer?.trade || item.trade || '';
 
   if (/(dryer vent|dryer duct|vent cleaning|vent hose)/.test(text)) return 'Handy Services';
   if (CATEGORY_META[raw]) return raw;
@@ -151,27 +168,73 @@ function categoryRank(category = '', item = {}) {
   return rank === -1 ? CATEGORY_ORDER.length : rank;
 }
 
-function categoryForChecklistItem(item = {}) {
-  if (item.category) return canonicalCategory(item.category, item);
-
+function categoryForLikelyResource(item = {}) {
   const text = categoryText(item);
-  const trade = item.trade || item.answer?.trade || '';
+  const trade = item.answer?.trade || item.trade || '';
+  const resourceCategory = {
+    Handyman: 'Handy Services',
+    Electrical: 'Electrical',
+    Plumbing: 'Plumbing',
+    HVAC: 'HVAC / Mechanical',
+    Roof: 'Roofing / Gutters',
+    Drainage: 'Landscaping / Site & Grounds',
+    Windows: 'Windows / Exterior Sealant',
+    Paint: 'Painting / Staining / Protective Coatings',
+    Pest: 'Pest',
+    Safety: 'Safety / Life Safety',
+    Appliance: 'Appliances',
+    Chimney: 'Roofing / Gutters',
+    Exterior: 'Exterior & Site / Grounds',
+    Carpentry: 'Carpentry / Decks / Fences',
+    Landscape: 'Landscaping / Site & Grounds',
+    'General Contractor': 'General Contractor / Remodel'
+  }[trade];
 
   if (item.catchAll || text.includes('misc') || text.includes('sorting')) return 'Specialty / Other';
-  if (trade === 'General Contractor' || /(remodel|renovation|structural|foundation|permit|whole-home)/.test(text)) return 'General Contractor / Remodel';
-  if (/(dryer vent|dryer duct|vent cleaning|vent hose)/.test(text)) return 'Handy Services';
-  if (text.includes('appliance') || /(range hood|dryer|washer|refrigerator|dishwasher|garbage disposal)/.test(text)) return 'Appliances';
-  if (text.includes('electrical') || /(gfci|outlet|switch|panel|breaker|solar)/.test(text)) return 'Electrical';
-  if (text.includes('plumbing') || /(sink|drain|washer hose|water heater|shutoff|toilet|faucet)/.test(text)) return 'Plumbing';
-  if (text.includes('hvac') || /(furnace|a\/c|air conditioner|thermostat|exhaust fan)/.test(text)) return 'HVAC / Mechanical';
-  if (text.includes('safety') || /(smoke|co detector|fire extinguisher|life safety|lint)/.test(text)) return 'Safety / Life Safety';
-  if (text.includes('pest') || /(bug|rodent|termite|ant)/.test(text)) return 'Pest';
-  if (/(paint|stain|coating|exterior finish)/.test(text)) return 'Painting / Staining / Protective Coatings';
-  if (/(roof|chimney|fireplace|gutter|downspout|drainage|grading|pooling|window|door|screen|seal|landscape|irrigation|masonry|hardscape)/.test(text)) return 'Exterior & Site / Grounds';
-  if (trade === 'Handyman' || /(handyman|handy service|minor repair|adjustment)/.test(text)) return 'Handy Services';
-  if (/(cabinet|carpentry|hinge|drawer|latch|trim|deck|fence)/.test(text)) return 'Carpentry / Decks / Fences';
 
+  /* A deliberately selected non-Handy resource controls the group. Content
+     inference is reserved for rows still carrying the generic Handy default. */
+  if (trade && trade !== 'Handyman') {
+    if (trade === 'General Contractor' && /(structural|foundation|movement|load-bearing|engineering)/.test(text)) return 'General Contractor / Structural';
+    if (resourceCategory) return resourceCategory;
+  }
+
+  if (/(dryer vent|dryer duct|vent cleaning|vent hose)/.test(text)) return 'Handy Services';
+  if (/(structural|foundation|movement|load-bearing|engineering)/.test(text)) return 'General Contractor / Structural';
+  if (/(remodel|renovation|permit|whole-home)/.test(text)) return 'General Contractor / Remodel';
+  if (/(electrical|gfci|outlet|switch|panel|breaker|solar|lighting)/.test(text)) return 'Electrical';
+  if (/(plumbing|sink|faucet|drain|toilet|water heater|shutoff|washer hose|supply line)/.test(text)) return 'Plumbing';
+  if (/(hvac|furnace|heat pump|air conditioner|a\/c|thermostat|ventilation|exhaust fan)/.test(text)) return 'HVAC / Mechanical';
+  if (/(appliance|range hood|dryer|washer|refrigerator|dishwasher|garbage disposal|oven|range)/.test(text)) return 'Appliances';
+  if (/(roof|gutter|downspout|flashing|shingle|chimney|fireplace|hearth|damper)/.test(text)) return 'Roofing / Gutters';
+  if (/(irrigation|sprinkler|grading|pooling|landscape|hardscape|site drainage|drainage discharge)/.test(text)) return 'Landscaping / Site & Grounds';
+  if (/(window|exterior sealant|glazing|fogging|failed seal|window screen)/.test(text)) return 'Windows / Exterior Sealant';
+  if (/(paint|stain|coating|finish wear|drywall finish|caulk wear)/.test(text)) return 'Painting / Staining / Protective Coatings';
+  if (/(carpentry|cabinet|drawer|shelving|built-in|deck|fence|gate|trim|fascia|soffit)/.test(text)) return 'Carpentry / Decks / Fences';
+  if (/(safety|smoke|co detector|carbon monoxide|fire extinguisher|life safety)/.test(text)) return 'Safety / Life Safety';
+  if (/(pest|bug|rodent|termite|ant|insect|entry point)/.test(text)) return 'Pest';
+  if (resourceCategory) return resourceCategory;
+  if (item.category) return canonicalCategory(item.category, item);
+  if (/(door|threshold|weatherstripping|hardware|hinge|latch|minor repair|adjustment)/.test(text)) return 'Handy Services';
   return 'Specialty / Other';
+}
+
+function categoryForChecklistItem(item = {}) {
+  return categoryForLikelyResource(item);
+}
+
+function organizeChecklistRows(rows = []) {
+  return rows
+    .map((item, index) => ({ item, index, category: categoryForChecklistItem(item) }))
+    .sort((a, b) => {
+      const categoryDifference = categoryRank(a.category, a.item) - categoryRank(b.category, b.item);
+      if (categoryDifference) return categoryDifference;
+      const resourceA = displayTradeLabel(a.item.answer?.trade || a.item.trade || 'Review / Assign Later');
+      const resourceB = displayTradeLabel(b.item.answer?.trade || b.item.trade || 'Review / Assign Later');
+      const resourceDifference = resourceA.localeCompare(resourceB);
+      return resourceDifference || a.index - b.index;
+    })
+    .map(entry => entry.item);
 }
 
 
@@ -3609,6 +3672,7 @@ function App() {
     safeLocalStorageSet(WALKTHROUGH_CONTROLS_COLLAPSED_KEY, collapsed ? 'true' : 'false', applyStorageFailure);
   };
   const roomRows = rows.filter(r => r.sectionKey === activeRoom);
+  const organizedRoomRows = organizeChecklistRows(roomRows);
   const currentRoomCapture = roomCaptureFor(activeRoom);
   const currentRoomSummary = roomSummaryFor(rooms.find(r => r.key === activeRoom) || { key: activeRoom, label: activeRoom });
   const currentRoomActionClass = currentRoomCapture.thaActionItem ? 'hasActionSelected' : (hasThaActionContext(currentRoomCapture) ? 'hasActionContext' : '');
@@ -3886,7 +3950,9 @@ function App() {
     </section>
     {(storageWarning || photoFeedback.message) && <section className="appWarning noPrint" role="alert" aria-live="assertive"><AlertTriangle size={18}/><div>{storageWarning && <strong>{storageWarning}</strong>}{photoFeedback.message && <span className={`photoFeedback ${photoFeedback.state}`}>{photoFeedback.message}</span>}</div></section>}
     {view === 'intake' && <IntakeView client={client} intake={intake} updateIntake={updateIntake} copyFeedback={copyFeedback} onCopyPreWalkthroughEmail={copyPreWalkthroughIntakeEmail} intakeFollowUpCount={intakeFollowUpRows.length} />}
-    {view === 'form' && <main className="grid">
+    {view === 'form' && <main className="htcPage">
+  <div className="pmrHeader htcTitleBar"><div><p className="eyebrow">HTC — Handy-Triage Checklist</p><h1>Room-by-Room Walkthrough</h1><p>Capture room conditions, likely resource, photos, and THA follow-up details before the PMR is prepared.</p></div><div className="compassCard"><ClipboardCheck size={48}/><span>{activeRoomLabel}</span></div></div>
+  <div className="grid htcGrid">
       <aside className="roomNav noPrint"><h3>Walkthrough Sections</h3>{rooms.map((r, index) => {
         const groupType = r.roomType;
         const showGroupAddButton = groupType === 'Living / Family Rooms' || groupType === 'Bedrooms' || groupType === 'Bathrooms';
@@ -3924,9 +3990,13 @@ function App() {
           </div>
         </div>
         <div className="checklistToolbar noPrint"><p className="lede">Checklist line items are collapsed for faster field scanning. Open/close below applies only to the detailed checklist entries.</p><div><button type="button" onClick={()=>setChecklistRowsExpanded(activeRoom, true)}>Open All</button><button type="button" onClick={()=>setChecklistRowsExpanded(activeRoom, false)}>Close All</button></div></div>
-        {roomRows.map(r => {
+        {organizedRoomRows.map((r, index) => {
           const category = categoryForChecklistItem(r);
           const meta = categoryInfo(category);
+          const previousCategory = index > 0 ? categoryForChecklistItem(organizedRoomRows[index - 1]) : '';
+          const showCategoryHeader = previousCategory !== category;
+          const categoryItemCount = organizedRoomRows.reduce((count, item) => count + (categoryForChecklistItem(item) === category ? 1 : 0), 0);
+          const CategoryIcon = meta.Icon;
           const isExpanded = Boolean(expandedChecklistItems[r.id]);
           const flags = checklistSummaryFlags(r);
           const selection = passCareSelectionForRow(r, passCareOutlook);
@@ -3936,16 +4006,18 @@ function App() {
           const pmrBadgeClassName = pmrReportPillClass(r.answer);
           const actionClass = r.answer.thaActionItem ? 'hasActionSelected' : (hasThaActionContext(r.answer) ? 'hasActionContext' : '');
           const statusCueClass = r.answer.status === 'Unknown' ? (currentRoomSummary.hasMinimumStatus ? 'statusReviewCue' : 'statusRequiredCue') : '';
-          return <div className={`itemCard checklistItemCard categoryCard category-${meta.slug} ${isExpanded ? 'expanded' : 'collapsed'} ${flags.some(flag => flag.className === 'attention') ? 'needsAttention' : ''} ${actionClass} rail-${rail.left} ${rail.right === 'work-now' ? 'rail-pass rail-work-now' : rail.right === 'pass' ? 'rail-pass' : ''}`} key={r.id}>
+          return <React.Fragment key={r.id}>
+{showCategoryHeader && <div className={`htcCategoryHeader category-${meta.slug}`}><div className="htcCategoryTitle"><span className="passCategoryIcon"><CategoryIcon size={18}/></span><h2>{meta.label}</h2></div><span>{categoryItemCount} line item{categoryItemCount === 1 ? '' : 's'}</span></div>}
+<div className={`itemCard checklistItemCard categoryCard category-${meta.slug} ${isExpanded ? 'expanded' : 'collapsed'} ${flags.some(flag => flag.className === 'attention') ? 'needsAttention' : ''} ${actionClass} rail-${rail.left} ${rail.right === 'work-now' ? 'rail-pass rail-work-now' : rail.right === 'pass' ? 'rail-pass' : ''}`}>
           <button type="button" className="checklistSummaryRow" onClick={()=>toggleChecklistItem(r.id)} aria-expanded={isExpanded} aria-controls={`item-detail-${r.id}`}>
             <span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span>
-            <span className="checklistSummaryMain"><span className="itemTitleLine"><strong>{r.item}</strong><CategoryBadge category={category}/>{isIntakeFollowUp(r) && <span className="sourceBadge">Intake Follow-Up</span>}</span><span>{r.zone} · Suggested: {displayTradeLabel(r.trade)}</span></span>
+            <span className="checklistSummaryMain"><span className="itemTitleLine"><strong>{r.item}</strong><CategoryBadge category={category}/>{isIntakeFollowUp(r) && <span className="sourceBadge">Intake Follow-Up</span>}</span><span>{r.zone} · Likely resource: {displayTradeLabel(r.answer.trade || r.trade)}</span></span>
             <span className="checklistStatus"><span className={`statusBadge status-${r.answer.status.toLowerCase().replace(/[^a-z0-9]+/g, '-')} ${statusCueClass}`}>{r.answer.status}</span>{showPmrBadge && <span className={`pill ${pmrBadgeClassName}`}>{pmrBadgeLabelValue}</span>}</span>
             <span className="checklistSummaryFlags">{flags.length ? flags.map(flag => <span key={flag.key} className={`summaryFlag ${flag.className}`}>{flag.label}</span>) : <span className="summaryFlag quiet">No notes/photos</span>}</span>
             <span className="expandHint">{isExpanded ? 'Close' : 'Open'}</span>
           </button>
           {isExpanded && <div className="checklistDetailPanel" id={`item-detail-${r.id}`}>
-            <div className="itemHead expandedItemHead"><span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span><div><div className="itemTitleLine"><h2>{r.item}</h2><CategoryBadge category={category}/>{isIntakeFollowUp(r) && <span className="sourceBadge">Intake Follow-Up</span>}</div><p>{r.zone} · Suggested: {displayTradeLabel(r.trade)}</p></div>{!r.catchAll && !isIntakeFollowUp(r) && <div className="itemOrderTools"><button onClick={()=>moveItem(r.sectionKey, r.id, -1)} title="Move item up">↑</button><button onClick={()=>moveItem(r.sectionKey, r.id, 1)} title="Move item down">↓</button><button onClick={()=>togglePinItem(r.sectionKey, r.id)} title="Pin to top">{(pinnedItems[r.sectionKey] || []).includes(r.id) ? 'Pinned' : 'Pin'}</button></div>}{showPmrBadge && <span className={`pill ${pmrBadgeClassName}`}>{pmrBadgeLabelValue}</span>}</div>
+            <div className="itemHead expandedItemHead"><span className="tradeIcon">{ICONS[r.answer.trade] || ICONS[r.trade] || '🔎'}</span><div><div className="itemTitleLine"><h2>{r.item}</h2><CategoryBadge category={category}/>{isIntakeFollowUp(r) && <span className="sourceBadge">Intake Follow-Up</span>}</div><p>{r.zone} · Likely resource: {displayTradeLabel(r.answer.trade || r.trade)}</p></div>{!r.catchAll && !isIntakeFollowUp(r) && <div className="itemOrderTools"><button onClick={()=>moveItem(r.sectionKey, r.id, -1)} title="Move item up">↑</button><button onClick={()=>moveItem(r.sectionKey, r.id, 1)} title="Move item down">↓</button><button onClick={()=>togglePinItem(r.sectionKey, r.id)} title="Pin to top">{(pinnedItems[r.sectionKey] || []).includes(r.id) ? 'Pinned' : 'Pin'}</button></div>}{showPmrBadge && <span className={`pill ${pmrBadgeClassName}`}>{pmrBadgeLabelValue}</span>}</div>
             <div className="prompt"><Search size={16}/><strong>Prompt:</strong> {r.prompt}</div>
             {isIntakeFollowUp(r) && <div className="intakeReviewNotes"><strong>Homeowner-reported:</strong> {r.intakeFieldLabel}: {r.intakeValue}<br/><span>Verify during HTC before PMR inclusion · Target: {r.roomName || r.room} · Source: {r.source}</span></div>}
             <div className="inputs">
@@ -3965,9 +4037,9 @@ function App() {
             {r.catchAll && <div className="reassignBox"><label>Reassign Catch-All Notes<select value={r.answer.reassignTo} onChange={e=>update(r.id,{reassignTo:e.target.value})}><option value="">Choose Section-Item</option>{rows.filter(target=>target.sectionKey===r.sectionKey && !target.catchAll).map(target=><option key={target.id} value={target.id}>{target.item}</option>)}</select></label><button onClick={()=>reassignCatchAll(r.id)} disabled={!r.answer.reassignTo}>Reassign</button></div>}
             <div className="drivePath"><FolderOpen size={16}/> {drivePath(client.name, client.date, r.roomType || r.room, r.item, r.roomName || r.room)}</div>
           </div>}
-        </div>})}
+        </div></React.Fragment>})}
       </section>
-    </main>}
+    </div></main>}
     {view === 'pmr' && <PMR client={client} intake={intake} rows={rows} pmr={pmr} counts={counts} quickHits={quickHits} passCareCandidates={passCareCandidates} passReview={passReview} passCareOutlook={passCareOutlook} roomCapture={roomCapture} sections={sections} />}
     {view === 'pass' && <PASSWorkspace intake={intake} rows={rows} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={updatePassReview} roomCapture={roomCapture} sections={sections} />}
     {view === 'metrics' && <Metrics rows={rows} pmr={pmr} quickHits={quickHits} pass={pass}/>} 
@@ -4224,6 +4296,7 @@ function PMR({client, intake, rows = [], pmr, counts, quickHits, passCareCandida
   const baselineModel = buildBaselineCareModel({ intake, rows, passCareCandidates, passCareOutlook });
   const baselineByGroup = groupPassCalendar(baselineModel.baselineItems, item => item.group || 'General');
   const visiblePassIds = new Set(passCareOutlook.map(item => item.id));
+  const passCatalogItems = PASS_CARE_RULES.map(rule => buildPassCatalogItem(rule, intake, rows, passReview, passCareOutlook));
   const tradeItems = pmr.filter(r => !['Handyman','Safety'].includes(r.answer.trade));
   const immediateItems = pmr.filter(r => r.answer.status === 'Immediate Concern');
   const handyItems = pmr.filter(r => r.answer.trade === 'Handyman');
@@ -4286,8 +4359,6 @@ function PMR({client, intake, rows = [], pmr, counts, quickHits, passCareCandida
     <section className="pmrBlock baselineCare"><h2>Baseline Home Care / Upkeep To-Dos</h2><p className="lede">No repair concern is implied by this section. These are baseline reminders and practical upkeep opportunities. The list becomes more tailored as Intake, HTC, PMCP Builder, and THA Action-Items are completed.</p>{Object.entries(baselineByGroup).length ? Object.entries(baselineByGroup).map(([groupName, items]) => <section className="passCalendarCareGroup" key={`baseline-${groupName}`}><h3>{groupName}</h3><div className="passCalendarTable">{items.map(item => <article className="passCalendarRow baseline" key={item.id}><div><strong>{item.title}</strong><small>{item.guidance}</small>{item.evidence.length > 0 && <small>Evidence: {item.evidence.join(' · ')}</small>}</div><span>Routine</span><span>Baseline</span><span className="nextWindow">{item.group}</span><span>{item.evidence.length ? 'Supported by intake/HTC context' : 'General homeowner care baseline'}</span><span><em className="passStatusChip baseline">Not a repair finding</em></span></article>)}</div></section>) : <p className="lede">No baseline topics generated.</p>}</section>
     <section className="pmrBlock passOutlook"><h2><ClipboardList size={20}/> Home-Specific Care Supported by Intake and/or HTC</h2><p className="lede">These care topics are supported by intake and/or walkthrough evidence and remain separate from repair findings and PMR priority counts.</p>{baselineModel.homeSpecificCare.length ? <div className="passOutlookGrid">{baselineModel.homeSpecificCare.map(item => <article className="passOutlookCard" key={`supported-care-${item.id}`}><div className="findTop"><TradeIcon trade="Handyman"/><div><h3>{item.careItem}</h3><p>{item.sourceLabel} · Intake/HTC supported care</p></div></div><div className="findGrid"><p><strong>Homeowner-facing reason:</strong><br/>{item.reason || 'Supported by intake and/or HTC context.'}</p><p><strong>Category:</strong><br/>Home-specific care supported by Intake and/or HTC</p></div></article>)}</div> : <p className="lede">No additional intake/HTC-supported care topics are pending outside PMCP selected items.</p>}</section>
     {roomOverviewFindings.length > 0 && <section className="pmrBlock roomOverviewFindings"><h2><Home size={20}/> Room Overview Status Notes</h2><p className="lede">Room overview statuses that moved beyond Unknown / Looking Good are included as compact PMR context. Detailed checklist PMR findings remain counted separately.</p><div className="findingTypeList">{roomOverviewFindings.map(({ section, capture }) => <article key={`room-overview-pmr-${section.key}`}><h3>{section.label || section.roomName || section.key}</h3><p><strong>Status:</strong> {capture.status}</p>{capture.note && <p><strong>Notes/action detail:</strong> {capture.note}</p>}{thaActionTypeSelected(capture) && <p><strong>THA Action Type:</strong> {capture.thaActionType}</p>}{capture.thaActionItem && <p><strong>THA Action Item:</strong> Selected for THA work/follow-up.</p>}{photoList(capture).length > 0 && <p><strong>Photos:</strong> {photoList(capture).length} room overview photo{photoList(capture).length === 1 ? '' : 's'} linked in Photo Index.</p>}</article>)}</div></section>}
-    {(actionItems.length > 0 || roomActionItems.length > 0) && <section className="pmrBlock workOrderSummary"><h2><ClipboardList size={20}/> THA Action-Items / Near-Term Follow-Up</h2><p className="lede">These THA action-items stay separate from ordinary repair findings. Purple supersedes green in rails while PMCP selections remain active underneath.</p><div className="findingTypeList"><article><h3>Detailed HTC line items</h3>{actionItems.length ? actionItems.map(r => <p key={`workorder-${r.id}`}>{r.roomName || r.room} — {r.item} · {displayTradeLabel(r.answer.trade)} · {r.answer.thaActionType || 'Unknown'}{includePMRRow(r) ? ` · ${pmrReportLabel(r.answer)}` : ''}</p>) : <p>No detailed line-item action-items recorded.</p>}</article><article><h3>Room overview action-items</h3>{roomActionItems.length ? roomActionItems.map(item => <p key={item.id}>{item.roomName} — {item.item} · {item.actionType}{item.note ? ` · ${item.note}` : ''}</p>) : <p>No room-overview action-items recorded.</p>}</article></div></section>}
-    <PassPlanSummary passCareOutlook={passCareOutlook} passReview={passReview} />
     <section className="pmrBlock roomIssueSummary"><h2><Home size={20}/> Room-by-Room Issue Count</h2><p className="lede">PMR counts only. PASS continued care stays separate and is not included in this chart.</p>{roomIssueCounts.length ? <div className="roomIssueChart">{roomIssueCounts.map(([room, count]) => <div className="roomIssueRow" key={room}><span>{room}</span><div className="roomIssueBar"><i style={{width: `${Math.max(8, (count / maxRoomIssueCount) * 100)}%`}}></i></div><strong>{count}</strong></div>)}</div> : <p className="lede">No repair issues recorded by room.</p>}</section>
     <section className="pmrBlock findingTypeSummary"><h2><AlertTriangle size={20}/> Summary by Finding Type</h2><div className="findingTypeList"><article><h3>Immediate / higher concern items</h3>{immediateItems.length ? immediateItems.map(r => <p key={`immediate-${r.id}`}>{r.roomName || r.room} — {r.item}</p>) : <p>No immediate higher-concern items recorded.</p>}</article><article><h3>Handy Services items</h3>{handyItems.length ? handyItems.map(r => <p key={`handy-${r.id}`}>{r.roomName || r.room} — {r.item}</p>) : <p>No Handy Services PMR items recorded.</p>}</article><article><h3>Trade items</h3>{tradeItems.length ? tradeItems.map(r => <p key={`trade-summary-${r.id}`}>{displayTradeLabel(r.answer.trade)}: {r.roomName || r.room} — {r.item}</p>) : <p>No trade PMR items recorded.</p>}</article><article><h3>PASS continued care / routine care</h3>{passCareOutlook.length ? passCareOutlook.map(item => <p key={`pass-summary-${item.id}`}>{item.careItem} · {item.resource}</p>) : <p>No homeowner-facing PASS continued-care items included.</p>}</article></div></section>
     <section className="pmrBlock compactFindings"><h2><AlertTriangle/> Room-by-Room Action List</h2><p className="lede">Same PMR findings grouped by room for homeowner review. Longer observations, rationale, photos, and notes are in the Detail Appendix below.</p>{pmr.length ? <div className="packetActionGroups">{Object.entries(roomGroups).map(([room, items]) => <section className="packetActionGroup" key={`room-${room}`}><h3>{room} <span>{items.length} PMR item{items.length === 1 ? '' : 's'}</span></h3>{items.map(row => <VisualActionRow key={`room-row-${row.id}`} row={row} context={room}/>)}</section>)}</div> : <p className="lede">No repair findings recorded.</p>}</section>
@@ -4299,7 +4370,9 @@ function PMR({client, intake, rows = [], pmr, counts, quickHits, passCareCandida
         <div className="findGrid"><p><strong>What we saw:</strong><br/>{r.answer.notes || 'No additional notes recorded yet.'}</p><p><strong>Why it matters:</strong><br/>{r.why}</p><p><strong>Action certainty:</strong><br/>{certainty.title}: {certainty.body}</p><p><strong>Timing:</strong><br/>{timingFor(r, r.answer.status)} · Homeowner pace: {r.answer.pref}</p><p><strong>Photos:</strong><br/>{photoSummary(r.answer.photos)}</p><p><strong>Notes:</strong><br/>Approx. time: {r.answer.effort} · Intake context: {intakeInfluence(r, intake)}</p></div>
       </article>
     })}</CollapsibleBlock>
+    <PassPlanSummary passCareOutlook={passCareOutlook} passReview={passReview} />
     <CollapsibleBlock title="Homeowner Goals & Intake Context" icon={<Home size={20}/>} summary="Homeowner-provided context only; internal THA field-prep notes are excluded" defaultOpen={false} className="intakeSummary"><div className="findGrid"><p><strong>Primary priorities:</strong><br/>{summary.priorities}</p><p><strong>Preferred pace:</strong><br/>{summary.pace}</p><p><strong>Budget mindset:</strong><br/>{summary.budget}</p><p><strong>Decision style:</strong><br/>{summary.decision}</p><p><strong>Homeowner notes:</strong><br/>{summary.notes}</p><p><strong>Priority areas:</strong><br/>{reportValue(intake.priorityAreas, 'No priority areas recorded.')}</p><p><strong>Known issues / recurring symptoms:</strong><br/>{reportValue(structuredIntakeAnswerValue(intake, 'knownIssues', 'symptoms'), 'No homeowner-provided recurring symptoms recorded.')}</p><p><strong>Recent repairs / records:</strong><br/>{reportValue(structuredIntakeAnswerValue(intake, 'recentRepairs', 'completed') || intake.helpfulRecords, 'No homeowner-provided repair or records context recorded.')}</p><p><strong>Access notes:</strong><br/>{reportValue(structuredIntakeAnswerValue(intake, 'accessNotes', 'access'), 'No homeowner-provided access notes recorded.')}</p><p><strong>Do-not-overlook items:</strong><br/>{reportValue(intake.doNotOverlook, 'No do-not-overlook items recorded.')}</p><p><strong>Workflow:</strong><br/>Intake captures context. HTC verifies and triages. PMR documents findings and next steps. PASS tracks routine continued care and stays separate from PMR counts.</p></div></CollapsibleBlock>
+    <div className="noPrint pmrInternalActionList"><ThaActionTodoList rows={rows} roomCapture={roomCapture} sections={sections} passItems={passCatalogItems}/></div>
     <CollapsibleBlock title="Planning Guides" icon={<ClipboardList size={20}/>} summary="Action certainty and time/investment reference" defaultOpen={false} className="guideSupportBlock"><section className="guideGrid"><div className="guideCard actionCertaintyGuide"><h2><ClipboardList size={20}/> Action Certainty Guide</h2>{ACTION_CERTAINTY_GUIDE.map(item => <p key={item.label} className={`actionGuideItem ${actionCertaintyClass(item.label)}`}><CertaintyDot label={item.label}/> <strong>{item.label}</strong><br/><span>{item.body}</span></p>)}</div><div className="guideCard timeGuideCard"><h2><Clock3 size={20}/> Time / Investment Guide</h2>{PMR_TIME_INVESTMENT_GUIDE.map(item => <p key={item.key} className={`timeGuideItem ${item.key}`}><span className="timeGuideIcon" aria-hidden="true">{item.icon}</span><strong>{item.label}</strong><span>{item.display.replace(item.label, '')}</span></p>)}</div></section></CollapsibleBlock>
     <CollapsibleBlock title="PASS Maintenance Calendar" icon={<CalendarDays/>} summary={`${passCareOutlook.length} recurring care item${passCareOutlook.length === 1 ? '' : 's'} · required even with zero PMR findings`} defaultOpen={true} className="passCalendar">
       <p className="lede passCalendarIntro">{passCalendarIntroCopy(pmr.length)}</p>
@@ -4523,8 +4596,8 @@ function ThaActionTodoList({ rows = [], roomCapture = {}, sections = [], passIte
   </article>;
 
   return <section className="pmrBlock thaActionTodoList">
-    <h2><ClipboardList size={20}/> THA Action To-Do List</h2>
-    <p className="lede">Internal THA follow-up items pulled from checked THA Action Items and selected THA Action Types. These remain separate from PMR repair findings and PASS routine-care items.</p>
+    <h2><ClipboardList size={20}/> THA Action To-Do List — Internal</h2>
+    <p className="lede">Complete internal THA follow-up list from HTC checklist items, room overviews, and PASS / PMCP services. Checked items appear under THA Action Items; an Action Type without the checkbox appears under Action Type / Follow-Up Context. This in-app section stays separate from PMR findings and is excluded from homeowner print/download output.</p>
     {totalCount ? <div className="thaTodoGroups">{groups.map(group => <section className="thaTodoRoomGroup" key={group.roomName}>
       <h3>{group.roomName} <span>{group.primary.length + group.context.length} to-do{group.primary.length + group.context.length === 1 ? '' : 's'}</span></h3>
       <div className="thaTodoBucket primary"><h4>THA Action Items</h4>{group.primary.length ? group.primary.map(renderTodo) : <p className="thaTodoEmptyBucket">No checked THA Action Items in this room.</p>}</div>
@@ -4595,7 +4668,7 @@ function PASSWorkspace({ intake = {}, rows = [], passCareOutlook = [], passRevie
   const catalogCount = PASS_CARE_RULES.length;
   const selectedCount = passCareOutlook.length;
   const supportedCount = passCatalogItems.filter(item => item.sourceEvidence?.label !== 'Catalog only').length;
-  return <PassErrorBoundary onReturnToPmr={() => window.dispatchEvent(new CustomEvent('tha:set-view', { detail: 'pmr' }))}><main className="pmr passWorkspace"><div className="pmrHeader"><div><THALogo variant="full"/><p className="eyebrow">PASS — Preventative Maintenance Care Plan</p><h1>Preventative Maintenance Care Plan Builder</h1><p>PASS → PMCP: PASS is The Homeowner Advocate’s framework for turning a full preventative-maintenance catalog into a homeowner’s Preventative Maintenance Care Plan (PMCP). Intake and HTC enrich the catalog, while selected items become formal PMCP output.</p></div><div className="compassCard"><CalendarDays size={48}/><span>PMCP builder</span></div></div><StatusKey mode="workflow" title="PASS workflow status" /><section className="pmrBlock frontSummary"><h2><CalendarDays size={20}/> In-app Preventative Maintenance Care Plan</h2><p className="lede">The full catalog stays visible here. Intake and HTC highlight entries, while only selected items are included in formal PMR and Drive/export PMCP output.</p><div className="summaryTypeGrid"><div><strong>{catalogCount}</strong><span>Catalog items</span></div><div><strong>{supportedCount}</strong><span>Supported right now</span></div><div><strong>{selectedCount}</strong><span>Selected for PMCP</span></div></div></section><PassReviewControls intake={intake} rows={rows} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={onPassReviewChange}/><PassPlanSummary passCareOutlook={passCareOutlook} passReview={passReview}/><ThaActionTodoList rows={rows} roomCapture={roomCapture} sections={sections} passItems={passCatalogItems}/></main></PassErrorBoundary>;
+  return <PassErrorBoundary onReturnToPmr={() => window.dispatchEvent(new CustomEvent('tha:set-view', { detail: 'pmr' }))}><main className="pmr passWorkspace"><div className="pmrHeader"><div><THALogo variant="full"/><p className="eyebrow">PASS — Precision Annual & Seasonal Services</p><h1>Preventative Maintenance Care Plan Builder</h1><p>PASS → PMCP: PASS is The Homeowner Advocate’s framework for turning a full preventative-maintenance catalog into a homeowner’s Preventative Maintenance Care Plan (PMCP). Intake and HTC enrich the catalog, while selected items become formal PMCP output.</p></div><div className="compassCard"><CalendarDays size={48}/><span>PMCP builder</span></div></div><StatusKey mode="workflow" title="PASS workflow status" /><section className="pmrBlock frontSummary"><h2><CalendarDays size={20}/> In-app Preventative Maintenance Care Plan</h2><p className="lede">The full catalog stays visible here. Intake and HTC highlight entries, while only selected items are included in formal PMR and Drive/export PMCP output.</p><div className="summaryTypeGrid"><div><strong>{catalogCount}</strong><span>Catalog items</span></div><div><strong>{supportedCount}</strong><span>Supported right now</span></div><div><strong>{selectedCount}</strong><span>Selected for PMCP</span></div></div></section><PassReviewControls intake={intake} rows={rows} passCareOutlook={passCareOutlook} passReview={passReview} onPassReviewChange={onPassReviewChange}/><PassPlanSummary passCareOutlook={passCareOutlook} passReview={passReview}/><ThaActionTodoList rows={rows} roomCapture={roomCapture} sections={sections} passItems={passCatalogItems}/></main></PassErrorBoundary>;
 }
 
 class PassErrorBoundary extends React.Component {
