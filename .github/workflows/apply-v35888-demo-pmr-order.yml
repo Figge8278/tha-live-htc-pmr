@@ -1,0 +1,98 @@
+name: Apply V3.58.8.8 Demo Recovery and PMR Order Check
+
+on:
+  push:
+    branches:
+      - feature/v3-58-native-start-snapshot-management
+    paths:
+      - .github/workflows/apply-v35888-demo-pmr-order.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/v3-58-native-start-snapshot-management
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Repair demo exit and verify PMR closing order
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          start_path = Path('public/tha-v3588-start-source-separation.js')
+          source = start_path.read_text()
+          old = """  function leaveStartForPmr() {
+            localStorage.setItem('tha-v358-start-active', 'false');
+            window.setTimeout(() => {
+              const pmrButton = Array.from(document.querySelectorAll('.topbar nav button')).find(button => /^PMR$/i.test(text(button.textContent)));
+              pmrButton?.click();
+              window.scrollTo({ top:0, behavior:'smooth' });
+            }, 80);
+          }
+          """
+          new = """  function leaveStartForPmr() {
+            const openPmr = () => {
+              localStorage.setItem('tha-v358-start-active', 'false');
+              document.querySelector('.app')?.classList.remove('thaV358StartActive');
+              window.dispatchEvent(new CustomEvent('tha:set-view', { detail:'pmr' }));
+              const pmrButton = Array.from(document.querySelectorAll('.topbar nav button')).find(button => /^PMR$/i.test(text(button.textContent)));
+              if (pmrButton && !pmrButton.classList.contains('on') && !pmrButton.classList.contains('active')) pmrButton.click();
+              window.scrollTo({ top:0, behavior:'smooth' });
+            };
+            window.requestAnimationFrame(() => window.setTimeout(openPmr, 0));
+            window.setTimeout(openPmr, 180);
+          }
+          """
+          assert old in source, 'Expected demo Start-exit function was not found'
+          source = source.replace(old, new, 1)
+          start_path.write_text(source)
+
+          order_path = Path('public/tha-v51-pmr-section-order.js')
+          order = order_path.read_text()
+          required = [
+              'Trade-by-Trade → Detail Appendix → Preventative Maintenance Care Plan',
+              "const detailAppendix = findSection(pmr, [/detail appendix/i], '.detailAppendix');",
+              "const carePlan = findSection(pmr, [/preventive maintenance care plan/i, /preventative maintenance care plan/i], '.passPlanSummary');",
+              "const homeownerContext = findSection(pmr, [/homeowner goals.*intake context/i], '.intakeSummary');",
+              "const thaActionItems = findSection(pmr, [/THA action/i], '.pmrInternalActionList');",
+              '[detailAppendix, carePlan, homeownerContext, thaActionItems].forEach'
+          ]
+          for marker in required:
+              assert marker in order, f'Missing PMR-order marker: {marker}'
+
+          main = Path('src/main.jsx').read_text()
+          for marker in [
+              'rows.forEach(row => {',
+              'passItems.forEach(item => {',
+              '<ThaActionTodoList rows={rows} roomCapture={roomCapture} sections={sections} passItems={passCatalogItems}/>'
+          ]:
+              assert marker in main, f'Missing consolidated THA action source: {marker}'
+          PY
+
+          node --check public/tha-v3588-start-source-separation.js
+          node --check public/tha-v51-pmr-section-order.js
+          npm ci
+          npm run build
+
+      - name: Commit focused correction and remove one-time workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-v35888-demo-pmr-order.yml
+          git add public/tha-v3588-start-source-separation.js public/tha-v51-pmr-section-order.js
+          git commit -m "Repair demo navigation and confirm PMR closing sequence"
+          git push origin HEAD:feature/v3-58-native-start-snapshot-management
