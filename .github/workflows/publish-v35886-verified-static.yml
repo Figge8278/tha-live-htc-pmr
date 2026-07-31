@@ -106,3 +106,5 @@ jobs:
         run: |
           gh api repos/Figge8278/tha-live-htc-pmr/issues/75/comments \
             -f body="V3.58.8.6 verified preview — publish: success; public page: success; compact HTC category headers: success; Intake required-reference alerts: success; PMR fast-reference block: success; URL: ${URL}; static SHA: ${STATIC_SHA}; source app commit: caa9f2ebd0fc110919a5132bab6b2ca618f7b876; run: https://github.com/Figge8278/tha-live-htc-pmr/actions/runs/${GITHUB_RUN_ID}"
+
+# Registered first, then updated to trigger the publish workflow.
