@@ -14,7 +14,8 @@
     const style = document.createElement('style');
     style.id = STYLE_ID;
     style.textContent = `
-      /* V3.51: PMR closes with findings detail, homeowner plan/context, then THA action items. */
+      /* V3.51: PMR closes with findings detail, homeowner plan/context,
+         internal THA actions, then the supporting home-care reference. */
       main.pmr:not(.passWorkspace) [data-tha-v51-ordered="pmr-closing-sequence"]{
         scroll-margin-top:90px;
       }
@@ -44,8 +45,8 @@
     return Array.from(pmr.children || []).filter(child => child && child.nodeType === 1);
   }
 
-  function matchAny(text, patterns) {
-    return patterns.some(pattern => pattern.test(text));
+  function matchAny(value, patterns) {
+    return patterns.some(pattern => pattern.test(value));
   }
 
   function sectionMatches(section, patterns, extraSelector = '') {
@@ -113,7 +114,6 @@
     const firstPmcp = firstInDocumentOrder(pmcpSections);
 
     if (firstPmcp) {
-      // Preserve the established findings order before the homeowner care material.
       if (tradeSection) moveBefore(firstPmcp, tradeSection);
       const currentFirstPmcp = firstInDocumentOrder(findAllSections(
         pmr,
@@ -128,16 +128,22 @@
       markOrdered(roomSection);
     }
 
-    // Required closing sequence:
+    // Required PMR sequence:
     // Trade-by-Trade → Detail Appendix → Preventative Maintenance Care Plan
-    // → Homeowner Goals & Intake Context → THA Action Items.
+    // → Homeowner Goals & Intake Context → THA Action To-Do List
+    // → Supporting Home Care Reference.
     const detailAppendix = findSection(pmr, [/detail appendix/i], '.detailAppendix');
     const carePlan = findSection(pmr, [/preventive maintenance care plan/i, /preventative maintenance care plan/i], '.passPlanSummary');
     const homeownerContext = findSection(pmr, [/homeowner goals.*intake context/i], '.intakeSummary');
     const thaActionItems = findSection(pmr, [/THA action/i], '.pmrInternalActionList');
+    const supportingReference = findSection(
+      pmr,
+      [/supporting home care reference/i, /planning guides/i],
+      '.supportingHomeCareReference,.guideSupportBlock'
+    );
 
     let cursor = tradeSection;
-    [detailAppendix, carePlan, homeownerContext, thaActionItems].forEach(section => {
+    [detailAppendix, carePlan, homeownerContext, thaActionItems, supportingReference].forEach(section => {
       if (!cursor || !section) return;
       moveAfter(cursor, section);
       cursor = section;
