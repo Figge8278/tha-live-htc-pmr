@@ -36,8 +36,10 @@ jobs:
       - name: Build for repository Pages path
         run: npm run build -- --base=/tha-live-htc-pmr/
 
-      - name: Configure Pages
+      - name: Configure and enable Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
