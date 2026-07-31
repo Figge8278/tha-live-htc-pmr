@@ -31,8 +31,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build for static preview host
-        run: npm run build -- --base=/Figge8278/tha-live-htc-pmr/preview-v3588-static/
+      - name: Build with commit-safe relative paths
+        run: npm run build -- --base=./
 
       - name: Publish built files to isolated static branch
         id: publish
