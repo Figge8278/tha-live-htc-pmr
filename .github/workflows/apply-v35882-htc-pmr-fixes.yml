@@ -1,0 +1,113 @@
+name: Apply V3.58.8.2 HTC and PMR Fixes
+
+on:
+  push:
+    branches:
+      - feature/v3-58-native-start-snapshot-management
+    paths:
+      - .github/workflows/apply-v35882-htc-pmr-fixes.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/v3-58-native-start-snapshot-management
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply focused source corrections
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          rail_path = Path('public/tha-v3587-react-safe-checklist-and-pass.js')
+          rail = rail_path.read_text()
+
+          rail, removed = re.subn(
+              r"\n\s*\.formPanel>\.checklistItemCard\[data-v3587-first-group\]::before\{[^\n]*\}\n",
+              "\n",
+              rail,
+              count=1,
+          )
+          assert removed == 1, f'Expected one injected category-heading pseudo-element rule, found {removed}'
+
+          old_order = "      .formPanel>.checklistItemCard{order:var(--tha-v3587-order,9999);margin-top:6px!important}"
+          new_order = old_order + "\n      .formPanel>.checklistItemCard::before{content:''!important;position:absolute!important;top:0!important;bottom:0!important;left:0!important;width:6px!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;display:block!important;pointer-events:none!important}"
+          assert old_order in rail, 'Checklist order marker not found'
+          rail = rail.replace(old_order, new_order, 1)
+
+          old_group_margin = "      .formPanel>.checklistItemCard[data-v3587-first-group]{margin-top:13px!important}"
+          new_group_margin = "      .formPanel>.checklistItemCard[data-v3587-first-group]{margin-top:6px!important}"
+          assert old_group_margin in rail, 'First-group margin rule not found'
+          rail = rail.replace(old_group_margin, new_group_margin, 1)
+
+          old_summary = "      .formPanel>.checklistItemCard .checklistSummaryRow{padding:9px 11px!important;gap:8px!important}"
+          new_summary = "      .formPanel>.checklistItemCard .checklistSummaryRow{padding:9px 11px 9px 17px!important;gap:8px!important;align-items:center!important}"
+          assert old_summary in rail, 'Checklist summary spacing rule not found'
+          rail = rail.replace(old_summary, new_summary, 1)
+
+          old_icon = "      .formPanel>.checklistItemCard .tradeIcon{width:32px!important;height:32px!important;font-size:18px!important;background:#fff7e9!important;border:1px solid #e4c38d!important}"
+          new_icon = "      .formPanel>.checklistItemCard .tradeIcon{display:grid!important;place-items:center!important;align-self:center!important;flex:0 0 32px!important;width:32px!important;height:32px!important;min-width:32px!important;margin:0!important;font-size:18px!important;line-height:1!important;background:#fff7e9!important;border:1px solid #e4c38d!important}"
+          assert old_icon in rail, 'Checklist icon rule not found'
+          rail = rail.replace(old_icon, new_icon, 1)
+          rail_path.write_text(rail)
+
+          main_path = Path('src/main.jsx')
+          main = main_path.read_text()
+
+          catalog_marker = "  const visiblePassIds = new Set(passCareOutlook.map(item => item.id));"
+          catalog_insert = catalog_marker + "\n  const passCatalogItems = PASS_CARE_RULES.map(rule => buildPassCatalogItem(rule, intake, rows, passReview, passCareOutlook));"
+          assert catalog_marker in main, 'PMR pass catalog marker not found'
+          main = main.replace(catalog_marker, catalog_insert, 1)
+
+          old_partial_pattern = re.compile(
+              r"\n\s*\{\(actionItems\.length > 0 \|\| roomActionItems\.length > 0\) && <section className=\"pmrBlock workOrderSummary\">.*?</section>\}",
+              re.DOTALL,
+          )
+          main, removed_partial = old_partial_pattern.subn('', main, count=1)
+          assert removed_partial == 1, f'Expected one partial PMR action summary, found {removed_partial}'
+
+          baseline_marker = '    <section className="pmrBlock baselineCare">'
+          full_action_list = '    <div className="noPrint pmrInternalActionList"><ThaActionTodoList rows={rows} roomCapture={roomCapture} sections={sections} passItems={passCatalogItems}/></div>\n'
+          assert baseline_marker in main, 'PMR baseline section marker not found'
+          main = main.replace(baseline_marker, full_action_list + baseline_marker, 1)
+
+          old_title = '    <h2><ClipboardList size={20}/> THA Action To-Do List</h2>'
+          new_title = '    <h2><ClipboardList size={20}/> THA Action To-Do List — Internal</h2>'
+          assert old_title in main, 'THA Action To-Do title not found'
+          main = main.replace(old_title, new_title, 1)
+
+          old_lede = '    <p className="lede">Internal THA follow-up items pulled from checked THA Action Items and selected THA Action Types. These remain separate from PMR repair findings and PASS routine-care items.</p>'
+          new_lede = '    <p className="lede">Complete internal THA follow-up list from HTC checklist items, room overviews, and PASS / PMCP services. Checked items appear under THA Action Items; an Action Type without the checkbox appears under Action Type / Follow-Up Context. This in-app section stays separate from PMR findings and is excluded from homeowner print/download output.</p>'
+          assert old_lede in main, 'THA Action To-Do explanation not found'
+          main = main.replace(old_lede, new_lede, 1)
+
+          main_path.write_text(main)
+          PY
+
+      - name: Install and validate build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Commit focused corrections and remove one-time workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/apply-v35882-htc-pmr-fixes.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/tha-v3587-react-safe-checklist-and-pass.js src/main.jsx .github/workflows/apply-v35882-htc-pmr-fixes.yml
+          git commit -m "Fix HTC status rails and show complete THA actions on PMR"
+          git push origin HEAD:feature/v3-58-native-start-snapshot-management
