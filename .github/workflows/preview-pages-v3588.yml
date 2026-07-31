@@ -1,4 +1,4 @@
-name: Publish V3.58.8 Preview to GitHub Pages
+name: Publish V3.58.8 Static Preview
 
 on:
   push:
@@ -7,18 +7,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
   issues: write
   pull-requests: write
 
 concurrency:
-  group: pages
+  group: v3588-static-preview
   cancel-in-progress: true
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - name: Check out preview branch
@@ -33,52 +31,47 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build for repository Pages path
-        run: npm run build -- --base=/tha-live-htc-pmr/
+      - name: Build for static preview host
+        run: npm run build -- --base=/Figge8278/tha-live-htc-pmr/preview-v3588-static/
 
-      - name: Configure and enable Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
+      - name: Publish built files to isolated static branch
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/tha-v3588-site
+          mkdir -p /tmp/tha-v3588-site
+          cp -a dist/. /tmp/tha-v3588-site/
+          touch /tmp/tha-v3588-site/.nojekyll
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan preview-v3588-static
+          git rm -rf --cached . >/dev/null 2>&1 || true
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a /tmp/tha-v3588-site/. .
+          git add -A
+          git commit -m "Publish V3.58.8 static preview from ${GITHUB_SHA}"
+          STATIC_SHA="$(git rev-parse HEAD)"
+          git push --force origin HEAD:preview-v3588-static
+          echo "static_sha=${STATIC_SHA}" >> "$GITHUB_OUTPUT"
 
-  deploy:
-    outputs:
-      page_url: ${{ steps.deployment.outputs.page_url }}
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-  report:
-    if: always()
-    runs-on: ubuntu-latest
-    needs:
-      - build
-      - deploy
-    steps:
-      - name: Report preview deployment result
+      - name: Report static preview result
+        if: always()
         uses: actions/github-script@v7
         env:
-          BUILD_RESULT: ${{ needs.build.result }}
-          DEPLOY_RESULT: ${{ needs.deploy.result }}
-          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+          PUBLISH_RESULT: ${{ steps.publish.outcome }}
+          STATIC_SHA: ${{ steps.publish.outputs.static_sha }}
         with:
           script: |
-            const page = process.env.PAGE_URL || '(no page URL returned)';
+            const sha = process.env.STATIC_SHA || '';
+            const url = sha
+              ? `https://raw.githack.com/${context.repo.owner}/${context.repo.repo}/${sha}/index.html`
+              : '(no public URL produced)';
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: 75,
-              body: `GitHub Pages preview report — build: ${process.env.BUILD_RESULT}; deploy: ${process.env.DEPLOY_RESULT}; URL: ${page}; run: ${runUrl}`
+              body: `Static preview report — publish: ${process.env.PUBLISH_RESULT}; URL: ${url}; run: ${runUrl}`
             });
