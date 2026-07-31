@@ -45,6 +45,8 @@ jobs:
           path: dist
 
   deploy:
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -55,15 +57,25 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Post verified preview address
+  report:
+    if: always()
+    runs-on: ubuntu-latest
+    needs:
+      - build
+      - deploy
+    steps:
+      - name: Report preview deployment result
         uses: actions/github-script@v7
         env:
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
         with:
           script: |
+            const page = process.env.PAGE_URL || '(no page URL returned)';
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: 75,
-              body: `GitHub Pages deployment completed. Verified deployment output: ${process.env.PAGE_URL}`
+              body: `GitHub Pages preview report — build: ${process.env.BUILD_RESULT}; deploy: ${process.env.DEPLOY_RESULT}; URL: ${page}`
             });
