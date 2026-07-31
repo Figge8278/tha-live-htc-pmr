@@ -1,0 +1,110 @@
+/* Integrated PASS + Intake interface layer */
+.passWorkspace .tha-review-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 18px;padding:10px 12px;border:1px solid #d9e3e8;border-radius:14px;background:#fff;color:#56636d;font-size:13px;font-weight:750}
+.passWorkspace .tha-review-toolbar span{margin-right:auto}
+.passWorkspace .tha-review-toolbar button,.passWorkspace .tha-output-card-toggle,.tha-field-prep .tha-prep-toggle{border:1px solid #c8d5dc;border-radius:10px;background:#fff;color:#163f58;padding:7px 10px;font-size:12px;font-weight:900;line-height:1.15}
+.passWorkspace .tha-review-toolbar button:hover,.passWorkspace .tha-output-card-toggle:hover,.tha-field-prep .tha-prep-toggle:hover{border-color:#8cabbc;background:#f5fafc}
+.passWorkspace .passCategoryGroup{padding-top:22px}
+.passWorkspace .passCategoryHeader{margin-bottom:4px}
+.passWorkspace .passCategoryTitle h3{font-size:19px;line-height:1.15;letter-spacing:-.01em}
+.passWorkspace .passCategoryIcon{width:36px;height:36px;border-radius:11px}
+.passWorkspace .tha-category-purpose{margin:0 0 13px 44px;color:#64727c;font-size:13px;line-height:1.35;font-weight:700}
+.passWorkspace .passReviewCard{padding:15px 16px;border-radius:18px}
+.passWorkspace .passReviewCardHeader{align-items:center}
+.passWorkspace .passReviewBadgeRow{margin-bottom:8px}
+.passWorkspace .passReviewCard h4{font-size:20px;line-height:1.15;letter-spacing:-.015em;color:#0c344e}
+.passWorkspace .passReviewSubline{margin-top:6px;font-size:13px}
+.passWorkspace .passReviewCardToggle{min-width:82px;padding:8px 11px}
+.passWorkspace .passReviewTop{padding-top:2px}
+.passWorkspace .passReviewTop .includeToggle span strong{font-size:13px}
+.passWorkspace .passReviewTop .includeToggle span small{font-size:12px;line-height:1.35}
+.passWorkspace .passReviewFields{margin-top:3px;padding-top:14px;border-top:1px solid #e1e8eb}
+.passWorkspace .passReviewCard.workflow-orange{box-shadow:0 8px 18px rgba(188,102,20,.1)}
+.passWorkspace .passReviewCard.workflow-orange h4{color:#7b3e0d}
+.passWorkspace .tha-readonly-output .collapsibleHeader h2{display:flex;align-items:center;gap:8px}
+.passWorkspace .tha-readonly-banner{display:grid;gap:4px;margin:0 0 16px;padding:12px 14px;border:1px solid #d6e2e8;border-radius:14px;background:#f7fbfd;color:#556873}
+.passWorkspace .tha-readonly-banner strong{color:#173e57;font-size:13px;text-transform:uppercase;letter-spacing:.04em}
+.passWorkspace .tha-readonly-banner span{font-size:13px;font-weight:700;line-height:1.4}
+.passWorkspace .passOutlookGrid{display:grid;gap:18px}
+.passWorkspace .tha-pass-output-group{border-top:1px solid #dce4e8;padding-top:17px}
+.passWorkspace .tha-pass-output-group:first-child{border-top:0;padding-top:0}
+.passWorkspace .tha-pass-output-group-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 10px}
+.passWorkspace .tha-pass-output-group-title{display:flex;align-items:flex-start;gap:9px}
+.passWorkspace .tha-pass-output-group-title h3{margin:1px 0 3px;color:#0c344e;font-size:18px;line-height:1.15;letter-spacing:-.01em}
+.passWorkspace .tha-pass-output-group-title p{margin:0;color:#65747e;font-size:13px;line-height:1.35;font-weight:700}
+.passWorkspace .tha-pass-output-card-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.passWorkspace .tha-output-card{padding:15px 16px;background:#fff}
+.passWorkspace .tha-output-card .findTop{margin-bottom:0;gap:10px}
+.passWorkspace .tha-output-card h3{font-size:19px;line-height:1.15;letter-spacing:-.015em;color:#0c344e}
+.passWorkspace .tha-output-card .findTop p{margin:5px 0 0;color:#65747e;font-size:13px;font-weight:700}
+.passWorkspace .tha-output-card-toggle{margin-left:auto;flex:0 0 auto;white-space:nowrap}
+.passWorkspace .tha-output-card .findGrid{margin-top:14px;padding-top:13px;border-top:1px solid #e1e8eb}
+.passWorkspace .tha-output-card .findGrid[hidden]{display:none}
+.tha-field-prep{border-color:#cadce6}
+.tha-field-prep>summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tha-field-prep .tha-field-prep-summary{display:inline-flex;padding:5px 8px;border-radius:999px;background:#edf5f8;color:#35566b;font-size:11px;font-weight:900;line-height:1.25}
+.tha-field-prep .tha-field-prep-guide{display:grid;gap:5px;margin:12px 0 14px;padding:13px 14px;border:1px solid #d6e2e8;border-radius:14px;background:#f7fbfd;color:#5b6c76}
+.tha-field-prep .tha-field-prep-guide strong{color:#173e57;font-size:13px;text-transform:uppercase;letter-spacing:.04em}
+.tha-field-prep .tha-field-prep-guide span{font-size:13px;line-height:1.4;font-weight:700}
+.tha-field-prep .intakeSubsection{padding:14px 0;border-top:1px solid #dde7eb}
+.tha-field-prep .intakeSubsection h3{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0;color:#103d58;font-size:17px;line-height:1.2}
+.tha-field-prep .intakeSubsection[data-tha-prep-open="false"] .intakeGrid{display:none}
+.tha-field-prep .intakeSubsection[data-tha-prep-open="false"]{padding-bottom:12px}
+.tha-field-prep .intakeSubsection .intakeGrid{margin-top:12px}
+.tha-field-prep .intakeGrid{align-items:stretch}
+.tha-field-prep .intakeGrid>label{min-height:100%}
+
+/* PASS hierarchy and Intake field-prep polish */
+.passWorkspace .tha-care-item-title{position:relative;display:block;margin-top:2px;padding:1px 0 8px 12px;border-bottom:1px solid #dbe6eb;font-size:22px!important;font-weight:950;line-height:1.14;letter-spacing:-.02em}
+.passWorkspace .tha-care-item-title::before{content:'';position:absolute;left:0;top:3px;bottom:10px;width:4px;border-radius:99px;background:currentColor;opacity:.72}
+.passWorkspace .passReviewCard.workflow-orange .tha-care-item-title{color:#7b3e0d}
+.passWorkspace .passReviewCard.workflow-violet .tha-care-item-title{color:#583b97}
+.passWorkspace .passReviewCard.workflow-green .tha-care-item-title{color:#2f6a2b}
+.passWorkspace .passReviewCard.workflow-gray .tha-care-item-title{color:#27495e}
+.passWorkspace .passReviewCard .passReviewBadgeRow{gap:7px}
+.passWorkspace .passReviewCard .categoryBadge{background:#eef4f7;border-color:#d3e1e7;color:#234e66}
+.passWorkspace .passCategoryHeader{padding:10px 12px;border:1px solid #d6e2e8;border-radius:14px;background:linear-gradient(90deg,#f6fbfd,#ffffff)}
+.passWorkspace .passCategoryHeader .passCategoryTitle h3{font-size:20px}
+.passWorkspace .tha-category-purpose{margin:8px 12px 14px 48px}
+.passWorkspace .tha-readonly-output .collapsibleHeader{border-bottom:1px solid #d6e2e8}
+.passWorkspace .tha-output-rule{display:block;margin-top:5px;color:#62727c;font-size:12px;line-height:1.35;font-weight:750}
+.passWorkspace .tha-pass-output-group{border:1px solid #d6e2e8;border-radius:16px;background:#fbfdfe;padding:0;overflow:hidden}
+.passWorkspace .tha-pass-output-group+.tha-pass-output-group{margin-top:12px}
+.passWorkspace .tha-pass-output-group-header{align-items:center;margin:0;padding:12px 13px;background:#f7fbfd}
+.passWorkspace .tha-pass-output-group-title h3{font-size:19px}
+.passWorkspace .tha-pass-output-group-title p{font-size:12px}
+.passWorkspace .tha-output-section-toggle{margin-left:auto;flex:0 0 auto}
+.passWorkspace .tha-pass-output-card-list{padding:12px;border-top:1px solid #dce7ec}
+.passWorkspace .tha-pass-output-card-list[hidden]{display:none}
+.passWorkspace .tha-output-card{background:#fff}
+.passWorkspace .tha-output-card .tha-care-item-title{font-size:20px!important;color:#103d58}
+.passWorkspace .tha-output-card.tha-output-green{border-left:5px solid #52aa4b;background:#fbfefb}
+.passWorkspace .tha-output-card.tha-output-green .tha-care-item-title{color:#2f6a2b}
+.passWorkspace .tha-output-card.tha-output-green .findTop p::after{content:' · Completed / verified';color:#2f6a2b;font-weight:950}
+.tha-field-prep{background:linear-gradient(180deg,#f6fbfd 0%,#ffffff 100%)}
+.tha-field-prep .tha-field-prep-guide{border-color:#cddfe8;background:#eef7fb}
+.tha-field-prep .intakeSubsection{margin:10px 0;padding:12px;border:1px solid #d5e3ea;border-radius:14px;background:#fff;box-shadow:0 4px 12px rgba(14,61,88,.035)}
+.tha-field-prep .intakeSubsection h3{color:#123f59}
+.tha-field-prep .tha-prep-heading-icon{display:inline-flex;align-items:center;justify-content:center;width:31px;height:31px;margin-right:8px;border-radius:10px;background:#e5f2f7;color:#1f627f;vertical-align:middle}
+.tha-field-prep .tha-prep-heading-icon svg{width:17px;height:17px}
+.tha-field-prep .tha-prep-field-card{padding:11px!important;border:1px solid #d8e5eb!important;border-radius:12px!important;background:#fbfdfe!important;box-shadow:0 2px 8px rgba(14,61,88,.025)}
+.tha-field-prep .tha-prep-field-card .categoryBadge{background:#eaf4f8!important;border-color:#cce0e8!important;color:#1e5874!important}
+.tha-field-prep .tha-prep-field-card .categoryBadge svg{color:#1e5874!important}
+
+@media(max-width:900px){
+  .passWorkspace .tha-review-toolbar{align-items:stretch;display:grid;grid-template-columns:1fr 1fr}
+  .passWorkspace .tha-review-toolbar span{grid-column:1/-1;margin-right:0}
+  .passWorkspace .tha-review-toolbar button{width:100%}
+  .passWorkspace .tha-pass-output-group-header{flex-direction:column}
+  .passWorkspace .tha-pass-output-card-list{grid-template-columns:1fr}
+  .passWorkspace .tha-output-card .findTop{align-items:flex-start;flex-wrap:wrap}
+  .passWorkspace .tha-output-card-toggle{margin-left:0}
+  .tha-field-prep>summary{align-items:flex-start}
+  .tha-field-prep .tha-field-prep-summary{width:100%;border-radius:10px}
+  .tha-field-prep .intakeSubsection h3{align-items:flex-start;flex-direction:column}
+  .tha-field-prep .tha-prep-toggle{width:100%}
+  .passWorkspace .tha-care-item-title{font-size:20px!important}
+  .passWorkspace .passCategoryHeader{align-items:flex-start}
+  .passWorkspace .tha-output-section-toggle{margin-left:0;width:100%}
+  .passWorkspace .tha-pass-output-group-header{align-items:stretch}
+  .tha-field-prep .intakeSubsection h3{gap:8px}
+}
