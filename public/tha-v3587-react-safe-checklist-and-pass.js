@@ -103,11 +103,8 @@
       .intakePage label.thaV3587MustAnswer:not(.thaV3587Answered){border-color:#d06b19!important;border-left-color:#d06b19!important;background:#fff1dc!important;box-shadow:0 0 0 2px rgba(208,107,25,.12)!important}
       .intakePage label.thaV3587MustAnswer.thaV3587Answered{border-color:#5087b3!important;border-left-color:#287bb7!important;background:#eef7fc!important}
 
-      .formPanel{display:flex!important;flex-direction:column!important;min-width:0!important}
-      .formPanel>h1{order:0}
-      .formPanel>.roomCaptureShell{order:10}
-      .formPanel>.checklistToolbar{order:20}
-      .formPanel>.checklistItemCard{order:var(--tha-v3587-order,9999);margin-top:6px!important}
+      .formPanel{min-width:0!important}
+      .formPanel>.checklistItemCard{margin-top:6px!important}
       .formPanel>.checklistItemCard::before{content:''!important;position:absolute!important;top:0!important;bottom:0!important;left:0!important;width:6px!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;display:block!important;pointer-events:none!important}
       .formPanel>.checklistItemCard[data-v3587-first-group]{margin-top:6px!important}
       .formPanel>.checklistItemCard .checklistSummaryRow{padding:9px 11px 9px 17px!important;gap:8px!important;align-items:center!important}
@@ -341,7 +338,6 @@
     polishStart(document.querySelector('.thaV358StartPage'));
     moveIntakeEmailAction();
     decorateClientFacing();
-    decorateChecklist();
     decoratePass();
   }
 
