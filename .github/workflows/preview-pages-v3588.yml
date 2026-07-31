@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  SOURCE_REF: c5e3d493337a2a62b940b52f6d013bd866e8dd75
+  SOURCE_REF: a852a8423b3f872c7c7bf549379a9859705120e5
 
 jobs:
   publish:
