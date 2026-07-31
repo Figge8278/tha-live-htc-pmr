@@ -10,6 +10,7 @@
   const RESOURCE_MIGRATION_KEY = 'tha-v359-resource-default-migrations';
 
   const text = value => String(value ?? '').replace(/\s+/g, ' ').trim();
+  const setText = (node, value) => { if (node && text(node.textContent) !== text(value)) node.textContent = value; };
   const object = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const read = (key, fallback) => {
     try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; }
@@ -85,9 +86,9 @@
     style.textContent = `
       .walkthroughControlsPanel{display:none!important}
       .thaV359StartPage{display:none;max-width:1220px;margin:0 auto;padding:14px 18px 32px;background:#f5f1e9}
-      .app.thaV359StartActive>.thaV359StartPage{display:block!important}
-      .app.thaV359StartActive>*:not(.topbar):not(.thaV359StartPage){display:none!important}
-      .app:not(.thaV359StartActive)>.thaV359StartPage{display:none!important}
+      body.thaV359StartActive>.thaV359StartPage{display:block!important}
+      body.thaV359StartActive .app>*:not(.topbar){display:none!important}
+      body:not(.thaV359StartActive)>.thaV359StartPage{display:none!important}
       .thaV359StartShell{display:grid;gap:12px}
       .thaV359IdentityBar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid #d7dfd8;border-radius:14px;background:#fff;padding:8px 11px;box-shadow:0 4px 12px rgba(31,50,39,.05)}
       .thaV359IdentityBar strong,.thaV359IdentityBar span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.thaV359IdentityBar strong{color:#173f2c;font-size:12px}.thaV359IdentityBar span{color:#6b7770;font-size:9px}.thaV359IdentityPills{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.thaV359IdentityPills i{font-style:normal;border:1px solid #dce4de;border-radius:999px;background:#f7faf7;color:#506057;padding:4px 7px;font-size:8px;font-weight:900}
@@ -153,8 +154,8 @@
   }
   function setStart(active) {
     localStorage.setItem(START_KEY, active ? 'true' : 'false');
-    const app = document.querySelector('.app');
-    app?.classList.toggle('thaV359StartActive', active);
+    document.body?.classList.toggle('thaV359StartActive', active);
+    document.querySelector('.app')?.classList.remove('thaV359StartActive');
     if (active) setTimeout(() => window.scrollTo({ top:0, behavior:'smooth' }), 20);
   }
 
@@ -243,12 +244,12 @@
       nav.prepend(startButton);
     }
 
-    let page = app.querySelector(':scope > .thaV359StartPage');
+    let page = document.body.querySelector(':scope > .thaV359StartPage');
     if (!page) {
       page = document.createElement('main');
       page.className = 'thaV359StartPage noPrint';
       page.innerHTML = `<div class="thaV359StartShell"><section class="thaV359IdentityBar"><div><strong data-v359-address>Property not selected</strong><span data-v359-client>Client pending · Visit pending</span></div><div class="thaV359IdentityPills"><i data-v359-session>No active session</i><i data-v359-drive>Drive not connected</i></div></section><section class="thaV359Begin"><header class="thaV359BeginHeader"><h2>Choose your first step</h2><span>Select one</span></header><div class="thaV359Paths"><article class="thaV359Path blank"><span class="thaV359PathIcon">＋</span><h3>Start Blank</h3><p>New Snapshot identity setup</p><button type="button" data-v359-path="blank">Set up</button></article><article class="thaV359Path local"><span class="thaV359PathIcon">↻</span><h3>Continue on This Device</h3><p>Saved walkthroughs only</p><button type="button" data-v359-path="local">Choose</button></article><article class="thaV359Path existing"><span class="thaV359PathIcon">⇩</span><h3>Use Existing Information</h3><p>Drive, prior Snapshot, or homeowner intake</p><button type="button" data-v359-path="existing">Open sources</button></article></div></section><section class="thaV359Workspace" hidden><header class="thaV359WorkspaceHeader"><div><h3>Start</h3><p></p></div><button type="button" data-v359-close>Close</button></header><div class="thaV359WorkspaceBody"></div></section></div>`;
-      topbar.after(page);
+      document.body.append(page);
     }
 
     let compact = app.querySelector(':scope > .thaV359CompactBar');
@@ -260,7 +261,8 @@
     }
 
     const active = localStorage.getItem(START_KEY);
-    app.classList.toggle('thaV359StartActive', active === null ? true : active === 'true');
+    document.body.classList.toggle('thaV359StartActive', active === null ? true : active === 'true');
+    app.classList.remove('thaV359StartActive');
     return { app, nav, page, compact };
   }
 
@@ -273,13 +275,13 @@
     const clientLine = [text(client.name) || 'Client pending', text(client.date) || 'Visit pending'].join(' · ');
     const sessionName = text(data.walkthroughName || session?.name) || 'No active session';
     const drive = driveState();
-    page.querySelector('[data-v359-address]').textContent = address;
-    page.querySelector('[data-v359-client]').textContent = clientLine;
-    page.querySelector('[data-v359-session]').textContent = sessionName;
-    page.querySelector('[data-v359-drive]').textContent = drive;
-    compact.querySelector('[data-v359-compact-address]').textContent = address;
-    compact.querySelector('[data-v359-compact-client]').textContent = clientLine;
-    compact.querySelector('[data-v359-compact-save]').textContent = session?.updatedAt ? `Autosaved ${dateLabel(session.updatedAt)}` : 'Autosave ready';
+    setText(page.querySelector('[data-v359-address]'), address);
+    setText(page.querySelector('[data-v359-client]'), clientLine);
+    setText(page.querySelector('[data-v359-session]'), sessionName);
+    setText(page.querySelector('[data-v359-drive]'), drive);
+    setText(compact.querySelector('[data-v359-compact-address]'), address);
+    setText(compact.querySelector('[data-v359-compact-client]'), clientLine);
+    setText(compact.querySelector('[data-v359-compact-save]'), session?.updatedAt ? `Autosaved ${dateLabel(session.updatedAt)}` : 'Autosave ready');
   }
 
   function addClientFacingBadge(label, mustAnswer, customText = '') {
@@ -292,7 +294,7 @@
       badge.className = 'thaV359ClientFacingBadge';
       label.prepend(badge);
     }
-    badge.textContent = customText || (mustAnswer ? 'Must answer · PMR reference' : 'Client-facing PMR wording');
+    setText(badge, customText || (mustAnswer ? 'Must answer · PMR reference' : 'Client-facing PMR wording'));
     const field = label.querySelector('input,textarea,select');
     label.classList.toggle('thaV359Answered', Boolean(text(field?.value)));
   }
@@ -386,7 +388,7 @@
           chip.className = 'thaV359CategoryChip';
           titleLine.append(chip);
         }
-        if (chip) chip.textContent = meta.label;
+        if (chip) setText(chip, meta.label);
         if (rule?.resourceLabel) card.querySelectorAll('.checklistSummaryMain>span:last-child,.expandedItemHead>div>p').forEach(node => setResourceLine(node, rule.resourceLabel));
         migrateResourceDefault(card, rule, roomLabel);
         card.querySelectorAll('.checklistDetailPanel label.notes').forEach(label => {
@@ -397,7 +399,7 @@
         if (/Room Note \/ Voice Transcript/i.test(text(label.textContent))) addClientFacingBadge(label, false, 'PMR wording when this room overview is included');
       });
       const copy = panel.querySelector('.checklistToolbar .lede');
-      if (copy) copy.textContent = 'System/category is shown on each compact row. Changing status or resource will not move the item.';
+      if (copy) setText(copy, 'System/category is shown on each compact row. Changing status or resource will not move the item.');
     });
   }
 
