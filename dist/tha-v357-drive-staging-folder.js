@@ -1,0 +1,10 @@
+(() => {
+  const SESSION_KEY='tha-walkthrough-sessions';
+  const CURRENT_ID_KEY='tha-current-walkthrough-id';
+  const innerFetch=window.fetch.bind(window);
+  const clean=value=>String(value||'').trim().replace(/[\\/:*?"<>|]/g,'-').replace(/\s+/g,' ').slice(0,90)||'Untitled';
+  const read=()=>{try{const sessions=JSON.parse(localStorage.getItem(SESSION_KEY)||'{}');const id=localStorage.getItem(CURRENT_ID_KEY)||'';return(id&&sessions[id]?.data?sessions[id]:null)||Object.values(sessions).filter(item=>item?.data).sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')))[0]||null}catch{return null}};
+  function names(){const session=read()||{};const client=session.data?.client||{};const expected=clean(`${client.date||'Walkthrough Date - Visit Label'} - ${client.name||'Client Name'} - ${client.address||'Project Address'}`);const bucket=Math.floor(Date.now()/60000);const staging=clean(`THA Export Staging - ${session.id||'session'} - ${bucket}`);return{expected,staging}}
+  function replaceNameInUrl(raw){if(typeof raw!=='string'||!raw.includes('googleapis.com/drive/v3/files'))return raw;let url;try{url=new URL(raw)}catch{return raw}const q=url.searchParams.get('q');if(!q)return raw;const{expected,staging}=names();if(!q.includes(`name='${expected}'`))return raw;url.searchParams.set('q',q.replace(`name='${expected}'`,`name='${staging}'`));return url.toString()}
+  window.fetch=async function(input,init={}){let url=typeof input==='string'?input:input?.url;const method=(init.method||input?.method||'GET').toUpperCase();if(method==='GET'){const next=replaceNameInUrl(url);if(next!==url){url=next;input=typeof input==='string'?next:new Request(next,input)}}if(method==='POST'&&typeof url==='string'&&url.includes('googleapis.com/drive/v3/files')&&!url.includes('/upload/')&&init.body){try{const metadata=JSON.parse(init.body);const{expected,staging}=names();if(metadata.mimeType==='application/vnd.google-apps.folder'&&metadata.name===expected){metadata.name=staging;init={...init,body:JSON.stringify(metadata)}}}catch{}}return innerFetch(input,init)};
+})();
