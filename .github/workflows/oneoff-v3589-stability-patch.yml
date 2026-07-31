@@ -1,0 +1,90 @@
+name: One-off V3.58.9 stability patch
+
+on:
+  push:
+    branches:
+      - feature/v3-58-native-start-snapshot-management
+    paths:
+      - .github/workflows/oneoff-v3589-stability-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/v3-58-native-start-snapshot-management
+          fetch-depth: 0
+
+      - name: Apply self-mutation and React-boundary corrections
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('public/tha-v3589-stability-intake-cleanup.js')
+          source = path.read_text()
+
+          replacements = [
+            (
+              "  const text = value => String(value ?? '').replace(/\\s+/g, ' ').trim();\n",
+              "  const text = value => String(value ?? '').replace(/\\s+/g, ' ').trim();\n  const setText = (node, value) => { if (node && text(node.textContent) !== text(value)) node.textContent = value; };\n"
+            ),
+            (
+              ".app.thaV359StartActive>.thaV359StartPage{display:block!important}\n      .app.thaV359StartActive>*:not(.topbar):not(.thaV359StartPage){display:none!important}\n      .app:not(.thaV359StartActive)>.thaV359StartPage{display:none!important}",
+              "body.thaV359StartActive>.thaV359StartPage{display:block!important}\n      body.thaV359StartActive .app>*:not(.topbar){display:none!important}\n      body:not(.thaV359StartActive)>.thaV359StartPage{display:none!important}"
+            ),
+            (
+              "    const app = document.querySelector('.app');\n    app?.classList.toggle('thaV359StartActive', active);",
+              "    document.body?.classList.toggle('thaV359StartActive', active);\n    document.querySelector('.app')?.classList.remove('thaV359StartActive');"
+            ),
+            (
+              "    let page = app.querySelector(':scope > .thaV359StartPage');",
+              "    let page = document.body.querySelector(':scope > .thaV359StartPage');"
+            ),
+            (
+              "      topbar.after(page);",
+              "      document.body.append(page);"
+            ),
+            (
+              "    app.classList.toggle('thaV359StartActive', active === null ? true : active === 'true');",
+              "    document.body.classList.toggle('thaV359StartActive', active === null ? true : active === 'true');\n    app.classList.remove('thaV359StartActive');"
+            ),
+            (
+              "    page.querySelector('[data-v359-address]').textContent = address;\n    page.querySelector('[data-v359-client]').textContent = clientLine;\n    page.querySelector('[data-v359-session]').textContent = sessionName;\n    page.querySelector('[data-v359-drive]').textContent = drive;\n    compact.querySelector('[data-v359-compact-address]').textContent = address;\n    compact.querySelector('[data-v359-compact-client]').textContent = clientLine;\n    compact.querySelector('[data-v359-compact-save]').textContent = session?.updatedAt ? `Autosaved ${dateLabel(session.updatedAt)}` : 'Autosave ready';",
+              "    setText(page.querySelector('[data-v359-address]'), address);\n    setText(page.querySelector('[data-v359-client]'), clientLine);\n    setText(page.querySelector('[data-v359-session]'), sessionName);\n    setText(page.querySelector('[data-v359-drive]'), drive);\n    setText(compact.querySelector('[data-v359-compact-address]'), address);\n    setText(compact.querySelector('[data-v359-compact-client]'), clientLine);\n    setText(compact.querySelector('[data-v359-compact-save]'), session?.updatedAt ? `Autosaved ${dateLabel(session.updatedAt)}` : 'Autosave ready');"
+            ),
+            (
+              "    badge.textContent = customText || (mustAnswer ? 'Must answer · PMR reference' : 'Client-facing PMR wording');",
+              "    setText(badge, customText || (mustAnswer ? 'Must answer · PMR reference' : 'Client-facing PMR wording'));"
+            ),
+            (
+              "        if (chip) chip.textContent = meta.label;",
+              "        if (chip) setText(chip, meta.label);"
+            ),
+            (
+              "      if (copy) copy.textContent = 'System/category is shown on each compact row. Changing status or resource will not move the item.';",
+              "      if (copy) setText(copy, 'System/category is shown on each compact row. Changing status or resource will not move the item.');"
+            )
+          ]
+
+          for old, new in replacements:
+            if old not in source:
+              raise SystemExit(f'Missing expected source block: {old[:100]!r}')
+            source = source.replace(old, new, 1)
+
+          path.write_text(source)
+          Path('.github/workflows/oneoff-v3589-stability-patch.yml').unlink()
+
+      - name: Validate patched browser script
+        run: node --check public/tha-v3589-stability-intake-cleanup.js
+
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "V3.58.9: isolate Start from React and stop self-mutation loops"
+          git push origin HEAD:feature/v3-58-native-start-snapshot-management
