@@ -71,8 +71,6 @@
     if (!drawer || drawer.dataset.v35886Opened === 'true') return;
     drawer.dataset.v35886Opened = 'true';
     drawer.open = true;
-    const subtitle = drawer.querySelector('.tha-v53-need-title small');
-    if (subtitle) subtitle.textContent = 'Fast-access locations for urgent homeowner or service needs.';
   }
 
   function run() {
