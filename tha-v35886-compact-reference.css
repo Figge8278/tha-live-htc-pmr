@@ -55,7 +55,8 @@ main.pmr:not(.passWorkspace) .tha-v53-need-to-know{
 }
 .tha-v53-need-to-know summary{background:#fff3c7!important;padding:13px 14px!important}
 .tha-v53-need-title strong{color:#62440f!important;font-size:17px!important}
-.tha-v53-need-title small{color:#745b20!important;font-weight:800!important}
+.tha-v53-need-title small{color:#745b20!important;font-size:0!important;font-weight:800!important}
+.tha-v53-need-title small::after{content:'Fast-access locations for urgent homeowner or service needs.';font-size:12px!important;line-height:1.35!important}
 .tha-v53-need-chip{
   border-color:#d06b19!important;
   background:#fff1dc!important;
