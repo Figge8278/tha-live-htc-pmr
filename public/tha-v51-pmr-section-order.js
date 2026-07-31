@@ -14,8 +14,8 @@
     const style = document.createElement('style');
     style.id = STYLE_ID;
     style.textContent = `
-      /* V3.51: PMR order is homeowner review first, then PMCP/PASS. */
-      main.pmr:not(.passWorkspace) [data-tha-v51-ordered="room-trade-before-pmcp"]{
+      /* V3.51: PMR closes with findings detail, homeowner plan/context, then THA action items. */
+      main.pmr:not(.passWorkspace) [data-tha-v51-ordered="pmr-closing-sequence"]{
         scroll-margin-top:90px;
       }
       main.pmr:not(.passWorkspace) .passCalendar,
@@ -72,10 +72,29 @@
       })[0] || null;
   }
 
+  function markOrdered(section) {
+    if (section) section.dataset.thaV51Ordered = 'pmr-closing-sequence';
+  }
+
   function moveBefore(anchor, section) {
     if (!anchor || !section || anchor === section || !anchor.parentNode) return false;
+    if (section.nextElementSibling === anchor) {
+      markOrdered(section);
+      return false;
+    }
     anchor.parentNode.insertBefore(section, anchor);
-    section.dataset.thaV51Ordered = 'room-trade-before-pmcp';
+    markOrdered(section);
+    return true;
+  }
+
+  function moveAfter(anchor, section) {
+    if (!anchor || !section || anchor === section || !anchor.parentNode) return false;
+    if (anchor.nextElementSibling === section) {
+      markOrdered(section);
+      return false;
+    }
+    anchor.parentNode.insertBefore(section, anchor.nextElementSibling);
+    markOrdered(section);
     return true;
   }
 
@@ -93,27 +112,49 @@
     );
     const firstPmcp = firstInDocumentOrder(pmcpSections);
 
-    if (!firstPmcp) return;
+    if (firstPmcp) {
+      // Preserve the established findings order before the homeowner care material.
+      if (tradeSection) moveBefore(firstPmcp, tradeSection);
+      const currentFirstPmcp = firstInDocumentOrder(findAllSections(
+        pmr,
+        [/preventive maintenance care plan/i, /preventative maintenance care plan/i, /PMCP/i, /PASS maintenance calendar/i, /PASS continued care/i, /continued care outlook/i],
+        '.passCalendar,.passOutlook,.passPlanSummary,.tha-pmcp-timing-panel'
+      ));
+      if (roomSection && currentFirstPmcp) moveBefore(currentFirstPmcp, roomSection);
+    }
 
-    // Insert in final order: Room-by-room, then trade-by-trade, then PMCP/PASS.
-    if (tradeSection) moveBefore(firstPmcp, tradeSection);
-    const currentFirstPmcp = firstInDocumentOrder(findAllSections(
-      pmr,
-      [/preventive maintenance care plan/i, /preventative maintenance care plan/i, /PMCP/i, /PASS maintenance calendar/i, /PASS continued care/i, /continued care outlook/i],
-      '.passCalendar,.passOutlook,.passPlanSummary,.tha-pmcp-timing-panel'
-    ));
-    if (roomSection && currentFirstPmcp) moveBefore(currentFirstPmcp, roomSection);
-
-    // If both were moved, guarantee room stays immediately before trade when possible.
     if (roomSection && tradeSection && tradeSection.parentNode === pmr && roomSection.nextElementSibling !== tradeSection) {
       pmr.insertBefore(roomSection, tradeSection);
-      roomSection.dataset.thaV51Ordered = 'room-trade-before-pmcp';
+      markOrdered(roomSection);
     }
+
+    // Required closing sequence:
+    // Trade-by-Trade → Detail Appendix → Preventative Maintenance Care Plan
+    // → Homeowner Goals & Intake Context → THA Action Items.
+    const detailAppendix = findSection(pmr, [/detail appendix/i], '.detailAppendix');
+    const carePlan = findSection(pmr, [/preventive maintenance care plan/i, /preventative maintenance care plan/i], '.passPlanSummary');
+    const homeownerContext = findSection(pmr, [/homeowner goals.*intake context/i], '.intakeSummary');
+    const thaActionItems = findSection(pmr, [/THA action/i], '.pmrInternalActionList');
+
+    let cursor = tradeSection;
+    [detailAppendix, carePlan, homeownerContext, thaActionItems].forEach(section => {
+      if (!cursor || !section) return;
+      moveAfter(cursor, section);
+      cursor = section;
+    });
+  }
+
+  function correctPassTitle() {
+    const eyebrow = document.querySelector('main.passWorkspace .pmrHeader .eyebrow');
+    if (!eyebrow) return;
+    const corrected = 'PASS — Precision Annual & Seasonal Services';
+    if (textOf(eyebrow) !== corrected) eyebrow.textContent = corrected;
   }
 
   function sync() {
     installStyles();
     orderPmrSections();
+    correctPassTitle();
   }
 
   let scheduled = false;
