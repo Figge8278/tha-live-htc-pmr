@@ -1,2 +1,4 @@
-Temporary short-branch Vercel preview trigger for V3.58.8.
-Source commit: 9e23be73e9c5c1eea10f96c2384162fe16d83e61
+Public no-login THA Snapshot preview trigger.
+Source branch: feature/v3-58-native-start-snapshot-management
+Source commit: c5e3d493337a2a62b940b52f6d013bd866e8dd75
+Requested: 2026-07-31 public external review link
