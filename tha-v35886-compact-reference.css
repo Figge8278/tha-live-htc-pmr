@@ -1,0 +1,85 @@
+/* V3.58.8.6 preview-only static mirror of the accepted source corrections. */
+.htcCategoryHeader{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:7px!important;
+  width:max-content!important;
+  max-width:calc(100% - 20px)!important;
+  margin:15px auto 5px!important;
+  padding:5px 10px!important;
+  border:1px solid #cfdce2!important;
+  border-left:1px solid #cfdce2!important;
+  border-radius:999px!important;
+  background:#edf3f6!important;
+  color:#0b3658!important;
+  box-shadow:none!important;
+  text-align:center!important;
+}
+.htcCategoryTitle{display:flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;min-width:0!important}
+.htcCategoryTitle .passCategoryIcon{width:24px!important;height:24px!important;min-width:24px!important;border-radius:8px!important}
+.htcCategoryTitle .passCategoryIcon svg{width:13px!important;height:13px!important}
+.htcCategoryTitle h2{margin:0!important;font-size:12px!important;line-height:1.15!important;color:#0b3658!important;letter-spacing:.01em!important}
+.htcCategoryHeader>span{color:#65727d!important;font-size:9px!important;font-weight:900!important;white-space:nowrap!important;padding-left:7px!important;border-left:1px solid #cbd8de!important}
+.htcCategoryHeader+.checklistItemCard{margin-top:0!important}
+
+/* Retire generic completion badges; show only unresolved must-answer alerts. */
+.tha-prep-completion{display:none!important}
+.tha-v35886-required-alert,
+.tha-v35886-lane-alert{
+  display:none;
+  margin-left:auto;
+  border:1px solid #d06b19;
+  border-radius:999px;
+  background:#fff1dc;
+  color:#8a4812;
+  padding:5px 8px;
+  font-size:10px;
+  font-weight:950;
+  line-height:1;
+  white-space:nowrap;
+  box-shadow:0 0 0 2px rgba(208,107,25,.1);
+}
+.cleanFieldPrep .intakeSubsection.cleanCollapsed .tha-v35886-required-alert{display:inline-flex;align-items:center}
+.cleanFieldPrep:not([open])>summary .tha-v35886-lane-alert{display:inline-flex;align-items:center}
+
+/* Fast-reference PMR treatment: unresolved orange, recorded blue. */
+main.pmr:not(.passWorkspace) .tha-v53-need-to-know{
+  border:1px solid #e4b35c!important;
+  border-left:7px solid #d49a1f!important;
+  border-radius:18px!important;
+  background:#fff8df!important;
+  margin:14px 0 18px!important;
+  overflow:hidden!important;
+  box-shadow:0 8px 20px rgba(212,154,31,.12)!important;
+}
+.tha-v53-need-to-know summary{background:#fff3c7!important;padding:13px 14px!important}
+.tha-v53-need-title strong{color:#62440f!important;font-size:17px!important}
+.tha-v53-need-title small{color:#745b20!important;font-weight:800!important}
+.tha-v53-need-chip{
+  border-color:#d06b19!important;
+  background:#fff1dc!important;
+  color:#8a4812!important;
+}
+.tha-v53-need-chip.recorded{
+  border-color:#5087b3!important;
+  background:#edf6fc!important;
+  color:#245f8a!important;
+}
+.tha-v53-need-body{border-top:1px solid #e4b35c!important;background:#fffdf5!important}
+.tha-v53-reference-field{
+  border:1px solid #d06b19!important;
+  border-left:5px solid #d06b19!important;
+  background:#fff1dc!important;
+}
+.tha-v53-reference-field.recorded{
+  border-color:#5087b3!important;
+  border-left-color:#287bb7!important;
+  background:#edf6fc!important;
+}
+.tha-v53-reference-field.empty strong{color:#8a4812!important;font-style:italic!important}
+
+@media(max-width:900px){
+  .htcCategoryHeader{max-width:calc(100% - 8px)!important;flex-wrap:wrap!important}
+  .htcCategoryHeader>span{white-space:normal!important}
+}
