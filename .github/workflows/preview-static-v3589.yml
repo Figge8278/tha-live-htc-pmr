@@ -1,0 +1,76 @@
+name: Publish V3.58.9 Static Preview
+
+on:
+  push:
+    branches:
+      - preview-v3589
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: v3589-static-preview
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out preview branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build with immutable relative paths
+        run: npm run build -- --base=./
+
+      - name: Publish built files to isolated static branch
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/tha-v3589-site
+          mkdir -p /tmp/tha-v3589-site
+          cp -a dist/. /tmp/tha-v3589-site/
+          touch /tmp/tha-v3589-site/.nojekyll
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan preview-v3589-static
+          git rm -rf --cached . >/dev/null 2>&1 || true
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a /tmp/tha-v3589-site/. .
+          git add -A
+          git commit -m "Publish V3.58.9 static preview from ${GITHUB_SHA}"
+          STATIC_SHA="$(git rev-parse HEAD)"
+          git push --force origin HEAD:preview-v3589-static
+          echo "static_sha=${STATIC_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Report static preview result
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          PUBLISH_RESULT: ${{ steps.publish.outcome }}
+          STATIC_SHA: ${{ steps.publish.outputs.static_sha }}
+        with:
+          script: |
+            const sha = process.env.STATIC_SHA || '';
+            const url = sha
+              ? `https://rawcdn.githack.com/${context.repo.owner}/${context.repo.repo}/${sha}/index.html`
+              : '(no public URL produced)';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 75,
+              body: `Final V3.58.9 static preview report — publish: ${process.env.PUBLISH_RESULT}; URL: ${url}; run: ${runUrl}`
+            });
